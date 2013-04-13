@@ -1,0 +1,325 @@
+########################## Please read the description of the data files in https://www.kaggle.com/c/DarkWorlds/data
+##########################
+########################## 
+########################## 
+
+train.halos<-read.table("Training_halos.csv",sep=",",header=T,row.names=1)
+train.halos<-as.matrix(train.halos)
+
+###############################
+###############################
+###############################
+############################ Creating images for the 300 training skies
+
+images.e1<-matrix(0,300,140**2)
+images.e2<-matrix(0,300,140**2)
+images.sq.e1<-matrix(0,300,140**2)
+images.sq.e2<-matrix(0,300,140**2)
+images.e1.e2<-matrix(0,300,140**2)
+for (i.sky in 1:300){
+sky1<-read.table(paste("Training_Sky",i.sky,".csv",sep=""),sep=",",header=T,row.names=1)
+
+my.image.e1<-matrix(0,140,140)
+my.image.e2<-matrix(0,140,140)
+my.image.sq.e1<-matrix(0,140,140)
+my.image.sq.e2<-matrix(0,140,140)
+my.image.e1.e2<-matrix(0,140,140)
+x0<-seq(15,4185,30)
+y0<-seq(15,4185,30)
+ for (i.x0 in 1:140){
+  for (i.y0 in 1:140){
+  xp<-c(x0[i.x0],y0[i.y0])
+  dist.g.p<-sqrt((sky1[,1]-xp[1])**2+(sky1[,2]-xp[2])**2)
+   weigh.d<-dnorm(dist.g.p,0,1000)  
+   my.image.e1[i.x0,i.y0]<-weighted.mean(sky1[,3],w=weigh.d)
+   my.image.e2[i.x0,i.y0]<-weighted.mean(sky1[,4],w=weigh.d)
+   my.image.sq.e1[i.x0,i.y0]<-weighted.mean(sky1[,3]**2,w=weigh.d)-my.image.e1[i.x0,i.y0]**2
+   my.image.sq.e2[i.x0,i.y0]<-weighted.mean(sky1[,4]**2,w=weigh.d)-my.image.e2[i.x0,i.y0]**2
+   my.image.e1.e2[i.x0,i.y0]<-weighted.mean(sky1[,3]*sky1[,4],w=weigh.d)-my.image.e1[i.x0,i.y0]*my.image.e2[i.x0,i.y0]  
+  }
+#print(i.x0)
+ }
+images.e1[i.sky,]<-as.vector(my.image.e1)
+images.e2[i.sky,]<-as.vector(my.image.e2)
+images.sq.e1[i.sky,]<-as.vector(my.image.sq.e1)
+images.sq.e2[i.sky,]<-as.vector(my.image.sq.e2)
+images.e1.e2[i.sky,]<-as.vector(my.image.e1.e2)
+print(i.sky)
+}
+
+### 
+### to see an image (example)
+image(matrix(images.e1.e2[1,],140,140))
+
+
+########################################
+############################  Creating images for the 120 test skies
+
+images.test.e1<-matrix(0,120,140**2)
+images.test.e2<-matrix(0,120,140**2)
+images.test.sq.e1<-matrix(0,120,140**2)
+images.test.sq.e2<-matrix(0,120,140**2)
+images.test.e1.e2<-matrix(0,120,140**2)
+for (i.sky in 1:120){
+sky1<-read.table(paste("Test_Sky",i.sky,".csv",sep=""),sep=",",header=T,row.names=1)
+
+my.image.e1<-matrix(0,140,140)
+my.image.e2<-matrix(0,140,140)
+my.image.sq.e1<-matrix(0,140,140)
+my.image.sq.e2<-matrix(0,140,140)
+my.image.e1.e2<-matrix(0,140,140)
+x0<-seq(15,4185,30)
+y0<-seq(15,4185,30)
+ for (i.x0 in 1:140){
+  for (i.y0 in 1:140){
+  xp<-c(x0[i.x0],y0[i.y0])
+  dist.g.p<-sqrt((sky1[,1]-xp[1])**2+(sky1[,2]-xp[2])**2)
+   weigh.d<-dnorm(dist.g.p,0,1000)
+   my.image.e1[i.x0,i.y0]<-weighted.mean(sky1[,3],w=weigh.d)
+   my.image.e2[i.x0,i.y0]<-weighted.mean(sky1[,4],w=weigh.d)
+   my.image.sq.e1[i.x0,i.y0]<-weighted.mean(sky1[,3]**2,w=weigh.d)-my.image.e1[i.x0,i.y0]**2
+   my.image.sq.e2[i.x0,i.y0]<-weighted.mean(sky1[,4]**2,w=weigh.d)-my.image.e2[i.x0,i.y0]**2
+   my.image.e1.e2[i.x0,i.y0]<-weighted.mean(sky1[,3]*sky1[,4],w=weigh.d)-my.image.e1[i.x0,i.y0]*my.image.e2[i.x0,i.y0]  
+  }
+#print(i.x0)
+ }
+images.test.e1[i.sky,]<-as.vector(my.image.e1)
+images.test.e2[i.sky,]<-as.vector(my.image.e2)
+images.test.sq.e1[i.sky,]<-as.vector(my.image.sq.e1)
+images.test.sq.e2[i.sky,]<-as.vector(my.image.sq.e2)
+images.test.e1.e2[i.sky,]<-as.vector(my.image.e1.e2)
+print(i.sky)
+}
+
+##### extracting information about minima and maxima from the images (training set)
+
+X.Mm<-matrix(0,300,36)
+for (i.s in 1:300){
+ aux<-which.max(images.e1[i.s,])
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ X.Mm[i.s,1]<-aux.l*30-15                      
+ X.Mm[i.s,2]<-aux.c*30-15
+ X.Mm[i.s,3]<-max(images.e1[i.s,])
+ aux<-which.max(images.e2[i.s,])
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ X.Mm[i.s,4]<-aux.l*30-15
+ X.Mm[i.s,5]<-aux.c*30-15
+ X.Mm[i.s,6]<-max(images.e2[i.s,])
+ aux<-which.max(images.sq.e1[i.s,])
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ X.Mm[i.s,7]<-aux.l*30-15                      
+ X.Mm[i.s,8]<-aux.c*30-15
+ X.Mm[i.s,9]<-max(images.sq.e1[i.s,])
+ aux<-which.max(images.sq.e2[i.s,])
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ X.Mm[i.s,10]<-aux.l*30-15
+ X.Mm[i.s,11]<-aux.c*30-15
+ X.Mm[i.s,12]<-max(images.sq.e2[i.s,])
+ aux<-which.max(images.sq.e1[i.s,]+images.sq.e2[i.s,])
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ X.Mm[i.s,13]<-aux.l*30-15                      
+ X.Mm[i.s,14]<-aux.c*30-15
+ X.Mm[i.s,15]<-max(images.sq.e1[i.s,]+images.sq.e2[i.s,])
+ aux<-which.max(abs(images.sq.e1[i.s,]-images.sq.e2[i.s,]))
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ X.Mm[i.s,16]<-aux.l*30-15
+ X.Mm[i.s,17]<-aux.c*30-15
+ X.Mm[i.s,18]<-max(abs(images.sq.e1[i.s,]-images.sq.e2[i.s,]))
+
+ aux<-which.min(images.e1[i.s,])
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ X.Mm[i.s,19]<-aux.l*30-15                      
+ X.Mm[i.s,20]<-aux.c*30-15
+ X.Mm[i.s,21]<-min(images.e1[i.s,])
+ aux<-which.min(images.e2[i.s,])
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ X.Mm[i.s,22]<-aux.l*30-15
+ X.Mm[i.s,23]<-aux.c*30-15
+ X.Mm[i.s,24]<-min(images.e2[i.s,])
+ aux<-which.min(images.sq.e1[i.s,])
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ X.Mm[i.s,25]<-aux.l*30-15                      
+ X.Mm[i.s,26]<-aux.c*30-15
+ X.Mm[i.s,27]<-min(images.sq.e1[i.s,])
+ aux<-which.min(images.sq.e2[i.s,])
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ X.Mm[i.s,28]<-aux.l*30-15
+ X.Mm[i.s,29]<-aux.c*30-15
+ X.Mm[i.s,30]<-min(images.sq.e2[i.s,])
+ aux<-which.min(images.sq.e1[i.s,]+images.sq.e2[i.s,])
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ X.Mm[i.s,31]<-aux.l*30-15                      
+ X.Mm[i.s,32]<-aux.c*30-15
+ X.Mm[i.s,33]<-min(images.sq.e1[i.s,]+images.sq.e2[i.s,])
+ aux<-which.min(abs(images.sq.e1[i.s,]-images.sq.e2[i.s,]))
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ X.Mm[i.s,34]<-aux.l*30-15
+ X.Mm[i.s,35]<-aux.c*30-15
+ X.Mm[i.s,36]<-min(abs(images.sq.e1[i.s,]-images.sq.e2[i.s,]))
+}
+
+colnames(X.Mm)<-c("Me1x","Me1y","Me1z","Me2x","Me2y","Me2z","Msqe1x","Msqe1y","Msqe1z","Msqe2x","Msqe2y","Msqe2z", "Mse1e2x","Mse1e2y","Mse1e2z","Mde1e2x","Mde1e2y","Mde1e2z", "me1x","me1y","me1z","me2x","me2y","me2z","msqe1x","msqe1y","msqe1z","msqe2x","msqe2y","msqe2z", "mse1e2x","mse1e2y","mse1e2z","mde1e2x","mde1e2y","mde1e2z")
+
+X.Mm<-scale(X.Mm,scale=F)
+
+##### idem for the test set
+
+Xt.Mm<-matrix(0,120,36)
+for (i.s in 1:120){
+ aux<-which.max(images.test.e1[i.s,])
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ Xt.Mm[i.s,1]<-aux.l*30-15                      
+ Xt.Mm[i.s,2]<-aux.c*30-15
+ Xt.Mm[i.s,3]<-max(images.test.e1[i.s,])
+ aux<-which.max(images.test.e2[i.s,])
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ Xt.Mm[i.s,4]<-aux.l*30-15
+ Xt.Mm[i.s,5]<-aux.c*30-15
+ Xt.Mm[i.s,6]<-max(images.test.e2[i.s,])
+ aux<-which.max(images.test.sq.e1[i.s,])
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ Xt.Mm[i.s,7]<-aux.l*30-15                      
+ Xt.Mm[i.s,8]<-aux.c*30-15
+ Xt.Mm[i.s,9]<-max(images.test.sq.e1[i.s,])
+ aux<-which.max(images.test.sq.e2[i.s,])
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ Xt.Mm[i.s,10]<-aux.l*30-15
+ Xt.Mm[i.s,11]<-aux.c*30-15
+ Xt.Mm[i.s,12]<-max(images.test.sq.e2[i.s,])
+ aux<-which.max(images.test.sq.e1[i.s,]+images.test.sq.e2[i.s,])
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ Xt.Mm[i.s,13]<-aux.l*30-15                      
+ Xt.Mm[i.s,14]<-aux.c*30-15
+ Xt.Mm[i.s,15]<-max(images.test.sq.e1[i.s,]+images.test.sq.e2[i.s,])
+ aux<-which.max(abs(images.test.sq.e1[i.s,]-images.test.sq.e2[i.s,]))
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ Xt.Mm[i.s,16]<-aux.l*30-15
+ Xt.Mm[i.s,17]<-aux.c*30-15
+ Xt.Mm[i.s,18]<-max(abs(images.test.sq.e1[i.s,]-images.test.sq.e2[i.s,]))
+
+ aux<-which.min(images.test.e1[i.s,])
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ Xt.Mm[i.s,19]<-aux.l*30-15                      
+ Xt.Mm[i.s,20]<-aux.c*30-15
+ Xt.Mm[i.s,21]<-min(images.test.e1[i.s,])
+ aux<-which.min(images.test.e2[i.s,])
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ Xt.Mm[i.s,22]<-aux.l*30-15
+ Xt.Mm[i.s,23]<-aux.c*30-15
+ Xt.Mm[i.s,24]<-min(images.test.e2[i.s,])
+ aux<-which.min(images.test.sq.e1[i.s,])
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ Xt.Mm[i.s,25]<-aux.l*30-15                      
+ Xt.Mm[i.s,26]<-aux.c*30-15
+ Xt.Mm[i.s,27]<-min(images.test.sq.e1[i.s,])
+ aux<-which.min(images.test.sq.e2[i.s,])
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ Xt.Mm[i.s,28]<-aux.l*30-15
+ Xt.Mm[i.s,29]<-aux.c*30-15
+ Xt.Mm[i.s,30]<-min(images.test.sq.e2[i.s,])
+ aux<-which.min(images.test.sq.e1[i.s,]+images.test.sq.e2[i.s,])
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ Xt.Mm[i.s,31]<-aux.l*30-15                      
+ Xt.Mm[i.s,32]<-aux.c*30-15
+ Xt.Mm[i.s,33]<-min(images.test.sq.e1[i.s,]+images.test.sq.e2[i.s,])
+ aux<-which.min(abs(images.test.sq.e1[i.s,]-images.test.sq.e2[i.s,]))
+ aux.c<-floor(aux/140-0.0001)+1
+ aux.l<-aux-(aux.c-1)*140
+ Xt.Mm[i.s,34]<-aux.l*30-15
+ Xt.Mm[i.s,35]<-aux.c*30-15
+ Xt.Mm[i.s,36]<-min(abs(images.test.sq.e1[i.s,]-images.test.sq.e2[i.s,]))
+}
+
+colnames(Xt.Mm)<-c("Me1x","Me1y","Me1z","Me2x","Me2y","Me2z","Msqe1x","Msqe1y","Msqe1z","Msqe2x","Msqe2y","Msqe2z", "Mse1e2x","Mse1e2y","Mse1e2z","Mde1e2x","Mde1e2y","Mde1e2z", "me1x","me1y","me1z","me2x","me2y","me2z","msqe1x","msqe1y","msqe1z","msqe2x","msqe2y","msqe2z", "mse1e2x","mse1e2y","mse1e2z","mde1e2x","mde1e2y","mde1e2z")
+
+Xt.Mm<-scale(Xt.Mm,scale=F)
+
+#########################
+### Other sets of tentative explanatory variables (principal components)
+
+####################
+### training
+####################
+#
+#
+
+aux<-t(t(images.e1)-colMeans(images.e1))
+svd.e1<-svd(aux,nu=0,nv=20)
+image(matrix(svd.e1$v[,1],140,140))
+
+aux<-t(t(images.e2)-colMeans(images.e2))
+svd.e2<-svd(aux,nu=0,nv=20)
+image(matrix(svd.e2$v[,1],140,140))
+
+aux<-t(t(images.sq.e1)-colMeans(images.sq.e1))
+svd.sq.e1<-svd(aux,nu=0,nv=20)
+image(matrix(svd.sq.e1$v[,1],140,140))
+
+aux<-t(t(images.sq.e2)-colMeans(images.sq.e2))
+svd.sq.e2<-svd(aux,nu=0,nv=20)
+image(matrix(svd.sq.e2$v[,1],140,140))
+
+aux<-t(t(images.e1.e2)-colMeans(images.e1.e2))
+svd.e1.e2<-svd(aux,nu=0,nv=20)
+image(matrix(svd.e1.e2$v[,1],140,140))
+
+aux<-t(t(atan(images.e2/images.e1))-colMeans(atan(images.e2/images.e1)))
+svd.phi<-svd(aux,nu=0,nv=20)
+pc.phi<-scale(aux,scale=F)%*%svd.phi$v[,1:10]
+image(matrix(svd.phi$v[,1],140,140))
+
+aux<-t(t(atan(images.e1/images.e2))-colMeans(atan(images.e1/images.e2)))
+svd.phi2<-svd(aux,nu=0,nv=20)
+pc.phi2<-scale(aux,scale=F)%*%svd.phi2$v[,1:10]
+image(matrix(svd.phi2$v[,1],140,140))
+
+pc.e1<-scale(images.e1,scale=F)%*%svd.e1$v[,1:20]
+pc.e2<-scale(images.e2,scale=F)%*%svd.e2$v[,1:20]
+pc.sq.e1<-scale(images.sq.e1,scale=F)%*%svd.sq.e1$v[,1:20]
+pc.sq.e2<-scale(images.sq.e2,scale=F)%*%svd.sq.e2$v[,1:20]
+pc.e1.e2<-scale(images.e1.e2,scale=F)%*%svd.e1.e2$v[,1:20]
+pc.phi<-scale(t(t(atan(images.e2/images.e1))-colMeans(atan(images.e2/images.e1))),scale=F)%*%svd.phi$v[,1:20]
+pc.phi2<-scale(t(t(atan(images.e1/images.e2))-colMeans(atan(images.e1/images.e2))),scale=F)%*%svd.phi2$v[,1:20]
+
+#############################
+#############################
+####################
+### test
+####################
+#
+#
+
+
+pct.e1<-scale(images.test.e1,scale=F)%*%svd.e1$v[,1:20]
+pct.e2<-scale(images.test.e2,scale=F)%*%svd.e2$v[,1:20]
+pct.sq.e1<-scale(images.test.sq.e1,scale=F)%*%svd.sq.e1$v[,1:20]
+pct.sq.e2<-scale(images.test.sq.e2,scale=F)%*%svd.sq.e2$v[,1:20]
+pct.e1.e2<-scale(images.test.e1.e2,scale=F)%*%svd.e1.e2$v[,1:20]
+pct.phi<-scale(t(t(atan(images.test.e2/images.test.e1))-colMeans(atan(images.test.e2/images.test.e1))),scale=F)%*%svd.phi$v[,1:20]
+pct.phi2<-scale(t(t(atan(images.test.e1/images.test.e2))-colMeans(atan(images.test.e1/images.test.e2))),scale=F)%*%svd.phi2$v[,1:20]
+
+#############################
+#############################
