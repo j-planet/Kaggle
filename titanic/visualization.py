@@ -74,10 +74,10 @@ def drawTree(x, y, outputFname):
     graph = graph_from_dot_data(dot_data.getvalue())
     graph.write_pdf(outputFname)
 
-def plotFeatureImportances(x, y, fieldNames):
+def plotFeatureImportances(x, y, fieldNames, numTrees = 100):
     print fieldNames
     # fit
-    forest = ExtraTreesClassifier(n_estimators=100, compute_importances=True, random_state=0)
+    forest = ExtraTreesClassifier(n_estimators=numTrees, compute_importances=True, random_state=0)
     forest.fit(x, y)
 
     # get importances
@@ -94,27 +94,20 @@ def plotFeatureImportances(x, y, fieldNames):
 
     xtickLabels = [fieldNames[i] for i in indices]
     pylab.figure()
-    pylab.title('Feature Importances From A Forest')
+    pylab.title('Feature Importances From A Random Forest with %s trees' % numTrees)
     pylab.bar(xrange(numFeatures), importances[indices], color='r', yerr=std[indices], align='center')
     pylab.xticks(xrange(numFeatures), xtickLabels)
     pylab.xlim([-1, numFeatures])
     pylab.show()
 
 if __name__=="__main__":
-    # all data read are UNtransformed
-    all_x, all_y, x_train, y_train, x_test, y_test, testingData, fieldMaps, fieldNames, trainSampleWeights, testSampleWeights = readData()
 
-    transPipe = Pipeline([('filler', MissingValueFiller()), ('normer', Normalizer())])
-    all_x = transPipe.fit_transform(all_x)
+    # transPipe = Pipeline([('filler', MissingValueFiller()), ('normer', Normalizer())])
+    transPipe = Pipeline([('filler', MissingValueFiller())])
 
-    sexCol = fieldNames.index('sex')
-    classCol = fieldNames.index('pclass')
-
-    all_x_new = np.delete(all_x, [sexCol, classCol], 1)
-    newCol = (all_x[:,sexCol]*10 + all_x[:,classCol]).reshape(all_x.shape[0],-1)
-    all_x_new = np.hstack((all_x_new, newCol))
-    newfieldNames = [v for v in fieldNames if v not in ['sex','pclass']] + ['sexNclass']
-#    newfieldNames = [v for v in fieldNames if v not in ['sex']]
+    data = readData(rootdir)[0]
+    all_x = transPipe.fit_transform(data.X)
+    all_y = data.Y
 
 
-    plotFeatureImportances(all_x_new, all_y, newfieldNames)
+    plotFeatureImportances(all_x, all_y, data.fieldNames)

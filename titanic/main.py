@@ -4,9 +4,10 @@ from warnings import filterwarnings
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble.gradient_boosting import LeastSquaresError
 
-from utilities import Normalizer, MissingValueFiller, GradientBoost_JJ, cvScores
+from utilities import Normalizer, MissingValueFiller, cvScores
+from GradientBoost_JJ import GradientBoost_JJ
 from titanicutilities import readData
-from globalVariables import svc_f, svc_m, rf_f, rf_m,gb_f, gb_m, rootdir
+from globalVariables import svc_f, svc_m, rf_f, rf_m, gb, rootdir
 
 sys.path.append(rootdir)
 filterwarnings('ignore')
@@ -31,17 +32,17 @@ def checkClfPerformanceByCV():
     gbjjn_jobs = 10
     maxNumIt = 300
     clfs = [
-        GradientBoost_JJ(learners=[svc_f, svc_m, rf_f, rf_m,gb_f, gb_m], verbosity=verb, subsample=0.75, learningRate=0.5,
+        GradientBoost_JJ(learners=[svc_f, svc_m, rf_f, rf_m,gb], verbosity=verb, subsample=0.75, learningRate=0.5,
                          numIterations=maxNumIt, lossFunction=LeastSquaresError(1), stoppingError=0.1, numDeemedStuck=15, n_jobs=gbjjn_jobs),
-        GradientBoost_JJ(learners=[svc_f, svc_m, rf_f, rf_m,gb_f, gb_m], verbosity=verb, subsample=0.5, learningRate=0.5,
+        GradientBoost_JJ(learners=[svc_f, svc_m, rf_f, rf_m,gb], verbosity=verb, subsample=0.5, learningRate=0.5,
                          numIterations=maxNumIt, lossFunction=LeastSquaresError(1), stoppingError=0.1, numDeemedStuck=15, n_jobs=gbjjn_jobs),
-        GradientBoost_JJ(learners=[svc_f, svc_m, rf_f, rf_m,gb_f, gb_m], verbosity=verb, subsample=0.75, learningRate=0.05,
+        GradientBoost_JJ(learners=[svc_f, svc_m, rf_f, rf_m,gb], verbosity=verb, subsample=0.75, learningRate=0.05,
                          numIterations=maxNumIt, lossFunction=LeastSquaresError(1), stoppingError=0.1, numDeemedStuck=15, n_jobs=gbjjn_jobs),
-        GradientBoost_JJ(learners=[svc_f, svc_m, rf_f, rf_m,gb_f, gb_m], verbosity=verb, subsample=0.5, learningRate=0.05,
+        GradientBoost_JJ(learners=[svc_f, svc_m, rf_f, rf_m,gb], verbosity=verb, subsample=0.5, learningRate=0.05,
                          numIterations=maxNumIt, lossFunction=LeastSquaresError(1), stoppingError=0.1, numDeemedStuck=15, n_jobs=gbjjn_jobs),
-        GradientBoost_JJ(learners=[svc_f, svc_m, rf_f, rf_m,gb_f, gb_m], verbosity=verb, subsample=0.5, learningRate=0.01,
+        GradientBoost_JJ(learners=[svc_f, svc_m, rf_f, rf_m,gb], verbosity=verb, subsample=0.5, learningRate=0.01,
                          numIterations=maxNumIt, lossFunction=LeastSquaresError(1), stoppingError=0.1, numDeemedStuck=15, n_jobs=gbjjn_jobs),
-        GradientBoost_JJ(learners=[svc_f, svc_m, rf_f, rf_m,gb_f, gb_m], verbosity=verb, subsample=0.5, learningRate=0.01,
+        GradientBoost_JJ(learners=[svc_f, svc_m, rf_f, rf_m,gb], verbosity=verb, subsample=0.5, learningRate=0.01,
                          numIterations=maxNumIt, lossFunction=LeastSquaresError(1), stoppingError=0.07, numDeemedStuck=15, n_jobs=gbjjn_jobs)]
 
     clfs = clfs[2:]
