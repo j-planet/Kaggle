@@ -1,0 +1,11 @@
+- predict 0-loss as a binary classification problem first, then regress on the non-zero values
+
+- feature construction/extraction
+- handle discrete values properly (separately?)
+- better imputation (e.g. predict missing values)
+
+
+
+finished to-do:
+- CV hell
+- calibrate parameters of the entire pipeline
