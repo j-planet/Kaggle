@@ -63,6 +63,7 @@ class GAGridSearchCV_JJ(GA):
                  convergenceTolerance = 0, mutationStdDev=None, initialEvaluables=None, numConvergenceSteps=None, n_jobs=1,
                  verbosity=1, saveCache=True, maxDuplicateProportion=0, **kargs):
         """
+        @param data
         @param minimize whether to min or max the function
         @type minimize bool
         @param populationSize (constant) population size
@@ -486,33 +487,33 @@ if __name__ == '__main__':
 
      # ---> [2 0 3 0 0 1 1 0]
 
-    # print 'maxPopSize =', maxPopSize
-    # randomState = 0
-    # numCvFolds = 3
-    # cvObj = StratifiedShuffleSplit(data.Y, numCvFolds, test_size=0.25, random_state=randomState)
-    # # popSize = min(10, maxPopSize)
-    # # initPop = generateInputs(maxValues, count=popSize)
-    # popSize = 2
-    # initPop = np.array([np.array([0, 0, 3, 0, 0, 0, 0, 1]), np.array([0,0,0,1,0,0,0,1])])
-    #
-    # # fakeOneEvaluation(np.array([1,0,0]), allParamsDict, pipe, data, cvObj)
-    #
-    # t0 = time()
-    # with GAGridSearchCV_JJ(data=data, pipe=pipe, allParamsDict=allParamsDict, cv=cvObj, minimize=False, maxValsForInputs=maxValues,
-    #                         initialEvaluables=initPop[0], initialPopulation=initPop, populationSize=popSize, verbosity=2,
-    #                         maxLearningSteps=10, numConvergenceSteps=5, convergenceTolerance=0, eliteProportion=0.1,
-    #                         parentsProportion=0.4, mutationProbability=0, mutationStdDev=None, n_jobs=10) \
-    # as ga:
-    #     ga.learn()
-    #
-    #     bestParams = getParamsFromIndices(ga.bestEvaluable, allParamsDict)
-    #
-    #     print ga.bestEvaluable
-    #     print bestParams
-    #     print ga.bestEvaluation
-    #
-    #     newpipe = clone(pipe)
-    #     newpipe.set_params(**bestParams)
-    #     print jjcross_val_score(newpipe, data.X, data.Y, accuracy_score, cv=cvObj, n_jobs=1).mean()
-    #
-    # printDoneTime(t0, '---- GA')
+    print 'maxPopSize =', maxPopSize
+    randomState = 0
+    numCvFolds = 3
+    cvObj = StratifiedShuffleSplit(data.Y, numCvFolds, test_size=0.25, random_state=randomState)
+    # popSize = min(10, maxPopSize)
+    # initPop = generateInputs(maxValues, count=popSize)
+    popSize = 2
+    initPop = np.array([np.array([0, 0, 3, 0, 0, 0, 0, 1]), np.array([0,0,0,1,0,0,0,1])])
+
+    # fakeOneEvaluation(np.array([1,0,0]), allParamsDict, pipe, data, cvObj)
+
+    t0 = time()
+    with GAGridSearchCV_JJ(data=data, pipe=pipe, allParamsDict=allParamsDict, cv=cvObj, minimize=False, maxValsForInputs=maxValues,
+                            initialEvaluables=initPop[0], initialPopulation=initPop, populationSize=popSize, verbosity=2,
+                            maxLearningSteps=10, numConvergenceSteps=5, convergenceTolerance=0, eliteProportion=0.1,
+                            parentsProportion=0.4, mutationProbability=0, mutationStdDev=None, n_jobs=10) \
+    as ga:
+        ga.learn()
+
+        bestParams = getParamsFromIndices(ga.bestEvaluable, allParamsDict)
+
+        print ga.bestEvaluable
+        print bestParams
+        print ga.bestEvaluation
+
+        newpipe = clone(pipe)
+        newpipe.set_params(**bestParams)
+        print jjcross_val_score(newpipe, data.X, data.Y, accuracy_score, cv=cvObj, n_jobs=1).mean()
+
+    printDoneTime(t0, '---- GA')

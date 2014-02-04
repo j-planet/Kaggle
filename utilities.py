@@ -67,6 +67,8 @@ def csv2dict(fname, hasHeader, fieldnames=None, dataTypes=None, colIndices=None,
     if hasHeader:
         fieldnames = reader.next()
 
+    print fieldnames
+
     data = [tuple(row) for row in reader]
     totalNumCols = len(data[0])
     if not colIndices:
