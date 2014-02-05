@@ -196,7 +196,7 @@ def saveObject(obj, fname):
     """
     Save an object to file
     @param obj: the object to be saved
-    @param fname: the output filename
+    @param fname: the featureSelectionOutput filename
     @return: nothing
     """
     with open(fname, 'wb') as output:

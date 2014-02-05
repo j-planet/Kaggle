@@ -192,12 +192,12 @@ class GradientBoost_JJ(BaseEstimator, TransformerMixin):
             res +=  self.learningRate * weight * estimator.predict(X).ravel()
 
         return res
-        # return np.array([round(v) for v in res])    # make the output either 0 or 1
+        # return np.array([round(v) for v in res])    # make the featureSelectionOutput either 0 or 1
 
     def predict(self, X):
         if len(self._estimators)>0:
             res = self._evaluate(X)
-            return np.array([round(v) for v in res])  # make the output either 0 or 1
+            return np.array([round(v) for v in res])  # make the featureSelectionOutput either 0 or 1
 
         raise Exception("Please fit the classifier first.")
 

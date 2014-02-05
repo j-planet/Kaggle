@@ -431,7 +431,7 @@ def buildModel(data, testData, fieldMaps, n_jobs, useJJ, selectedClfs = None, co
 
     assert np.logical_or(testRes==0, testRes==1).all()    # make sure all values are filled
 
-    # ------- output results -------
+    # ------- featureSelectionOutput results -------
     if writeResults: writeTestingResToFile("by" + '_'.join(colNames), testRes)
 
     print 'Total amount of time spent:'

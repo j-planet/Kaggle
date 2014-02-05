@@ -1,11 +1,12 @@
 - predict 0-loss as a binary classification problem first, then regress on the non-zero values
 
 - feature construction/extraction
-- handle discrete values properly (separately?)
+- handle discrete values properly (http://scikit-learn.org/stable/modules/preprocessing.html, section 4.2.4)
 - better imputation (e.g. predict missing values)
-
+- whiten (remove linear correlation between features)
 
 
 finished to-do:
 - CV hell
 - calibrate parameters of the entire pipeline
+- standardize
