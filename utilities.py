@@ -18,6 +18,7 @@ from sklearn.metrics import *
 from sklearn.pipeline import Pipeline
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.cross_validation import StratifiedShuffleSplit, check_cv
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 from pool_JJ import MyPool
 
@@ -301,7 +302,56 @@ def fillInMissingValues(origdata, method):
 
     return data
 
-## normalizes the data in an array
+# ## normalizes the data in an array
+# class Normalizer(BaseEstimator, TransformerMixin):
+#     def __init__(self, method='standardize'):
+#         """ Constructor
+#         @param method: method of normalization. The ones currently supported are:
+#                 'standardize': (x-mean)/sd
+#                 'rescale': (x-min)/(max-min)
+#         @return: nothing.
+#         """
+#         assert method in ['standardize', 'rescale'], 'Unexpected method %s'%method
+#         self.method = method
+#         self.subtractor = float('nan')      # means (if method is 'standardize') or mins (if method is 'rescale')
+#         self.divider = float('nan')         # stds (if method is 'standardize') or ranges (if method is 'rescale')
+#
+#     def fit(self, X, y=None, **params):
+#         """
+#         @return: the caller itself
+#         """
+#
+#         if self.method=='standardize':
+#             _, self.subtractor, self.divider, _ = normalizeData(X)
+#
+#         elif self.method=='rescale':
+#             _, self.subtractor, self.divider, _ = rescaleData(X)
+#
+#         return self
+#
+#     def transform(self, X, **params):
+#         """
+#         @return: transformed data
+#         """
+#
+#         assert X.shape[1]==len(self.subtractor), "Only arrays of %d columns are handled. Try re-fitting. :)" % len(self.subtractor)
+#         return (X - self.subtractor)/self.divider
+#
+#     def fit_transform(self, X, y=None, **params):
+#         """
+#         @return: transformed data
+#         """
+#
+#         if self.method=='standardize':
+#             res, self.subtractor, self.divider, _ = normalizeData(X)
+#
+#         elif self.method=='rescale':
+#             res, self.subtractor, self.divider, _ = rescaleData(X)
+#
+#         return res
+
+
+## standardizes the data in an array
 class Normalizer(BaseEstimator, TransformerMixin):
     def __init__(self, method='standardize'):
         """ Constructor
@@ -311,20 +361,20 @@ class Normalizer(BaseEstimator, TransformerMixin):
         @return: nothing.
         """
         assert method in ['standardize', 'rescale'], 'Unexpected method %s'%method
+
         self.method = method
-        self.subtractor = float('nan')      # means (if method is 'standardize') or mins (if method is 'rescale')
-        self.divider = float('nan')         # stds (if method is 'standardize') or ranges (if method is 'rescale')
+
+        if method == 'standardize':
+            self._scaler = StandardScaler()
+        else:
+            self._scaler = MinMaxScaler()
 
     def fit(self, X, y=None, **params):
         """
         @return: the caller itself
         """
 
-        if self.method=='standardize':
-            _, self.subtractor, self.divider, _ = normalizeData(X)
-
-        elif self.method=='rescale':
-            _, self.subtractor, self.divider, _ = rescaleData(X)
+        self._scaler.fit(X, y)
 
         return self
 
@@ -333,21 +383,15 @@ class Normalizer(BaseEstimator, TransformerMixin):
         @return: transformed data
         """
 
-        assert X.shape[1]==len(self.subtractor), "Only arrays of %d columns are handled. Try re-fitting. :)" % len(self.subtractor)
-        return (X - self.subtractor)/self.divider
+        return self._scaler.transform(X)
 
     def fit_transform(self, X, y=None, **params):
         """
         @return: transformed data
         """
 
-        if self.method=='standardize':
-            res, self.subtractor, self.divider, _ = normalizeData(X)
+        return self._scaler.fit_transform(X, y, **params)
 
-        elif self.method=='rescale':
-            res, self.subtractor, self.divider, _ = rescaleData(X)
-
-        return res
 
 # fills in missing values in an array
 class MissingValueFiller(BaseEstimator, TransformerMixin):
