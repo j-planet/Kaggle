@@ -1,8 +1,10 @@
 import numpy as np
 import pandas
 import csv
+
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import Imputer
+from sklearn.preprocessing import Imputer, StandardScaler, MinMaxScaler
+from sklearn.decomposition import KernelPCA
 from sklearn.pipeline import Pipeline
 from sklearn.feature_selection import SelectPercentile, f_regression
 from sklearn.ensemble import ExtraTreesRegressor
@@ -21,12 +23,27 @@ def select_features(xData, yData, mandatoryColumns=None):
         columns selected (list)
     """
 
+    columns = xData.columns
+
+    # fill in missing values first
+    imp = Imputer(strategy='mean')
+    xData = imp.fit_transform(xData, yData)
+
+    # standardize
+    scaler = StandardScaler()
+    xData = scaler.fit_transform(xData, yData)
+
+    # change back to pandas data frame
+    xData = pandas.DataFrame(data = xData, columns=columns)
+
     # F-score
     sp = SelectPercentile(score_func=f_regression, percentile=10)
     sp.fit(xData, yData)
     mask = sp.get_support()
     filteredXData_fReg = xData[xData.columns[mask]]
     print "f_regression selected:", filteredXData_fReg.columns
+
+
 
     # Random Forest
     numFeatures_rf = int(len(filteredXData_fReg.columns) * 0.5)
@@ -44,8 +61,11 @@ def select_features(xData, yData, mandatoryColumns=None):
     plt.xticks(range(len(indices)), columns_rf)
     plt.show()
 
-    columns_final = set(columns_rf).union(mandatoryColumns)
+    columns_final = list(set(columns_rf).union(mandatoryColumns))
     print "Final features selected:", columns_final
+
+    kpca = KernelPCA(n_components=int(len(filteredXData_fReg.columns) * 0.5))
+    kpca.fit_transform(filteredXData_fReg)
 
     return xData[columns_final], columns_final
 
@@ -95,10 +115,11 @@ def impute_data(xData, yData):
     return newXData, imp
 
 
-def make_data(dataFname):
+def make_data(dataFname, selectFeatures = True):
     """
     reads x and y data (no imputation, yes feature selection)
     @param dataFname: name of the training csv file
+    @param selectFeatures: if True output only the best features. Otherwise, the original data. True by default.
     @return xdata, ydata (None if test data), ids
     """
 
@@ -117,13 +138,15 @@ def make_data(dataFname):
     print_missing_values_info(origData)
 
     # feature selection
-    # filteredXData_final, columns_final = selectFeatures(xData, yVec, mandatoryColumns)
-    columns_final = ['f536', 'f602', 'f603', 'f4', 'f605', 'f6', 'f2', 'f696', 'f473', 'f344', 'f261', 'f767', 'f285', 'f765', 'f666',
-                     'f281', 'f282', 'f665', 'f221', 'f323', 'f322', 'f47', 'f5', 'f103', 'f667', 'f68', 'f67', 'f474', 'f675', 'f674',
-                     'f676', 'f631', 'f462', 'f468', 'f425', 'f400', 'f778', 'f405', 'f776', 'f463', 'f428', 'f471', 'f777', 'f314', 'f211',
-                     'f315', 'f252', 'f251', 'f426', 'f12', 'f11', 'f70']
-    # columns_final = xData.columns       # use ALL features
-    filteredXData = xData[list(columns_final)]
+    if selectFeatures:
+
+        columns_final = ['f536', 'f602', 'f603', 'f4', 'f605', 'f6', 'f2', 'f696', 'f473', 'f344', 'f261', 'f767', 'f285', 'f765', 'f666',
+                         'f281', 'f282', 'f665', 'f221', 'f323', 'f322', 'f47', 'f5', 'f103', 'f667', 'f68', 'f67', 'f474', 'f675', 'f674',
+                         'f676', 'f631', 'f462', 'f468', 'f425', 'f400', 'f778', 'f405', 'f776', 'f463', 'f428', 'f471', 'f777', 'f314', 'f211',
+                         'f315', 'f252', 'f251', 'f426', 'f12', 'f11', 'f70']
+        filteredXData = xData[list(columns_final)]
+    else:   # use ALL features
+        filteredXData = xData
 
     return filteredXData, yVec, ids
 

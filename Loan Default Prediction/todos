@@ -2,11 +2,12 @@
 
 - feature construction/extraction
 - handle discrete values properly (http://scikit-learn.org/stable/modules/preprocessing.html, section 4.2.4)
-- better imputation (e.g. predict missing values)
 - whiten (remove linear correlation between features)
+- better imputation (e.g. predict missing values)
 
 
 finished to-do:
 - CV hell
 - calibrate parameters of the entire pipeline
 - standardize
+- standardize before feature selection
