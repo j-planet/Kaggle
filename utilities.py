@@ -12,6 +12,7 @@ from numpy.lib.scimath import sqrt
 from itertools import product
 from scipy.stats import mode
 from collections import OrderedDict
+import matplotlib.pyplot as plt
 
 from sklearn.base import is_classifier, clone
 from sklearn.metrics import *
@@ -722,12 +723,14 @@ def jjcross_val_score(clf, X, y, score_func, cv, n_jobs=1, fit_params=None):
 
     return np.array(scores)
 
+
 def diffLists(a, b):
     """
     @return: a-b (as a list)
     """
 
     return list(set(a) - set(b))
+
 
 def runPool(aPool, innerFunc, inputData):
     """ runs a pool and returns the result
@@ -737,3 +740,22 @@ def runPool(aPool, innerFunc, inputData):
     temp.wait()
 
     return np.array(temp.get())
+
+
+def plot_histogram(vec, numBins, title='', xLabel='', yLabel='Count', faceColor = 'green', alpha=1, line=None, lineColor='r'):
+    """ plots and shows a histogram
+    @param line: y values which are used to plot a line, must have numBins elements
+    """
+
+    # the histogram of the data
+    n, bins, patches = plt.hist(vec, numBins, facecolor=faceColor, alpha=alpha)
+
+    # add a 'best fit' line
+    if line is not None:
+        plt.plot(bins, line, lineColor + '--')
+
+    plt.xlabel(xLabel)
+    plt.ylabel(yLabel)
+    plt.title(title)
+
+    plt.show()

@@ -1,15 +1,18 @@
 import numpy as np
 import pandas
 import csv
+from copy import copy
 
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import Imputer, StandardScaler, MinMaxScaler
-from sklearn.decomposition import KernelPCA
+from sklearn.decomposition import KernelPCA, PCA
 from sklearn.pipeline import Pipeline
-from sklearn.feature_selection import SelectPercentile, f_regression
+from sklearn.feature_selection import SelectPercentile, f_regression, RFECV
+from sklearn.svm import SVR
 from sklearn.ensemble import ExtraTreesRegressor
 
 from globalVars import *
+from Kaggle.utilities import plot_histogram
 
 
 def select_features(xData, yData, mandatoryColumns=None):
@@ -31,41 +34,58 @@ def select_features(xData, yData, mandatoryColumns=None):
 
     # standardize
     scaler = StandardScaler()
-    xData = scaler.fit_transform(xData, yData)
+    xData = pandas.DataFrame(data=scaler.fit_transform(xData, yData), columns=columns)
 
-    # change back to pandas data frame
-    xData = pandas.DataFrame(data = xData, columns=columns)
+    # decompose
+    # pca = PCA(n_components=int(xData.shape[1]*0.2))
+    pca = PCA()
+    xData = pca.fit_transform(xData, yData)
 
-    # F-score
-    sp = SelectPercentile(score_func=f_regression, percentile=10)
-    sp.fit(xData, yData)
-    mask = sp.get_support()
-    filteredXData_fReg = xData[xData.columns[mask]]
-    print "f_regression selected:", filteredXData_fReg.columns
+    # choose the number of features that explain at least 95% of the variance
+    temp = np.cumsum(pca.explained_variance_ratio_)
+    numFeatures = next((i for i in range(len(temp)) if temp[i] > 0.95), len(temp)-1) + 1
+    xData = xData[:, range(numFeatures)]
+
+    print 'explained variances:', pca.explained_variance_
+    print 'sum of explained variances:', pca.explained_variance_.sum()
+
+    print 'explained variance ratios:', pca.explained_variance_ratio_
+    print 'sum of explained variance ratios:', pca.explained_variance_ratio_.sum()
+
+    print 'num features selected:', numFeatures
+
+    # RFECV
+    rfecv = RFECV(SVR(kernel='linear'), step=1, cv=5, verbose=5)
+    xData = rfecv.fit_transform(xData, yData)
+
+    # univariate selection via linear regression
+    # sp = SelectPercentile(score_func=f_regression, percentile=10)
+    # sp.fit(xData, yData)
+    # mask = sp.get_support()
+    # filteredXData_fReg = xData[xData.columns[mask]]
+    # print "f_regression selected:", filteredXData_fReg.columns
 
 
 
     # Random Forest
-    numFeatures_rf = int(len(filteredXData_fReg.columns) * 0.5)
-    forest = ExtraTreesRegressor(n_estimators=100)
-    forest.fit(filteredXData_fReg, yData)
-    importances = forest.feature_importances_
-    std = np.std([tree.feature_importances_ for tree in forest.estimators_], axis=0)
-    indices = np.argsort(importances)[::-1][:numFeatures_rf]
-    columns_rf = filteredXData_fReg.columns[indices]
+    # numFeatures_rf = int(len(filteredXData_fReg.columns) * 0.5)
+    # forest = ExtraTreesRegressor(n_estimators=100)
+    # forest.fit(filteredXData_fReg, yData)
+    # importances = forest.feature_importances_
+    # std = np.std([tree.feature_importances_ for tree in forest.estimators_], axis=0)
+    # indices = np.argsort(importances)[::-1][:numFeatures_rf]
+    # columns_rf = filteredXData_fReg.columns[indices]
+    #
+    # print "Random Forest feature ranking selected features:", columns_rf
+    #
+    # # some rf plotting
+    # plt.bar(range(len(indices)), importances[indices], color="r", yerr=std[indices], align="center")
+    # plt.xticks(range(len(indices)), columns_rf)
+    # plt.show()
+    #
+    # columns_final = list(set(columns_rf).union(mandatoryColumns))
+    # print "Final features selected:", columns_final
 
-    print "Random Forest feature ranking selected features:", columns_rf
-
-    # some rf plotting
-    plt.bar(range(len(indices)), importances[indices], color="r", yerr=std[indices], align="center")
-    plt.xticks(range(len(indices)), columns_rf)
-    plt.show()
-
-    columns_final = list(set(columns_rf).union(mandatoryColumns))
-    print "Final features selected:", columns_final
-
-    kpca = KernelPCA(n_components=int(len(filteredXData_fReg.columns) * 0.5))
-    kpca.fit_transform(filteredXData_fReg)
 
     return xData[columns_final], columns_final
 
@@ -163,3 +183,17 @@ def write_predictions_to_file(ids, predictions, outputFname):
         writer.writerow(['id', 'loss'])
         writer.writerows(featureSelectionOutput)
 
+
+def split_class_reg(xData, yData):
+    """
+    transforms a regression problem into a classification (0 vs >0) problem first
+    @param yData: non-negative integers
+    @return: binarilized y data (0s and 1s), xData where y>0, yData where y>0, mask for the rows where y>0
+    """
+
+    nonZeroMask = yData > 0
+
+    binaryY = copy(yData)
+    binaryY[nonZeroMask] = 1
+
+    return binaryY, xData[nonZeroMask], yData[nonZeroMask], nonZeroMask

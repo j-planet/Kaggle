@@ -10,9 +10,12 @@ from Kaggle.utilities import jjcross_val_score, makePipe, Normalizer
 from helpers import *
 from globalVars import *
 
+
 # ---------- read in data
 # smallTrainX, smallTrainY, _ = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modSmallTrain.csv", selectFeatures=False)
 fullTrainX, fullTrainY, _ = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modTrain.csv", selectFeatures=False)
+# binaryTrainY, regTrainX, regTrainY, _ = split_class_reg(smallTrainX, smallTrainY)
+
 select_features(fullTrainX, fullTrainY, mandatoryColumns)
 
 # ---------- select learner

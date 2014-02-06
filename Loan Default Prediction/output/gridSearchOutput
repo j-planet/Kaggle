@@ -5185,18 +5185,18 @@
  mean: -1.70203, std: 0.09396, params: {'GBR__learning_rate': 0.5, 'GBR__n_estimators': 50, 'GBR__max_depth': 10, 'GBR__max_features': 'log2', 'filler__strategy': 'most_frequent', 'GBR__subsample': 1.0}]
 
 >>> Best Estimator:
-Pipeline(steps=[('filler', Imputer(axis=0, copy=True, missing_values='NaN', strategy='most_frequent',
-    verbose=0)), ('GBR', GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.5, loss='lad',
-             max_depth=3, max_features='sqrt', min_samples_leaf=1,
-             min_samples_split=2, n_estimators=5, random_state=None,
-             subsample=0.7, verbose=0))])
+Pipeline(steps=[('filler', Imputer(axis=0, copy=True, missing_values='NaN', strategy='median', verbose=0)), ('normalizer', Normalizer(method='standardize')), ('GBR', GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.25,
+             loss='lad', max_depth=3, max_features='sqrt',
+             min_samples_leaf=1, min_samples_split=2, n_estimators=5,
+             random_state=None, subsample=0.7, verbose=0))])
 
->>> Best score: -0.788675
+>>> Best score: -0.788075
 
 >>> Best Params:
-{'GBR__learning_rate': 0.5,
+{'GBR__learning_rate': 0.25,
  'GBR__max_depth': 3,
  'GBR__max_features': 'sqrt',
  'GBR__n_estimators': 5,
  'GBR__subsample': 0.7,
- 'filler__strategy': 'most_frequent'}
+ 'filler__strategy': 'median',
+ 'normalizer__method': 'standardize'}

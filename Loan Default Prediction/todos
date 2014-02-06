@@ -3,8 +3,9 @@
 - feature construction/extraction
 - handle discrete values properly (http://scikit-learn.org/stable/modules/preprocessing.html, section 4.2.4)
 - whiten (remove linear correlation between features)
+- decomposition
 - better imputation (e.g. predict missing values)
-
+- use kernel pca instead of pca
 
 finished to-do:
 - CV hell
