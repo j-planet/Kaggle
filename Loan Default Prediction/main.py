@@ -12,11 +12,17 @@ from globalVars import *
 
 
 # ---------- read in data
-# smallTrainX, smallTrainY, _ = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modSmallTrain.csv", selectFeatures=False)
-fullTrainX, fullTrainY, _ = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modTrain.csv", selectFeatures=False)
-# binaryTrainY, regTrainX, regTrainY, _ = split_class_reg(smallTrainX, smallTrainY)
+smallTrainX, smallTrainY, _ = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modSmallTrain.csv", False)
 
-select_features(fullTrainX, fullTrainY, mandatoryColumns)
+imp = Imputer()
+xdata = imp.fit_transform(smallTrainX, smallTrainY)
+pcaer = PcaEr(total_var=0.9)
+pcaer.fit_transform(xdata, smallTrainY)
+
+
+
+# fullTrainX, fullTrainY, _ = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modTrain.csv", selectFeatures=False)
+# binaryTrainY, regTrainX, regTrainY, _ = split_class_reg(smallTrainX, smallTrainY)
 
 # ---------- select learner
 # imputerToTry = ('filler', (Imputer(), {'strategy': ['mean', 'median', 'most_frequent']}))
@@ -43,21 +49,30 @@ select_features(fullTrainX, fullTrainY, mandatoryColumns)
 # pprint(gscv.best_params_)
 #
 # # ---------- learn the full training data
-# fullTrainX, fullTrainY, _ = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modTrain.csv")
+fullTrainX, fullTrainY, _ = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modTrain.csv", False)
+dt = datetime.now()
+trainX, imp, scaler, pca, indices = select_features(fullTrainX, fullTrainY, pcaVarSum=0.9)
+print 'Took', datetime.now() - dt
+
 # bestPipe = gscv.best_estimator_
-# # bestPipe = Pipeline(steps=[('filler', Imputer(axis=0, copy=True, missing_values='NaN', strategy='most_frequent',
-# #                                               verbose=0)),
-# #                            ('normalizer', Normalizer(method = 'standardize')),
-# #                            ('GBR', GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.5, loss='lad',
-# #                                                              max_depth=3, max_features='sqrt', min_samples_leaf=1,
-# #                                                              min_samples_split=2, n_estimators=5, random_state=None,
-# #                                                              subsample=0.7, verbose=0))])
-# bestPipe.fit(fullTrainX, fullTrainY)
-# print 'jj score:', jjcross_val_score(bestPipe, smallTrainX, smallTrainY, mean_absolute_error, 5, n_jobs=20).mean()
-#
-# # ----------  predict & write to file
-# testData, _, testDataIds = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modTest.csv")
-# pred = bestPipe.predict(testData)
-# write_predictions_to_file(testDataIds, pred, "/home/jj/code/Kaggle/Loan Default Prediction/submissions/gridSearchCV_GBR_standardized.csv")
+# bestPipe = Pipeline(steps=[('filler', Imputer(axis=0, copy=True, missing_values='NaN', strategy='most_frequent',
+#                                               verbose=0)),
+#                            ('normalizer', Normalizer(method = 'standardize')),
+#                            ('GBR', GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.5, loss='lad',
+#                                                              max_depth=3, max_features='sqrt', min_samples_leaf=1,
+#                                                              min_samples_split=2, n_estimators=5, random_state=None,
+#                                                              subsample=0.7, verbose=0))])
+bestPipe = Pipeline(steps=[('GBR', GradientBoostingRegressor(alpha=0.9, init=None, learning_rate=0.5, loss='lad',
+                                                             max_depth=3, max_features='sqrt', min_samples_leaf=1,
+                                                             min_samples_split=2, n_estimators=5, random_state=None,
+                                                             subsample=0.7, verbose=0))])
+bestPipe.fit(trainX, fullTrainY)
+# print 'jj score:', jjcross_val_score(bestPipe, select_features(smallTrainX, smallTrainY, 0.95), smallTrainY, mean_absolute_error, 5, n_jobs=20).mean()
+
+# ----------  predict & write to file
+testData, _, testDataIds = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modTest.csv", False)
+testData = pca.transform(scaler.transform(imp.transform(testData)))[:, indices]
+pred = bestPipe.predict(testData)
+write_predictions_to_file(testDataIds, pred, "/home/jj/code/Kaggle/Loan Default Prediction/submissions/GBR_pca.csv")
 
 print '----- FIN -----'

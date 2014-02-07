@@ -5,6 +5,7 @@
 - whiten (remove linear correlation between features)
 - decomposition
 - better imputation (e.g. predict missing values)
+
 - use kernel pca instead of pca
 
 finished to-do:
@@ -12,3 +13,6 @@ finished to-do:
 - calibrate parameters of the entire pipeline
 - standardize
 - standardize before feature selection
+
+bugs:
+- PcaEr doesn't fit correctly

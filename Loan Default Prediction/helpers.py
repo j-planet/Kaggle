@@ -1,3 +1,4 @@
+from dbus.decorators import method
 import numpy as np
 import pandas
 import csv
@@ -10,84 +11,61 @@ from sklearn.pipeline import Pipeline
 from sklearn.feature_selection import SelectPercentile, f_regression, RFECV
 from sklearn.svm import SVR
 from sklearn.ensemble import ExtraTreesRegressor
+from sklearn.base import BaseEstimator, TransformerMixin
 
 from globalVars import *
 from Kaggle.utilities import plot_histogram
 
 
-def select_features(xData, yData, mandatoryColumns=None):
+def select_features(origXData, yData, pcaVarSum = 0.95):
     """
     Feature selection
-    @param xData: a pandas data frame
+    @param origXData: a pandas data frame
     @param yData: a vector
-    @param mandatoryColumns: a list of features that must be selected
-    @return:
-        selected xData (pandas data frame)
-        columns selected (list)
+    @param pcaVarSum:
+        at the PCA stage choose the number of features that explain at least this portion of the total variance
+    @return: selected xData (np.array), the imputation object, the scaler object, the pca object, indices from the RF
     """
 
-    columns = xData.columns
+    columns = origXData.columns
 
     # fill in missing values first
     imp = Imputer(strategy='mean')
-    xData = imp.fit_transform(xData, yData)
+    xData = imp.fit_transform(origXData, yData)
 
     # standardize
     scaler = StandardScaler()
     xData = pandas.DataFrame(data=scaler.fit_transform(xData, yData), columns=columns)
 
     # decompose
-    # pca = PCA(n_components=int(xData.shape[1]*0.2))
     pca = PCA()
     xData = pca.fit_transform(xData, yData)
-
     # choose the number of features that explain at least 95% of the variance
     temp = np.cumsum(pca.explained_variance_ratio_)
-    numFeatures = next((i for i in range(len(temp)) if temp[i] > 0.95), len(temp)-1) + 1
-    xData = xData[:, range(numFeatures)]
+    numFeatures_pca = next((i for i in range(len(temp)) if temp[i] > pcaVarSum), len(temp)-1) + 1
+    xData = xData[:, range(numFeatures_pca)]
+    print 'PCA reduced the number of features to:', numFeatures_pca
 
-    print 'explained variances:', pca.explained_variance_
-    print 'sum of explained variances:', pca.explained_variance_.sum()
-
-    print 'explained variance ratios:', pca.explained_variance_ratio_
-    print 'sum of explained variance ratios:', pca.explained_variance_ratio_.sum()
-
-    print 'num features selected:', numFeatures
-
-    # RFECV
-    rfecv = RFECV(SVR(kernel='linear'), step=1, cv=5, verbose=5)
-    xData = rfecv.fit_transform(xData, yData)
-
-    # univariate selection via linear regression
-    # sp = SelectPercentile(score_func=f_regression, percentile=10)
-    # sp.fit(xData, yData)
-    # mask = sp.get_support()
-    # filteredXData_fReg = xData[xData.columns[mask]]
-    # print "f_regression selected:", filteredXData_fReg.columns
-
-
+    # RFECV: not used for now. takes waaaaay too long
+    # rfecv = RFECV(SVR(kernel='linear'), step=1, cv=5, verbose=5)
+    # xData = rfecv.fit_transform(xData, yData)
 
     # Random Forest
-    # numFeatures_rf = int(len(filteredXData_fReg.columns) * 0.5)
-    # forest = ExtraTreesRegressor(n_estimators=100)
-    # forest.fit(filteredXData_fReg, yData)
-    # importances = forest.feature_importances_
-    # std = np.std([tree.feature_importances_ for tree in forest.estimators_], axis=0)
-    # indices = np.argsort(importances)[::-1][:numFeatures_rf]
-    # columns_rf = filteredXData_fReg.columns[indices]
-    #
-    # print "Random Forest feature ranking selected features:", columns_rf
-    #
-    # # some rf plotting
-    # plt.bar(range(len(indices)), importances[indices], color="r", yerr=std[indices], align="center")
-    # plt.xticks(range(len(indices)), columns_rf)
-    # plt.show()
-    #
-    # columns_final = list(set(columns_rf).union(mandatoryColumns))
-    # print "Final features selected:", columns_final
+    numFeatures_rf = int(xData.shape[1] * 0.5)
+    forest = ExtraTreesRegressor(n_estimators=25, n_jobs=20)
+    forest.fit(xData, yData)
+    importances = forest.feature_importances_
+    std = np.std([tree.feature_importances_ for tree in forest.estimators_], axis=0)
+    indices = np.argsort(importances)[::-1][:numFeatures_rf]
+    xData = xData[:, indices]
 
+    print "Random Forest reduced the number of features to:", numFeatures_rf
 
-    return xData[columns_final], columns_final
+    # some rf plotting
+    plt.bar(range(len(indices)), importances[indices], color="r", yerr=std[indices], align="center")
+    plt.show()
+
+    return xData, imp, scaler, pca, indices
 
 
 def print_missing_values_info(data):
@@ -135,7 +113,7 @@ def impute_data(xData, yData):
     return newXData, imp
 
 
-def make_data(dataFname, selectFeatures = True):
+def make_data(dataFname, selectFeatures):
     """
     reads x and y data (no imputation, yes feature selection)
     @param dataFname: name of the training csv file
@@ -197,3 +175,82 @@ def split_class_reg(xData, yData):
     binaryY[nonZeroMask] = 1
 
     return binaryY, xData[nonZeroMask], yData[nonZeroMask], nonZeroMask
+
+
+class PcaEr(BaseEstimator, TransformerMixin):
+    """
+    class used for dimension reduction via PCA
+    """
+
+    def __init__(self, method="PCA", num_components = None, total_var = None):
+        """
+        Constructor
+        @param num_components: the number of features desired
+        @param total_var: the portion of variance expllained. exactly one of num_components and total_var is None
+        @param method:
+            type of PCA to use. {"PCA", "KernelPCA"}. So far only PCA is supported.
+        @return: nothing
+        """
+
+        assert method in ['PCA'], 'Unexpected method %s' % method
+        assert (num_components is None) != (total_var is None), 'Exactly one of num_components and total_var is None.'
+
+        if method == "PCA":
+            self._pca = PCA()
+
+        self._method = method
+
+        if num_components is None:  # given total var
+            self._fixed_num_components = False
+            self._total_var = total_var
+        else:
+            self._fixed_num_components = True
+            self._num_components = num_components
+
+    def fit(self, X, y=None):
+        """
+        @return: self
+        """
+
+        self._pca.fit(X, y)
+
+        # figure out the number of components needed, only if it's not given in the constructor
+        if not self._fixed_num_components:
+            temp = np.cumsum(self._pca.explained_variance_ratio_)
+            self._num_components = next((i for i in range(len(temp)) if temp[i] > self._total_var), len(temp)-1) + 1
+
+        return self
+
+    def transform(self, X):
+        """
+        @return: new x
+        """
+
+        return self._pca.transform(X)[:, range(self._num_components)]
+
+    def fit_transform(self, X, y=None, **fit_params):
+        """
+        @return: new x
+        """
+
+        self.fit(X, y)
+        return self.transform(X)
+
+
+class RandomForester(BaseEstimator, TransformerMixin):
+
+    def __init__(self, num_features, n_estimators, max_depth=None, min_samples_split=2):
+        """
+        Constructor
+        @param num_features:
+            number of features. if in (0,1), represents the proportion of features. if >1,
+            represents the final number of features.
+        @param n_estimators, max_depth, min_samples_split: params used in ExtraTreesRegressor
+        """
+
+        self._num_features = num_features
+        self._n_estimators = n_estimators
+        self._max_depth = max_depth
+        self._min_samples_split = min_samples_split
+
+
