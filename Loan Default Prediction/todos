@@ -1,18 +1,15 @@
 - predict 0-loss as a binary classification problem first, then regress on the non-zero values
 
-- feature construction/extraction
 - handle discrete values properly (http://scikit-learn.org/stable/modules/preprocessing.html, section 4.2.4)
-- whiten (remove linear correlation between features)
-- decomposition
+- feature construction (no idea how to... yet)
 - better imputation (e.g. predict missing values)
 
 - use kernel pca instead of pca
+- whiten (remove linear correlation between features)
 
 finished to-do:
 - CV hell
 - calibrate parameters of the entire pipeline
 - standardize
 - standardize before feature selection
-
-bugs:
-- PcaEr doesn't fit correctly
+- decomposition

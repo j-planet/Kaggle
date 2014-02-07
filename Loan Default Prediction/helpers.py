@@ -219,6 +219,8 @@ class PcaEr(BaseEstimator, TransformerMixin):
             temp = np.cumsum(self._pca.explained_variance_ratio_)
             self._num_components = next((i for i in range(len(temp)) if temp[i] > self._total_var), len(temp)-1) + 1
 
+        print 'Selected %i features' % self._num_components
+
         return self
 
     def transform(self, X):
@@ -239,18 +241,71 @@ class PcaEr(BaseEstimator, TransformerMixin):
 
 class RandomForester(BaseEstimator, TransformerMixin):
 
-    def __init__(self, num_features, n_estimators, max_depth=None, min_samples_split=2):
+    def __init__(self, num_features, n_estimators, max_depth=None, min_samples_split=2, n_jobs=20):
         """
         Constructor
         @param num_features:
             number of features. if in (0,1), represents the proportion of features. if >1,
             represents the final number of features.
-        @param n_estimators, max_depth, min_samples_split: params used in ExtraTreesRegressor
+        @param n_estimators, max_depth, min_samples_split, n_jobs: params used in ExtraTreesRegressor
         """
 
         self._num_features = num_features
-        self._n_estimators = n_estimators
-        self._max_depth = max_depth
-        self._min_samples_split = min_samples_split
+
+        self._forest = ExtraTreesRegressor(n_estimators=n_estimators, max_depth=max_depth,
+                                           min_samples_split=min_samples_split, n_jobs=n_jobs)
+
+    def fit(self, X, y=None):
+        """
+        @return: self
+        """
+
+        self._forest.fit(X, y)
+
+        return self
+
+    def transform(self, X):
+        """
+        @return: new x
+        """
+
+        importances = self._forest.feature_importances_
+        indices = np.argsort(importances)[::-1][:self._num_features]
+        return X[:, indices]
+
+    def fit_transform(self, X, y=None, **fit_params):
+        """
+        @return: new x
+        """
+
+        self.fit(X, y)
+
+        return self.transform(X)
+
+    def plot(self, num_features='auto'):
+        """
+        makes a bar plot of feature importances and corresp. standard deviations
+        @param num_features:
+            number of features to show.
+              'auto': same as the class' number of selected features
+              'all': all features
+              a number: specific # features
+        """
+
+        importances = self._forest.feature_importances_
 
 
+        if num_features == 'auto':
+            numTicks = self._num_features
+        elif num_features== 'all':
+            numTicks = len(importances)
+        elif isinstance(num_features, int):
+            numTicks = num_features
+        else:
+            raise Exception('Invalid num_features provided:', num_features)
+
+        indices = np.argsort(importances)[::-1][:numTicks]
+        std = np.std([tree.feature_importances_ for tree in self._forest.estimators_], axis=0)
+
+        plt.bar(range(len(indices)), importances[indices], color="r", yerr=std[indices], align="center")
+        plt.show()
