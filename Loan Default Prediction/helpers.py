@@ -182,10 +182,10 @@ class PcaEr(BaseEstimator, TransformerMixin):
     class used for dimension reduction via PCA
     """
 
-    def __init__(self, method="PCA", num_components = None, total_var = None):
+    def __init__(self, method="PCA", fixed_num_components=None, total_var=None):
         """
         Constructor
-        @param num_components: the number of features desired
+        @param fixed_num_components: the number of features desired
         @param total_var: the portion of variance expllained. exactly one of num_components and total_var is None
         @param method:
             type of PCA to use. {"PCA", "KernelPCA"}. So far only PCA is supported.
@@ -193,19 +193,20 @@ class PcaEr(BaseEstimator, TransformerMixin):
         """
 
         assert method in ['PCA'], 'Unexpected method %s' % method
-        assert (num_components is None) != (total_var is None), 'Exactly one of num_components and total_var is None.'
+        assert (fixed_num_components is None) != (total_var is None), \
+            'Exactly one of fixed_num_components and total_var is None.'
 
         if method == "PCA":
             self._pca = PCA()
 
-        self._method = method
+        self.method = method
 
-        if num_components is None:  # given total var
+        if fixed_num_components is None:  # given total var
             self._fixed_num_components = False
-            self._total_var = total_var
+            self.total_var = total_var
         else:
             self._fixed_num_components = True
-            self._num_components = num_components
+            self._num_components = fixed_num_components
 
     def fit(self, X, y=None):
         """
@@ -217,9 +218,9 @@ class PcaEr(BaseEstimator, TransformerMixin):
         # figure out the number of components needed, only if it's not given in the constructor
         if not self._fixed_num_components:
             temp = np.cumsum(self._pca.explained_variance_ratio_)
-            self._num_components = next((i for i in range(len(temp)) if temp[i] > self._total_var), len(temp)-1) + 1
+            self._num_components = next((i for i in range(len(temp)) if temp[i] > self.total_var), len(temp)-1) + 1
 
-        print 'Selected %i features' % self._num_components
+        print '%s with %f total var, selected %i features' % (self.method, self.total_var, self._num_components)
 
         return self
 
@@ -250,10 +251,14 @@ class RandomForester(BaseEstimator, TransformerMixin):
         @param n_estimators, max_depth, min_samples_split, n_jobs: params used in ExtraTreesRegressor
         """
 
-        self._num_features = num_features
+        self.num_features = num_features
+        self.n_estimators = n_estimators
+        self.max_depth = max_depth
+        self.min_samples_split = min_samples_split
+        self.n_jobs = n_jobs
 
-        self._forest = ExtraTreesRegressor(n_estimators=n_estimators, max_depth=max_depth,
-                                           min_samples_split=min_samples_split, n_jobs=n_jobs)
+        self._forest = ExtraTreesRegressor(n_estimators=self.n_estimators, max_depth=self.max_depth,
+                                           min_samples_split=self.min_samples_split, n_jobs=self.n_jobs)
 
     def fit(self, X, y=None):
         """
@@ -270,7 +275,7 @@ class RandomForester(BaseEstimator, TransformerMixin):
         """
 
         importances = self._forest.feature_importances_
-        indices = np.argsort(importances)[::-1][:self._num_features]
+        indices = np.argsort(importances)[::-1][:self.num_features]
         return X[:, indices]
 
     def fit_transform(self, X, y=None, **fit_params):
@@ -296,7 +301,7 @@ class RandomForester(BaseEstimator, TransformerMixin):
 
 
         if num_features == 'auto':
-            numTicks = self._num_features
+            numTicks = self.num_features
         elif num_features== 'all':
             numTicks = len(importances)
         elif isinstance(num_features, int):
