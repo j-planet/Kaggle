@@ -1,0 +1,40 @@
+[GridSearchCV]  PCAer__total_var=0.85, RFer__num_features=15, RFer__n_estimators=25, score=-0.914789 - 8.1min
+[GridSearchCV]  PCAer__total_var=0.85, RFer__num_features=15, RFer__n_estimators=25, score=-0.752844 - 8.5min
+[GridSearchCV]  PCAer__total_var=0.85, RFer__num_features=15, RFer__n_estimators=25, score=-0.761312 - 8.5min
+[GridSearchCV]  PCAer__total_var=0.85, RFer__num_features=15, RFer__n_estimators=25, score=-0.859875 - 8.8min
+[GridSearchCV]  PCAer__total_var=0.85, RFer__num_features=15, RFer__n_estimators=50, score=-0.859875 - 8.4min
+[GridSearchCV]  PCAer__total_var=0.85, RFer__num_features=15, RFer__n_estimators=25, score=-0.696943 - 9.0min
+[GridSearchCV]  PCAer__total_var=0.85, RFer__num_features=15, RFer__n_estimators=50, score=-0.696943 - 8.5min
+[GridSearchCV]  PCAer__total_var=0.85, RFer__num_features=15, RFer__n_estimators=50, score=-0.752844 - 8.9min
+[GridSearchCV]  PCAer__total_var=0.85, RFer__num_features=15, RFer__n_estimators=50, score=-0.761312 - 8.7min
+[GridSearchCV]  PCAer__total_var=0.85, RFer__num_features=15, RFer__n_estimators=50, score=-0.914789 - 9.8min
+[GridSearchCV]  PCAer__total_var=0.95, RFer__num_features=15, RFer__n_estimators=25, score=-0.907156 -22.3min
+[GridSearchCV]  PCAer__total_var=0.95, RFer__num_features=15, RFer__n_estimators=25, score=-0.693877 -22.4min
+[GridSearchCV]  PCAer__total_var=0.95, RFer__num_features=15, RFer__n_estimators=25, score=-0.855844 -22.6min
+[GridSearchCV]  PCAer__total_var=0.95, RFer__num_features=15, RFer__n_estimators=25, score=-0.769781 -22.7min
+[GridSearchCV]  PCAer__total_var=0.95, RFer__num_features=15, RFer__n_estimators=50, score=-0.911824 -22.0min
+[GridSearchCV]  PCAer__total_var=0.95, RFer__num_features=15, RFer__n_estimators=50, score=-0.855844 -23.7min
+[GridSearchCV]  PCAer__total_var=0.95, RFer__num_features=15, RFer__n_estimators=25, score=-0.744812 -24.8min
+[GridSearchCV]  PCAer__total_var=0.95, RFer__num_features=15, RFer__n_estimators=50, score=-0.761844 -24.1min
+[GridSearchCV]  PCAer__total_var=0.95, RFer__num_features=15, RFer__n_estimators=50, score=-0.704750 -23.4min
+[GridSearchCV]  PCAer__total_var=0.95, RFer__num_features=15, RFer__n_estimators=50, score=-0.744812 -25.2min
+[GridSearchCV]  PCAer__total_var=0.85, RFer__num_features=0.5, RFer__n_estimators=25, score=-0.905799 - 7.7min
+[GridSearchCV]  PCAer__total_var=0.85, RFer__num_features=0.5, RFer__n_estimators=25, score=-0.750602 - 8.8min
+[GridSearchCV]  PCAer__total_var=0.85, RFer__num_features=0.5, RFer__n_estimators=50, score=-0.905799 - 8.6min
+[GridSearchCV]  PCAer__total_var=0.85, RFer__num_features=0.5, RFer__n_estimators=25, score=-0.863305 - 8.9min
+[GridSearchCV]  PCAer__total_var=0.85, RFer__num_features=0.5, RFer__n_estimators=25, score=-0.693189 - 8.8min
+[GridSearchCV]  PCAer__total_var=0.85, RFer__num_features=0.5, RFer__n_estimators=50, score=-0.693189 - 8.9min
+[GridSearchCV]  PCAer__total_var=0.85, RFer__num_features=0.5, RFer__n_estimators=50, score=-0.863305 - 9.4min
+[GridSearchCV]  PCAer__total_var=0.85, RFer__num_features=0.5, RFer__n_estimators=25, score=-0.770514 - 9.8min
+[GridSearchCV]  PCAer__total_var=0.85, RFer__num_features=0.5, RFer__n_estimators=50, score=-0.770514 - 9.6min
+[GridSearchCV]  PCAer__total_var=0.85, RFer__num_features=0.5, RFer__n_estimators=50, score=-0.750602 -10.7min
+[GridSearchCV]  PCAer__total_var=0.95, RFer__num_features=0.5, RFer__n_estimators=50, score=-0.911969 -22.2min
+[GridSearchCV]  PCAer__total_var=0.95, RFer__num_features=0.5, RFer__n_estimators=25, score=-0.762371 -24.6min
+[GridSearchCV]  PCAer__total_var=0.95, RFer__num_features=0.5, RFer__n_estimators=50, score=-0.762371 -25.0min
+[GridSearchCV]  PCAer__total_var=0.95, RFer__num_features=0.5, RFer__n_estimators=25, score=-0.692719 -25.3min
+[GridSearchCV]  PCAer__total_var=0.95, RFer__num_features=0.5, RFer__n_estimators=50, score=-0.865096 -25.1min
+[GridSearchCV]  PCAer__total_var=0.95, RFer__num_features=0.5, RFer__n_estimators=50, score=-0.692719 -25.0min
+[GridSearchCV]  PCAer__total_var=0.95, RFer__num_features=0.5, RFer__n_estimators=25, score=-0.865096 -26.3min
+[GridSearchCV]  PCAer__total_var=0.95, RFer__num_features=0.5, RFer__n_estimators=50, score=-0.740750 -26.2min
+[GridSearchCV]  PCAer__total_var=0.95, RFer__num_features=0.5, RFer__n_estimators=25, score=-0.740750 -26.5min
+[GridSearchCV]  PCAer__total_var=0.95, RFer__num_features=0.5, RFer__n_estimators=25, score=-0.911969 -26.5min

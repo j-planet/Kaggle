@@ -1,11 +1,11 @@
 - predict 0-loss as a binary classification problem first, then regress on the non-zero values
 
-- handle discrete values properly (http://scikit-learn.org/stable/modules/preprocessing.html, section 4.2.4)
 - feature construction (no idea how to... yet)
 - better imputation (e.g. predict missing values)
 
 - use kernel pca instead of pca
 - whiten (remove linear correlation between features)
+- vectorize f778 and f6 (discrete variables with lots of unique values)
 
 finished to-do:
 - CV hell
@@ -13,3 +13,4 @@ finished to-do:
 - standardize
 - standardize before feature selection
 - decomposition
+- handle discrete values properly (http://scikit-learn.org/stable/modules/preprocessing.html, section 4.2.4)

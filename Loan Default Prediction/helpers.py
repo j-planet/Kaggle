@@ -5,67 +5,18 @@ import csv
 from copy import copy
 
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import Imputer, StandardScaler, MinMaxScaler
+from sklearn.preprocessing import Imputer, StandardScaler, MinMaxScaler, OneHotEncoder
 from sklearn.decomposition import KernelPCA, PCA
 from sklearn.pipeline import Pipeline
 from sklearn.feature_selection import SelectPercentile, f_regression, RFECV
 from sklearn.svm import SVR
 from sklearn.ensemble import ExtraTreesRegressor
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.metrics import mean_absolute_error
+from tornado.test import import_test
 
 from globalVars import *
-from Kaggle.utilities import plot_histogram
-
-
-def select_features(origXData, yData, pcaVarSum = 0.95):
-    """
-    Feature selection
-    @param origXData: a pandas data frame
-    @param yData: a vector
-    @param pcaVarSum:
-        at the PCA stage choose the number of features that explain at least this portion of the total variance
-    @return: selected xData (np.array), the imputation object, the scaler object, the pca object, indices from the RF
-    """
-
-    columns = origXData.columns
-
-    # fill in missing values first
-    imp = Imputer(strategy='mean')
-    xData = imp.fit_transform(origXData, yData)
-
-    # standardize
-    scaler = StandardScaler()
-    xData = pandas.DataFrame(data=scaler.fit_transform(xData, yData), columns=columns)
-
-    # decompose
-    pca = PCA()
-    xData = pca.fit_transform(xData, yData)
-    # choose the number of features that explain at least 95% of the variance
-    temp = np.cumsum(pca.explained_variance_ratio_)
-    numFeatures_pca = next((i for i in range(len(temp)) if temp[i] > pcaVarSum), len(temp)-1) + 1
-    xData = xData[:, range(numFeatures_pca)]
-    print 'PCA reduced the number of features to:', numFeatures_pca
-
-    # RFECV: not used for now. takes waaaaay too long
-    # rfecv = RFECV(SVR(kernel='linear'), step=1, cv=5, verbose=5)
-    # xData = rfecv.fit_transform(xData, yData)
-
-    # Random Forest
-    numFeatures_rf = int(xData.shape[1] * 0.5)
-    forest = ExtraTreesRegressor(n_estimators=25, n_jobs=20)
-    forest.fit(xData, yData)
-    importances = forest.feature_importances_
-    std = np.std([tree.feature_importances_ for tree in forest.estimators_], axis=0)
-    indices = np.argsort(importances)[::-1][:numFeatures_rf]
-    xData = xData[:, indices]
-
-    print "Random Forest reduced the number of features to:", numFeatures_rf
-
-    # some rf plotting
-    plt.bar(range(len(indices)), importances[indices], color="r", yerr=std[indices], align="center")
-    plt.show()
-
-    return xData, imp, scaler, pca, indices
+from Kaggle.utilities import plot_histogram, jjcross_val_score
 
 
 def print_missing_values_info(data):
@@ -113,12 +64,14 @@ def impute_data(xData, yData):
     return newXData, imp
 
 
-def make_data(dataFname, selectFeatures):
+def make_data(dataFname, selectFeatures, enc):
     """
     reads x and y data (no imputation, yes feature selection)
+    also encodes the categorical features f776 and f777
     @param dataFname: name of the training csv file
     @param selectFeatures: if True output only the best features. Otherwise, the original data. True by default.
-    @return xdata, ydata (None if test data), ids
+    @param enc: the OneHotEncoder. None for training data, not-None for testing data
+    @return xdata, ydata (None if test data), ids, enc (OneHotEncoder for f776 and f777)
     """
 
     origData = pandas.read_csv(dataFname)
@@ -133,6 +86,15 @@ def make_data(dataFname, selectFeatures):
     set_vars_as_type(xData, discreteVars, object)
     yVec = origData.loss if 'loss' in origData.columns else None
 
+    # encode the categorical features f776 and f777
+    if enc is None:
+        enc = OneHotEncoder(n_values=[2, 2])
+        enc.fit(xData[['f776', 'f777']])
+
+    xData[['f776_isZero', 'f776_isOne', 'f777_isZero', 'f777_isOne']] = pandas.DataFrame(enc.transform(xData[['f776', 'f777']]).toarray())
+    del xData['f776']
+    del xData['f777']
+
     print_missing_values_info(origData)
 
     # feature selection
@@ -146,7 +108,7 @@ def make_data(dataFname, selectFeatures):
     else:   # use ALL features
         filteredXData = xData
 
-    return filteredXData, yVec, ids
+    return filteredXData, yVec, ids, enc
 
 
 def write_predictions_to_file(ids, predictions, outputFname):
@@ -275,7 +237,8 @@ class RandomForester(BaseEstimator, TransformerMixin):
         """
 
         importances = self._forest.feature_importances_
-        indices = np.argsort(importances)[::-1][:self.num_features]
+        num_features_to_use = int(self.num_features if self.num_features > 1 else np.shape(X)[1]*self.num_features)
+        indices = np.argsort(importances)[::-1][:num_features_to_use]
         return X[:, indices]
 
     def fit_transform(self, X, y=None, **fit_params):
@@ -290,6 +253,7 @@ class RandomForester(BaseEstimator, TransformerMixin):
     def plot(self, num_features='auto'):
         """
         makes a bar plot of feature importances and corresp. standard deviations
+        call only after the "fit" method has been called
         @param num_features:
             number of features to show.
               'auto': same as the class' number of selected features
@@ -301,7 +265,7 @@ class RandomForester(BaseEstimator, TransformerMixin):
 
 
         if num_features == 'auto':
-            numTicks = self.num_features
+            numTicks = int(self.num_features if self.num_features > 1 else len(importances)*self.num_features)
         elif num_features== 'all':
             numTicks = len(importances)
         elif isinstance(num_features, int):
@@ -314,3 +278,10 @@ class RandomForester(BaseEstimator, TransformerMixin):
 
         plt.bar(range(len(indices)), importances[indices], color="r", yerr=std[indices], align="center")
         plt.show()
+
+
+def quick_score(clf, X, y, cv=5, n_jobs=20):
+    """ returns the cv score of a classifier
+    """
+
+    return jjcross_val_score(clf, X, y, mean_absolute_error, cv, n_jobs=n_jobs).mean()
