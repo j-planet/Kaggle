@@ -41,6 +41,7 @@ bestClassifierPipe.set_params(**{'GBC__learning_rate': 0.05, 'GBC__n_estimators'
 # ======== >0 (regression) stuff ========
 # imputerToTry = ('filler', (Imputer(strategy='mean'), {}))
 # normalizerToTry = ('normalizer', (Normalizer(), {}))
+
 newx = bestClassifierPipe.named_steps['normalizer'].fit_transform(bestClassifierPipe.named_steps['filler'].fit_transform(smallTrainX))
 
 pcaReducerToTry_reg = ('PCAer', (PcaEr(total_var=0.85), {'whiten': [True, False]}))
@@ -49,25 +50,34 @@ regressorToTry = ('GBR', (GradientBoostingRegressor(loss='lad', max_features='au
                           {'subsample': [0.5, 0.7, 1]}))
 pipe_regress, allParamsDict_regress = makePipe([pcaReducerToTry_reg, rfReducerToTry_reg, regressorToTry])
 
-gscv_regress = GridSearchCV(pipe_regress, allParamsDict_regress, loss_func=mean_absolute_error, n_jobs=20, cv=4, verbose=5)
-dt = datetime.now()
-gscv_regress.fit(newx[nonZeroMask_small], smallTrainY[nonZeroMask_small])      # use x and y where y>0
-print 'Took', datetime.now() - dt
-print_GSCV_info(gscv_regress)
+# gscv_regress = GridSearchCV(pipe_regress, allParamsDict_regress, loss_func=mean_absolute_error, n_jobs=20, cv=4, verbose=5)
+# dt = datetime.now()
+# gscv_regress.fit(newx[nonZeroMask_small], smallTrainY[nonZeroMask_small])      # use x and y where y>0
+# print 'Took', datetime.now() - dt
+# print_GSCV_info(gscv_regress)
 
 
-bestRegPipe = gscv_regress.best_estimator_
-# bestRegPipe = deepcopy(pipe_regress)
-# bestRegPipe.set_params(**{'GBR__subsample': 1, 'PCAer__whiten': False})
+# bestRegPipe = gscv_regress.best_estimator_
+bestRegPipe = deepcopy(pipe_regress)
+bestRegPipe.set_params(**{'GBR__subsample': 0.7, 'PCAer__whiten': True})
 
 
 # ======== learn the full data ========
 fullTrainX, fullTrainY, _, enc = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modTrain.csv",
                                            selectFeatures=False, enc=None)
-binaryTrainY, regTrainX, regTrainY, _ = split_class_reg(fullTrainX, fullTrainY)
-bestClassifierPipe.fit(fullTrainX, binaryTrainY)
-bestRegPipe.fit(regTrainX, regTrainY)
+binaryTrainY, _, regTrainY, nonZeroMask = split_class_reg(fullTrainX, fullTrainY)
 
-# ======== predict & write to file ========
+bestClassifierPipe.fit(fullTrainX, binaryTrainY)
+newx = bestClassifierPipe.named_steps['normalizer'].fit_transform(bestClassifierPipe.named_steps['filler'].fit_transform(fullTrainX))
+bestRegPipe.fit(newx[nonZeroMask], regTrainY)
+
+# # ======== predict & write to file ========
 testData, _, testDataIds, _ = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modTest.csv",
                                         selectFeatures=False, enc=enc)
+binaryOutput = bestClassifierPipe.predict(testData)
+nonZeroMaskOutput = binaryOutput > 0
+newx = bestClassifierPipe.named_steps['normalizer'].fit_transform(bestClassifierPipe.named_steps['filler'].fit_transform(testData))
+regOutput = bestRegPipe.predict(newx[nonZeroMaskOutput])
+binaryOutput[nonZeroMaskOutput] = regOutput     # final output
+binaryOutput[(binaryOutput>0) & (binaryOutput<1)] = 1   # set 0.sth to 1
+write_predictions_to_file(testDataIds, binaryOutput, "/home/jj/code/Kaggle/Loan Default Prediction/submissions/classReg.csv")
