@@ -1,4 +1,6 @@
 - predict 0-loss as a binary classification problem first, then regress on the non-zero values
+- make the binary->reg one pipeline
+- use the same imputer and normalizer for classification and regression
 
 - feature construction (no idea how to... yet)
 - better imputation (e.g. predict missing values)

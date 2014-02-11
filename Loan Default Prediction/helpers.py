@@ -3,6 +3,7 @@ import numpy as np
 import pandas
 import csv
 from copy import copy
+from pprint import pprint
 
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import Imputer, StandardScaler, MinMaxScaler, OneHotEncoder
@@ -288,3 +289,13 @@ def quick_score(clf, X, y, cv=5, n_jobs=20):
     """
 
     return jjcross_val_score(clf, X, y, mean_absolute_error, cv, n_jobs=n_jobs).mean()
+
+
+def print_GSCV_info(gsv):
+    print '\n>>> Grid scores:'
+    pprint(gsv.grid_scores_)
+    print '\n>>> Best Estimator:'
+    pprint(gsv.best_estimator_)
+    print '\n>>> Best score:', gsv.best_score_
+    print '\n>>> Best Params:'
+    pprint(gsv.best_params_)
