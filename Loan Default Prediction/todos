@@ -4,7 +4,6 @@
 - better imputation (e.g. predict missing values)
 
 - use kernel pca instead of pca
-- whiten (remove linear correlation between features)
 - vectorize f778 and f6 (discrete variables with lots of unique values)
 
 finished to-do:
@@ -14,3 +13,4 @@ finished to-do:
 - standardize before feature selection
 - decomposition
 - handle discrete values properly (http://scikit-learn.org/stable/modules/preprocessing.html, section 4.2.4)
+- whiten (remove linear correlation between features)

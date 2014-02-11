@@ -144,13 +144,14 @@ class PcaEr(BaseEstimator, TransformerMixin):
     class used for dimension reduction via PCA
     """
 
-    def __init__(self, method="PCA", fixed_num_components=None, total_var=None):
+    def __init__(self, method="PCA", fixed_num_components=None, total_var=None, whiten=False):
         """
         Constructor
         @param fixed_num_components: the number of features desired
         @param total_var: the portion of variance expllained. exactly one of num_components and total_var is None
         @param method:
             type of PCA to use. {"PCA", "KernelPCA"}. So far only PCA is supported.
+        @param whiten: to be used in PCA, whether to remove correlations in the input
         @return: nothing
         """
 
@@ -158,8 +159,10 @@ class PcaEr(BaseEstimator, TransformerMixin):
         assert (fixed_num_components is None) != (total_var is None), \
             'Exactly one of fixed_num_components and total_var is None.'
 
+        self.whiten = whiten
+
         if method == "PCA":
-            self._pca = PCA()
+            self._pca = PCA(whiten=self.whiten)
 
         self.method = method
 
