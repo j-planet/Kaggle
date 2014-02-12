@@ -14,9 +14,9 @@ from sklearn.metrics import accuracy_score
 from sklearn.cross_validation import StratifiedShuffleSplit, LeavePOut
 from sklearn.grid_search import GridSearchCV
 
-from utilities import csv2dict, getCol, integerizeList, printDoneTime, loadObject, DatasetPair, \
+from Kaggle.utilities import csv2dict, getCol, integerizeList, printDoneTime, loadObject, DatasetPair, \
     jjcross_val_score, mask2DArrayByCol, makePipe, reverseDict, saveObject, getNumCvFolds
-import GA_JJ
+import Kaggle.GA_JJ
 from globalVariables import fillertoTry, normalizerToTry, classifiersToTry, rootdir
 
 

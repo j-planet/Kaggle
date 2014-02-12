@@ -1,5 +1,7 @@
 TO-DO to-dos:
 
+- use GA_JJ instead of gridsearchcv
+
 - feature construction (no idea how to... yet)
 - better imputation (e.g. predict missing values)
 

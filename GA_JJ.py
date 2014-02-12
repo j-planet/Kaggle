@@ -28,15 +28,15 @@ def GAGridSearchCV_JJ_learnStepInit(*args):
     @param args: evaluator
     """
 
-    global allCvData, origpipe, allParamsDict
-    allCvData, origpipe, allParamsDict = args
+    global allCvData, origpipe, allParamsDict, scoreFunc
+    allCvData, origpipe, allParamsDict, scoreFunc = args
 
 def GAGridSearchCV_JJ_learnStepInner(args):
     """ called in _learnStep of GAGridSearchCV_JJ. evaluates one evaluator.
     @return fitness
     """
 
-    global allCvData, origpipe, allParamsDict
+    global allCvData, origpipe, allParamsDict, scoreFunc
     evaluable, cvIndex = args
 
     trainX, trainY, testX, testY = allCvData[cvIndex]
@@ -46,7 +46,8 @@ def GAGridSearchCV_JJ_learnStepInner(args):
     newpipe.set_params(**params)
     newpipe.fit(trainX, trainY)
 
-    res = accuracy_score(testY, newpipe.predict(testX))
+    # res = accuracy_score(testY, newpipe.predict(testX))
+    res = scoreFunc(testY, newpipe.predict(testX))
 
     return res
 
@@ -61,7 +62,7 @@ class GAGridSearchCV_JJ(GA):
                  minimize, maxLearningSteps, populationSize,
                  eliteProportion, parentsProportion, maxValsForInputs, initialPopulation, mutationProportion, mutationProbability,
                  convergenceTolerance = 0, mutationStdDev=None, initialEvaluables=None, numConvergenceSteps=None, n_jobs=1,
-                 verbosity=1, saveCache=True, maxDuplicateProportion=0, **kargs):
+                 verbosity=1, saveCache=True, maxDuplicateProportion=0, scoreFunc=accuracy_score, **kargs):
         """
         @param data
         @param minimize whether to min or max the function
@@ -79,6 +80,7 @@ class GAGridSearchCV_JJ(GA):
         @param saveCache: whether to save previous results
         @param maxDuplicateProportion: highest allowable portion of duplicate individuals
         @param cvs: a list of cv objects
+        @param scoreFunc: the score function to optimize
         """
 
         assert numConvergenceSteps is None or numConvergenceSteps >= 2
@@ -112,6 +114,7 @@ class GAGridSearchCV_JJ(GA):
         self.bestParams = None
         self._saveCache = saveCache
         self._maxDuplicateCount = int(round(populationSize * maxDuplicateProportion))
+        self.score_func = scoreFunc
 
         # dunno what these do. just set to false for now...
         self._wasUnwrapped = False
@@ -135,7 +138,7 @@ class GAGridSearchCV_JJ(GA):
                     self._allCvData.append((trainX, trainY, testX, testY))
 
             self._pool = MyPool(processes = self._n_jobs, initializer=GAGridSearchCV_JJ_learnStepInit,
-                                 initargs=(self._allCvData, self._pipe, self._allParamsDict))
+                                 initargs=(self._allCvData, self._pipe, self._allParamsDict, self.score_func))
             printDoneTime(t0, 'Making the pool')
 
         elif n_jobs==1:
@@ -156,7 +159,8 @@ class GAGridSearchCV_JJ(GA):
 
             res = 0
             for cv in self._cvs:
-                res += jjcross_val_score(newpipe, self._data.X, self._data.Y, accuracy_score, cv=cv, n_jobs=1).sum()
+                # res += jjcross_val_score(newpipe, self._data.X, self._data.Y, accuracy_score, cv=cv, n_jobs=1).sum()
+                res += jjcross_val_score(newpipe, self._data.X, self._data.Y, self.score_func, cv=cv, n_jobs=1).sum()
 
             res /= sum(getNumCvFolds(cv) for cv in self._cvs)
 
@@ -468,7 +472,7 @@ def fakeOneEvaluation(indiv, allParamsDict, pipe, data, cv):    # only called in
     return res
 
 if __name__ == '__main__':
-    # data, _, _, _, _ = titanic.titanicutilities.readData(outputDir=rootdir)
+    data, _, _, _, _ = titanic.titanicutilities.readData(outputDir=rootdir)
     #
     # # make pipe and allParamsDict
     name = 'svc'

@@ -298,12 +298,24 @@ def quick_score(clf, X, y, cv=5, n_jobs=20):
     return jjcross_val_score(clf, X, y, mean_absolute_error, cv, n_jobs=n_jobs).mean()
 
 
-def print_GSCV_info(gsv):
-    print '\n>>> Grid scores:'
-    pprint(gsv.grid_scores_)
-    print '\n>>> Best Estimator:'
-    pprint(gsv.best_estimator_)
-    print '\n>>> Best score:', gsv.best_score_
-    print '\n>>> Best Params:'
-    pprint(gsv.best_params_)
+def print_GSCV_info(gsv, isGAJJ=False, bestParams=None):
+    """
+    @param isGAJJ: true iff gscv is a GAGridSearchCV_JJ object; otherwise it is a GridSearchCV object
+    @param bestParams: used only if isGAJJ is true
+    """
+
+    if isGAJJ:
+        print '\n>>> Best Evaluable:'
+        print gsv.bestEvaluable
+        print '\n>>> Best score:', gsv.bestEvaluation
+        print '\n>>> Best Params:'
+        pprint(bestParams)
+    else:
+        print '\n>>> Grid scores:'
+        pprint(gsv.grid_scores_)
+        print '\n>>> Best Estimator:'
+        pprint(gsv.best_estimator_)
+        print '\n>>> Best score:', gsv.best_score_
+        print '\n>>> Best Params:'
+        pprint(gsv.best_params_)
 

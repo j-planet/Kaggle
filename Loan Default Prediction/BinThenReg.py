@@ -75,6 +75,8 @@ class BinThenReg(BaseEstimator, TransformerMixin):
 
             # combine binary and regression output
             binaryOutput[nonZeroMask] = regOutput
+        else:
+            print 'All zero output...'
 
         return binaryOutput
 

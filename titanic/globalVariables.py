@@ -5,8 +5,8 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.ensemble.gradient_boosting import LeastSquaresError
 from sklearn.neighbors import KNeighborsClassifier
 
-from utilities import MissingValueFiller, Normalizer
-from GradientBoost_JJ import GradientBoost_JJ
+from Kaggle.utilities import MissingValueFiller, Normalizer
+from Kaggle.GradientBoost_JJ import GradientBoost_JJ
 
 rootdir = 'H:/ff/Kaggle/titanic'
 # rootdir = 'C:/code/Kaggle/titanic'
