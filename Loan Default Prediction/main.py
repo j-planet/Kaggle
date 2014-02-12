@@ -17,35 +17,21 @@ smallTrainX, smallTrainY, _, enc = make_data("/home/jj/code/Kaggle/Loan Default 
                                              selectFeatures=False, enc=None)
 
 # # ---------- select learner
-# imputerToTry = ('filler', (Imputer(), {'strategy': ['mean', 'median', 'most_frequent']}))
-# normalizerToTry = ('normalizer', (Normalizer(), {'method': ['standardize', 'rescale']}))
-imputerToTry = ('filler', (Imputer(strategy='mean'), {}))
-normalizerToTry = ('normalizer', (Normalizer(), {}))
-pcaReducerToTry = ('PCAer', (PcaEr(total_var=0.85), {'whiten': [True, False]}))
-# rfReducerToTry = ('RFer', (RandomForester(num_features=999, n_estimators=999),
-#                            {'num_features':[0.5, 15, 25], 'n_estimators':[5, 10, 25]}))
-rfReducerToTry = ('RFer', (RandomForester(num_features=25, n_estimators=5), {}))
-regressorToTry = ('GBR', (GradientBoostingRegressor(loss='lad', max_features='auto', learning_rate=0.1),
-                           {'subsample': [0.5, 0.7, 1]}))
-# regressorToTry = ('GBR', (GradientBoostingRegressor(loss='lad'), {'n_estimators': [5, 20]}) )
-pipe, allParamsDict = makePipe([imputerToTry, normalizerToTry, pcaReducerToTry, rfReducerToTry, regressorToTry])
+pipe_prep, allParamsDict = prepPipes(simple=True)
+pipe_reg, params_reg = regressorPipes(simple=True)
+pipe = Pipeline(steps=pipe_prep.steps + pipe_reg.steps)
+allParamsDict.update(params_reg)
+
 gscv = GridSearchCV(pipe, allParamsDict, loss_func=mean_absolute_error, n_jobs=20, cv=4, verbose=5)
 dt = datetime.now()
 gscv.fit(smallTrainX, smallTrainY)
 print 'Took', datetime.now() - dt
 
-print '\n>>> Grid scores:'
-pprint(gscv.grid_scores_)
-print '\n>>> Best Estimator:'
-pprint(gscv.best_estimator_)
-print '\n>>> Best score:', gscv.best_score_
-print '\n>>> Best Params:'
-pprint(gscv.best_params_)
+print_GSCV_info(gscv)
 
 # # ---------- learn the full training data
 fullTrainX, fullTrainY, _, enc = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modTrain.csv",
                                            selectFeatures=False, enc=None)
-
 bestPipe = gscv.best_estimator_
 
 # bestPipe = Pipeline(steps=[('filler', Imputer(axis=0, copy=True, missing_values='NaN', strategy='median', verbose=0)),

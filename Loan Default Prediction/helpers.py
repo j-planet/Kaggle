@@ -310,6 +310,7 @@ class BinThenReg(object):
         """
         @param common_preprocessing_pipe: the preprocessing step done prior to BOTH classifying and regressing
         """
+
         self.common_preprocessing_pipe = deepcopy(common_preprocessing_pipe)
         self.classifier_pipe = deepcopy(classifier_pipe)
         self.regressor_pipe = deepcopy(regressor_pipe)
@@ -328,6 +329,7 @@ class BinThenReg(object):
         self.regressor_pipe.fit(newX[nonZeroMask], regY)
 
     def predict(self, X):
+
         # apply common_preprocessing_pipe
         newX = self.common_preprocessing_pipe.fit_transform(X)  # just transform?
 
