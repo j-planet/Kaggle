@@ -10,51 +10,49 @@ from sklearn.grid_search import GridSearchCV
 from Kaggle.utilities import makePipe, Normalizer
 from helpers import *
 from globalVars import *
+from pipes import *
+from BinThenReg import *
 
 
-# ---------- read in data
 smallTrainX, smallTrainY, _, enc = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modSmallTrain.csv",
                                              selectFeatures=False, enc=None)
 
-# # ---------- select learner
-pipe_prep, allParamsDict = prepPipes(simple=True)
+# ---------- select learner
+pipe_prep, params_prep = prepPipes(simple=True)
+pipe_class, params_class = classifierPipes(simple=True)
 pipe_reg, params_reg = regressorPipes(simple=True)
-pipe = Pipeline(steps=pipe_prep.steps + pipe_reg.steps)
-allParamsDict.update(params_reg)
 
-gscv = GridSearchCV(pipe, allParamsDict, loss_func=mean_absolute_error, n_jobs=20, cv=4, verbose=5)
+# pipe = Pipeline(steps=pipe_prep.steps + pipe_reg.steps)
+# allParamsDict = dict(params_prep.items() + params_reg.items())
+
+pipe = BinThenReg(pipe_prep, pipe_class, pipe_reg)
+params = BinThenReg.make_params_dict(params_prep, params_class, params_reg)
+
+gscv = GridSearchCV(pipe, params, loss_func=mean_absolute_error, n_jobs=20, cv=4, verbose=5)
 dt = datetime.now()
 gscv.fit(smallTrainX, smallTrainY)
 print 'Took', datetime.now() - dt
 
 print_GSCV_info(gscv)
 
-# # ---------- learn the full training data
-fullTrainX, fullTrainY, _, enc = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modTrain.csv",
-                                           selectFeatures=False, enc=None)
+# ---------- double-check cv score
 bestPipe = gscv.best_estimator_
-
-# bestPipe = Pipeline(steps=[('filler', Imputer(axis=0, copy=True, missing_values='NaN', strategy='median', verbose=0)),
-#                            ('normalizer', Normalizer(method='standardize')),
-#                            ('PCAer', PcaEr(fixed_num_components=None, method='PCA', total_var=0.9)),
-#                            ('RFer', RandomForester(max_depth=None, min_samples_split=2, n_estimators=5, num_features=25)),
-#                            ('GBR', GradientBoostingRegressor(loss='lad', n_estimators=5, max_depth=3, subsample=0.7,
-#                                                              learning_rate=0.01, max_features='auto'))])
 dt = datetime.now()
 print 'jj score:', quick_score(bestPipe, smallTrainX, smallTrainY)
 print 'quick jj score took', datetime.now() - dt
+
+# ---------- learn the full training data
+fullTrainX, fullTrainY, _, enc = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modTrain.csv",
+                                           selectFeatures=False, enc=None)
 
 dt = datetime.now()
 bestPipe.fit(fullTrainX, fullTrainY)
 print 'Fitting to full training data took', datetime.now() - dt
 
 # ----------  predict & write to file
-testData, _, testDataIds, _ = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modTest.csv",
-                                     selectFeatures=False, enc=enc)
-
-dt = datetime.now()
-pred = bestPipe.predict(testData)
-print 'predicting took', datetime.now() - dt
-write_predictions_to_file(testDataIds, pred, "/home/jj/code/Kaggle/Loan Default Prediction/submissions/GBR_cat_whiten.csv")
+write_predictions_to_file(predictor=bestPipe,
+                          testDataFname="/home/jj/code/Kaggle/Loan Default Prediction/Data/modTest.csv",
+                          enc=enc,
+                          outputFname="/home/jj/code/Kaggle/Loan Default Prediction/submissions/GBR_binReg.csv")
 
 print '----- FIN -----'

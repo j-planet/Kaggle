@@ -1,7 +1,5 @@
 TO-DO to-dos:
 
-- make the binary->reg one pipeline
-
 - feature construction (no idea how to... yet)
 - better imputation (e.g. predict missing values)
 
@@ -21,3 +19,4 @@ finished to-do:
 - whiten (remove linear correlation between features)
 - predict 0-loss as a binary classification problem first, then regress on the non-zero values
 - use the same imputer and normalizer for classification and regression
+- make the binary->reg one pipeline
