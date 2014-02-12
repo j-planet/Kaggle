@@ -2,7 +2,7 @@ from dbus.decorators import method
 import numpy as np
 import pandas
 import csv
-from copy import copy
+from copy import copy, deepcopy
 from pprint import pprint
 
 import matplotlib.pyplot as plt
@@ -299,3 +299,45 @@ def print_GSCV_info(gsv):
     print '\n>>> Best score:', gsv.best_score_
     print '\n>>> Best Params:'
     pprint(gsv.best_params_)
+
+
+class BinThenReg(object):
+    """
+    first classify target values as 0 or positive, then predict the positive values
+    """
+
+    def __init__(self, common_preprocessing_pipe, classifier_pipe, regressor_pipe):
+        """
+        @param common_preprocessing_pipe: the preprocessing step done prior to BOTH classifying and regressing
+        """
+        self.common_preprocessing_pipe = deepcopy(common_preprocessing_pipe)
+        self.classifier_pipe = deepcopy(classifier_pipe)
+        self.regressor_pipe = deepcopy(regressor_pipe)
+
+    def fit(self, X, y):
+
+        binaryY, _, regY, nonZeroMask = split_class_reg(X, y)
+
+        # apply common_preprocessing_pipe
+        newX = self.common_preprocessing_pipe.fit_transform(X)
+
+        # apply classifier_pipe
+        self.classifier_pipe.fit(newX, binaryY)
+
+        # apply regressor_pipe
+        self.regressor_pipe.fit(newX[nonZeroMask], regY)
+
+    def predict(self, X):
+        # apply common_preprocessing_pipe
+        newX = self.common_preprocessing_pipe.fit_transform(X)  # just transform?
+
+        # apply classifier_pipe
+        binaryOutput = self.classifier_pipe.predict(newX)
+        nonZeroMask = binaryOutput > 0
+
+        # apply regressor_pipe
+        regOutput = self.regressor_pipe.predict(newX[nonZeroMask])
+
+        # combine binary and regression output
+        binaryOutput[nonZeroMask] = regOutput
+        binaryOutput[(binaryOutput>0) & (binaryOutput<1)] = 1   # set 0.sth to 1

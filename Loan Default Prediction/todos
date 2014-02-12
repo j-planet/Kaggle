@@ -1,6 +1,6 @@
-- predict 0-loss as a binary classification problem first, then regress on the non-zero values
+TO-DO to-dos:
+
 - make the binary->reg one pipeline
-- use the same imputer and normalizer for classification and regression
 
 - feature construction (no idea how to... yet)
 - better imputation (e.g. predict missing values)
@@ -8,7 +8,10 @@
 - use kernel pca instead of pca
 - vectorize f778 and f6 (discrete variables with lots of unique values)
 
+
+================================================================================================
 finished to-do:
+
 - CV hell
 - calibrate parameters of the entire pipeline
 - standardize
@@ -16,3 +19,5 @@ finished to-do:
 - decomposition
 - handle discrete values properly (http://scikit-learn.org/stable/modules/preprocessing.html, section 4.2.4)
 - whiten (remove linear correlation between features)
+- predict 0-loss as a binary classification problem first, then regress on the non-zero values
+- use the same imputer and normalizer for classification and regression
