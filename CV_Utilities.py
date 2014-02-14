@@ -67,7 +67,8 @@ def fitClfWithGridSearch(name, origpipe, paramDict, data, saveToDir, useJJ,
 
             with GA_JJ.GAGridSearchCV_JJ(data=data, pipe=pipe, allParamsDict=paramDict, cvs=cvObjs, minimize=minimize,
                                          maxValsForInputs=maxValues, initialEvaluables=initPop[0],
-                                         initialPopulation=initPop, n_jobs=n_jobs, scoreFunc = score_func, **fitArgs) \
+                                         initialPopulation=initPop, n_jobs=n_jobs, scoreFunc = score_func,
+                                         verbosity=verbosity, **fitArgs) \
                 as ga:
                 ga.learn()
 

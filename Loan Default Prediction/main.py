@@ -36,9 +36,9 @@ if __name__=='__main__':
     data = DatasetPair(np.array(smallTrainX), np.array(smallTrainY))
 
     randomStates = [0, 1]       # try multiple random states for better calibration
-    popSize = 10
+    popSize = 8
 
-    cvObjs = [StratifiedShuffleSplit([0 if y == 0 else 1 for y in data.Y], n_iter=4, test_size=0.25,
+    cvObjs = [StratifiedShuffleSplit([0 if y == 0 else 1 for y in data.Y], n_iter=5, test_size=0.25,
                                    random_state=randomState) for randomState in randomStates]
     initPop = [[np.random.randint(len(v)) for v in params.items()] for _ in range(popSize)]
 
@@ -46,9 +46,9 @@ if __name__=='__main__':
 
     _, bestParams, score = fitClfWithGridSearch('GB', pipe, params, data,
                                                 saveToDir='/home/jj/code/Kaggle/Loan Default Prediction/output/gridSearchOutput',
-                                                useJJ=True, score_func=mean_absolute_error, n_jobs=20, verbosity=5,
+                                                useJJ=True, score_func=mean_absolute_error, n_jobs=20, verbosity=2,
                                                 minimize=True, cvObjs=cvObjs, maxLearningSteps=10,
-                                                numConvergenceSteps=5, convergenceTolerance=0, eliteProportion=0.1,
+                                                numConvergenceSteps=3, convergenceTolerance=0, eliteProportion=0.1,
                                                 parentsProportion=0.4, mutationProportion=0.1, mutationProbability=0.1,
                                                 mutationStdDev=None, populationSize=popSize)
 

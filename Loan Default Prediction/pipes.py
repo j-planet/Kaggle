@@ -37,7 +37,8 @@ def classifierPipes(simple):
                  {'max_features': ['auto', 'sqrt', 'log2'], 'learning_rate': [0.01, 0.1, 0.5, 1],
                   'n_estimators': [5, 10, 25, 50, 100], 'subsample': [0.7, 0.85, 1], 'max_depth': [3, 5, 7]}))
 
-    return makePipe([pcaReducerToTry_class, rfReducerToTry_class, classifierToTry])
+    # return makePipe([pcaReducerToTry_class, rfReducerToTry_class, classifierToTry])
+    return makePipe([rfReducerToTry_class, classifierToTry])
 
 
 def regressorPipes(simple):
@@ -59,5 +60,6 @@ def regressorPipes(simple):
                  {'max_features': ['auto', 'sqrt', 'log2'], 'subsample': [0.7, 0.85, 1], 'learning_rate': [0.01, 0.1, 0.5, 1],
                   'max_depth': [3, 5, 7], 'n_estimators': [5, 10, 25, 50, 100]}))
 
-    return makePipe([pcaReducerToTry_reg, rfReducerToTry_reg, regressorToTry])
+    # return makePipe([pcaReducerToTry_reg, rfReducerToTry_reg, regressorToTry])
+    return makePipe([rfReducerToTry_reg, regressorToTry])
 
