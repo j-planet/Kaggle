@@ -1,12 +1,12 @@
-
 __author__ = 'yuejin'
 
-import csv, pickle, math
-from copy import copy
+import csv, pickle, math, os
+from copy import copy, deepcopy
 from collections import Iterable
 import numpy as np
 import random
 from time import time
+from pprint import pprint
 from numpy.core.fromnumeric import mean, var
 from numpy.lib.scimath import sqrt
 from itertools import product
@@ -18,8 +18,9 @@ from sklearn.base import is_classifier, clone
 from sklearn.metrics import *
 from sklearn.pipeline import Pipeline
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.cross_validation import StratifiedShuffleSplit, check_cv
+from sklearn.cross_validation import StratifiedShuffleSplit, check_cv, LeavePOut
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.grid_search import GridSearchCV
 
 from pool_JJ import MyPool
 
@@ -566,7 +567,7 @@ def cvScores(clf, X, y, scoreFuncsToUse='all', numCVs=10, n_jobs=1, test_size=0.
     if doesPrint:
         print '------- CV Scores -------'
 
-    scoreFuncs = {'accuracy_score':accuracy_score, 'auc_score':auc_score, 'average_precision_score':average_precision_score,
+    scoreFuncs = {'accuracy_score':accuracy_score, 'auc_score': roc_auc_score, 'average_precision_score':average_precision_score,
                   'f1_score': f1_score, 'hinge_loss':hinge_loss, 'precision_score':precision_score, 'recall_score':recall_score}
 
     for name, scoreFunc in scoreFuncs.iteritems():
@@ -711,3 +712,26 @@ def plot_histogram(vec, numBins, title='', xLabel='', yLabel='Count', faceColor 
     plt.title(title)
 
     plt.show()
+
+
+def print_GSCV_info(gsv, isGAJJ=False, bestParams=None):
+    """
+    @param isGAJJ: true iff gscv is a GAGridSearchCV_JJ object; otherwise it is a GridSearchCV object
+    @param bestParams: used only if isGAJJ is true
+    """
+
+    if isGAJJ:
+        print '\n>>> Best Evaluable:'
+        print gsv.bestEvaluable
+        print '\n>>> Best score:', gsv.bestEvaluation
+        print '\n>>> Best Params:'
+        pprint(bestParams)
+    else:
+        print '\n>>> Grid scores:'
+        pprint(gsv.grid_scores_)
+        print '\n>>> Best Estimator:'
+        pprint(gsv.best_estimator_)
+        print '\n>>> Best score:', gsv.best_score_
+        print '\n>>> Best Params:'
+        pprint(gsv.best_params_)
+

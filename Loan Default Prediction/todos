@@ -1,6 +1,8 @@
 TO-DO to-dos:
 
 - use GA_JJ instead of gridsearchcv
+- using area under the ROC curve to evaluate your model.
+- scoring problem? (http://www.kaggle.com/c/loan-default-prediction/forums/t/6956/binary-classification-vs-regression)
 
 - feature construction (no idea how to... yet)
 - better imputation (e.g. predict missing values)

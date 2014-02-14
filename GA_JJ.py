@@ -5,7 +5,7 @@ GridSearch CV using Genetic Algorithm
 __author__ = 'jjin'
 
 from utilities import makePipe, jjcross_val_score, MyPool, printDoneTime, getNumCvFolds, saveObject, runPool
-import titanic.titanicutilities
+# from titanic.titanicutilities import readData
 from titanic.globalVariables import rootdir, fillertoTry, normalizerToTry, classifiersToTry
 
 import numpy as np
@@ -62,7 +62,7 @@ class GAGridSearchCV_JJ(GA):
                  minimize, maxLearningSteps, populationSize,
                  eliteProportion, parentsProportion, maxValsForInputs, initialPopulation, mutationProportion, mutationProbability,
                  convergenceTolerance = 0, mutationStdDev=None, initialEvaluables=None, numConvergenceSteps=None, n_jobs=1,
-                 verbosity=1, saveCache=True, maxDuplicateProportion=0, scoreFunc=accuracy_score, **kargs):
+                 verbosity=1, saveCache=True, maxDuplicateProportion=0, scoreFunc=accuracy_score, numCvFolds=None, **kargs):
         """
         @param data
         @param minimize whether to min or max the function
@@ -95,7 +95,7 @@ class GAGridSearchCV_JJ(GA):
         self._pipe = pipe
         self._allParamsDict = allParamsDict
         self._cvs = cvs
-        self._numCvFolds = getNumCvFolds(self._cvs[0])
+        self._numCvFolds = getNumCvFolds(self._cvs[0]) if numCvFolds is None else numCvFolds
         self.maxLearningSteps = maxLearningSteps
         self.populationSize = populationSize
         self.elitism = True
@@ -471,53 +471,53 @@ def fakeOneEvaluation(indiv, allParamsDict, pipe, data, cv):    # only called in
 
     return res
 
-if __name__ == '__main__':
-    data, _, _, _, _ = titanic.titanicutilities.readData(outputDir=rootdir)
-    #
-    # # make pipe and allParamsDict
-    name = 'svc'
-    step1 = fillertoTry
-    step2 = normalizerToTry
-    step3 = (name,classifiersToTry[name])
-    pipe, allParamsDict = makePipe([step1, step2, step3])
-    pprint(allParamsDict)
-
-    maxValues = [len(x)-1 for x in allParamsDict.values()]
-    print maxValues
-    maxPopSize = np.prod([v+1 for v in maxValues])
-
-    for _ in range(10):
-        mutateIndiv(indiv= np.array([2, 0, 0, 0, 0, 2, 0, 0]),maxValsForInputs=np.array([3, 1, 3, 2, 1, 2, 1, 2]), mutationProportion=1, mutationStdDev=0.3)
-
-     # ---> [2 0 3 0 0 1 1 0]
-
-    print 'maxPopSize =', maxPopSize
-    randomState = 0
-    numCvFolds = 3
-    cvObj = StratifiedShuffleSplit(data.Y, numCvFolds, test_size=0.25, random_state=randomState)
-    # popSize = min(10, maxPopSize)
-    # initPop = generateInputs(maxValues, count=popSize)
-    popSize = 2
-    initPop = np.array([np.array([0, 0, 3, 0, 0, 0, 0, 1]), np.array([0,0,0,1,0,0,0,1])])
-
-    # fakeOneEvaluation(np.array([1,0,0]), allParamsDict, pipe, data, cvObj)
-
-    t0 = time()
-    with GAGridSearchCV_JJ(data=data, pipe=pipe, allParamsDict=allParamsDict, cv=cvObj, minimize=False, maxValsForInputs=maxValues,
-                            initialEvaluables=initPop[0], initialPopulation=initPop, populationSize=popSize, verbosity=2,
-                            maxLearningSteps=10, numConvergenceSteps=5, convergenceTolerance=0, eliteProportion=0.1,
-                            parentsProportion=0.4, mutationProbability=0, mutationStdDev=None, n_jobs=10) \
-    as ga:
-        ga.learn()
-
-        bestParams = getParamsFromIndices(ga.bestEvaluable, allParamsDict)
-
-        print ga.bestEvaluable
-        print bestParams
-        print ga.bestEvaluation
-
-        newpipe = clone(pipe)
-        newpipe.set_params(**bestParams)
-        print jjcross_val_score(newpipe, data.X, data.Y, accuracy_score, cv=cvObj, n_jobs=1).mean()
-
-    printDoneTime(t0, '---- GA')
+# if __name__ == '__main__':
+#     data, _, _, _, _ = readData(outputDir=rootdir)
+#     #
+#     # # make pipe and allParamsDict
+#     name = 'svc'
+#     step1 = fillertoTry
+#     step2 = normalizerToTry
+#     step3 = (name,classifiersToTry[name])
+#     pipe, allParamsDict = makePipe([step1, step2, step3])
+#     pprint(allParamsDict)
+#
+#     maxValues = [len(x)-1 for x in allParamsDict.values()]
+#     print maxValues
+#     maxPopSize = np.prod([v+1 for v in maxValues])
+#
+#     for _ in range(10):
+#         mutateIndiv(indiv= np.array([2, 0, 0, 0, 0, 2, 0, 0]),maxValsForInputs=np.array([3, 1, 3, 2, 1, 2, 1, 2]), mutationProportion=1, mutationStdDev=0.3)
+#
+#      # ---> [2 0 3 0 0 1 1 0]
+#
+#     print 'maxPopSize =', maxPopSize
+#     randomState = 0
+#     numCvFolds = 3
+#     cvObj = StratifiedShuffleSplit(data.Y, numCvFolds, test_size=0.25, random_state=randomState)
+#     # popSize = min(10, maxPopSize)
+#     # initPop = generateInputs(maxValues, count=popSize)
+#     popSize = 2
+#     initPop = np.array([np.array([0, 0, 3, 0, 0, 0, 0, 1]), np.array([0,0,0,1,0,0,0,1])])
+#
+#     # fakeOneEvaluation(np.array([1,0,0]), allParamsDict, pipe, data, cvObj)
+#
+#     t0 = time()
+#     with GAGridSearchCV_JJ(data=data, pipe=pipe, allParamsDict=allParamsDict, cv=cvObj, minimize=False, maxValsForInputs=maxValues,
+#                             initialEvaluables=initPop[0], initialPopulation=initPop, populationSize=popSize, verbosity=2,
+#                             maxLearningSteps=10, numConvergenceSteps=5, convergenceTolerance=0, eliteProportion=0.1,
+#                             parentsProportion=0.4, mutationProbability=0, mutationStdDev=None, n_jobs=10) \
+#     as ga:
+#         ga.learn()
+#
+#         bestParams = getParamsFromIndices(ga.bestEvaluable, allParamsDict)
+#
+#         print ga.bestEvaluable
+#         print bestParams
+#         print ga.bestEvaluation
+#
+#         newpipe = clone(pipe)
+#         newpipe.set_params(**bestParams)
+#         print jjcross_val_score(newpipe, data.X, data.Y, accuracy_score, cv=cvObj, n_jobs=1).mean()
+#
+#     printDoneTime(t0, '---- GA')
