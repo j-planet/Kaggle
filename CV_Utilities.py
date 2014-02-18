@@ -61,7 +61,7 @@ def fitClfWithGridSearch(name, origpipe, paramDict, data, saveToDir, useJJ,
             print 'maxPopSize =', maxPopSize
             popSize = min(fitArgs['populationSize'], maxPopSize)
             initPop = GA_JJ.generateInputs(maxValues, count=popSize)
-            if minimize: score_func = lambda *args, **kwargs: -1 * score_func(*args, **kwargs)  # cuz GA MUST maximize
+            score_func_to_use = lambda *args, **kwargs: -1 * score_func(*args, **kwargs) if minimize else score_func  # cuz GA MUST maximize
 
             print '---------> initial population:'
             pprint(initPop)
@@ -69,7 +69,7 @@ def fitClfWithGridSearch(name, origpipe, paramDict, data, saveToDir, useJJ,
 
             with GA_JJ.GAGridSearchCV_JJ(data=data, pipe=pipe, allParamsDict=paramDict, cvs=cvObjs,
                                          maxValsForInputs=maxValues, initialEvaluables=initPop[0],
-                                         initialPopulation=initPop, n_jobs=n_jobs, scoreFunc = score_func,
+                                         initialPopulation=initPop, n_jobs=n_jobs, scoreFunc = score_func_to_use,
                                          verbosity=verbosity, **fitArgs) \
                 as ga:
                 ga.learn()

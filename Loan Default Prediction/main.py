@@ -22,9 +22,10 @@ if __name__=='__main__':
                                                  selectFeatures=False, enc=None)
 
     # ---------- make pipes and params
-    pipe_prep, params_prep = prepPipes(simple=True)
-    pipe_class, params_class = classifierPipes(simple=True)
-    pipe_reg, params_reg = regressorPipes(simple=True)
+    simple = False
+    pipe_prep, params_prep = prepPipes(simple=simple)
+    pipe_class, params_class = classifierPipes(simple=simple)
+    pipe_reg, params_reg = regressorPipes(simple=simple)
 
     # pipe = Pipeline(steps=pipe_prep.steps + pipe_reg.steps)
     # allParamsDict = dict(params_prep.items() + params_reg.items())
@@ -36,7 +37,7 @@ if __name__=='__main__':
     data = DatasetPair(np.array(smallTrainX), np.array(smallTrainY))
 
     randomStates = [0, 1]       # try multiple random states for better calibration
-    popSize = 8
+    popSize = 20
 
     cvObjs = [StratifiedShuffleSplit([0 if y == 0 else 1 for y in data.Y], n_iter=5, test_size=0.25,
                                    random_state=randomState) for randomState in randomStates]
@@ -94,6 +95,6 @@ if __name__=='__main__':
     write_predictions_to_file(predictor=bestPipe,
                               testDataFname="/home/jj/code/Kaggle/Loan Default Prediction/Data/modTest.csv",
                               enc=enc,
-                              outputFname="/home/jj/code/Kaggle/Loan Default Prediction/submissions/GBR_binReg_GAJJ.csv")
+                              outputFname="/home/jj/code/Kaggle/Loan Default Prediction/submissions/GBR_binReg_GAJJ_notSimple.csv")
 
     print '----- FIN -----'

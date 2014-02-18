@@ -271,7 +271,6 @@ class GAGridSearchCV_JJ(GA):
         """
 
         self.bestEvaluation = min(self.fitnesses) if self.minimize else max(self.fitnesses)
-        print "JJJJJJJJJJ", self.minimize, self.fitnesses,
         bestInd = self.fitnesses.index(self.bestEvaluation)
 
         self.bestEvaluable = self.currentpop[bestInd].copy()
