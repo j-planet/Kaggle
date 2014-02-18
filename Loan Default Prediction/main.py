@@ -46,7 +46,7 @@ if __name__=='__main__':
 
     _, bestParams, score = fitClfWithGridSearch('GB', pipe, params, data,
                                                 saveToDir='/home/jj/code/Kaggle/Loan Default Prediction/output/gridSearchOutput',
-                                                useJJ=True, score_func=mean_absolute_error, n_jobs=20, verbosity=2,
+                                                useJJ=True, score_func=mean_absolute_error, n_jobs=20, verbosity=3,
                                                 minimize=True, cvObjs=cvObjs, maxLearningSteps=10,
                                                 numConvergenceSteps=3, convergenceTolerance=0, eliteProportion=0.1,
                                                 parentsProportion=0.4, mutationProportion=0.1, mutationProbability=0.1,

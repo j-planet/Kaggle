@@ -58,8 +58,7 @@ class GAGridSearchCV_JJ(GA):
     Instead of strings, each individual is a list of non-negative integers representing the index
     """
 
-    def __init__(self, data, pipe, allParamsDict, cvs,
-                 minimize, maxLearningSteps, populationSize,
+    def __init__(self, data, pipe, allParamsDict, cvs, maxLearningSteps, populationSize,
                  eliteProportion, parentsProportion, maxValsForInputs, initialPopulation, mutationProportion, mutationProbability,
                  convergenceTolerance = 0, mutationStdDev=None, initialEvaluables=None, numConvergenceSteps=None, n_jobs=1,
                  verbosity=1, saveCache=True, maxDuplicateProportion=0, scoreFunc=accuracy_score, numCvFolds=None, **kargs):
@@ -109,8 +108,8 @@ class GAGridSearchCV_JJ(GA):
         self._maxValsForInputs = maxValsForInputs
         self._verbosity = verbosity
         self.initialPopulation = initialPopulation
+
         GA.__init__(self, self._oneEvaluation, initialEvaluables, **kargs)
-        self.minimize = minimize
         self.bestParams = None
         self._saveCache = saveCache
         self._maxDuplicateCount = int(round(populationSize * maxDuplicateProportion))
@@ -242,8 +241,10 @@ class GAGridSearchCV_JJ(GA):
 
         # --- make sure there are no twins in the population ---
         toContinue = True
+        repeatCounter = 0
+        maxRepeats = 5      # max attempts of trying to de-duplicate
 
-        while toContinue:
+        while toContinue and repeatCounter < maxRepeats:
             duplicateIndices = []
 
             # find duplicates
@@ -255,6 +256,7 @@ class GAGridSearchCV_JJ(GA):
 
             # re-make duplicates
             if len(duplicateIndices) > self._maxDuplicateCount:
+                repeatCounter += 1
                 if self._verbosity >= 3: print '--> adding %d new children '%len(duplicateIndices)
                 newChildren = self.crossOver(parents, len(duplicateIndices))
                 for i in range(len(newChildren)):
@@ -262,11 +264,14 @@ class GAGridSearchCV_JJ(GA):
             else:
                 toContinue = False
 
+        if self._verbosity >= 3: print '---> No more duplicates. :)'
+
     def _saveTheBest(self):
         """ store the best in self.bestEvaluation, self.bestEvaluable and self.bestOutcomes
         """
 
         self.bestEvaluation = min(self.fitnesses) if self.minimize else max(self.fitnesses)
+        print "JJJJJJJJJJ", self.minimize, self.fitnesses,
         bestInd = self.fitnesses.index(self.bestEvaluation)
 
         self.bestEvaluable = self.currentpop[bestInd].copy()

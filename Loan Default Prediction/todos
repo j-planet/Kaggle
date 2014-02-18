@@ -32,3 +32,4 @@ finished to-do:
 - use the same imputer and normalizer for classification and regression
 - make the binary->reg one pipeline
 - use GA_JJ instead of gridsearchcv
+- self.minimize not setting in GA_JJ
