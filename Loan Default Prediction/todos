@@ -1,6 +1,6 @@
 TO-DO to-dos:
 
-
+- try out some classifier other than GBC
 - using area under the ROC curve to evaluate your model.
 - get ROC to work with gradientboostingclassifier
 - scoring problem? (http://www.kaggle.com/c/loan-default-prediction/forums/t/6956/binary-classification-vs-regression)

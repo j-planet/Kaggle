@@ -22,13 +22,10 @@ if __name__=='__main__':
 
     # ---------- make pipes and params
     simple = True
+    name = 'logistic'
     pipe_prep, params_prep = prepPipes(simple=simple)
-    pipe_class, params_class = classifierPipes(simple=simple)
+    pipe_class, params_class = classifierPipes(simple=simple, name=name, usePCA=True, useRF=False)
     pipe_reg, params_reg = regressorPipes(simple=simple)
-
-    # pipe = Pipeline(steps=pipe_prep.steps + pipe_reg.steps)
-    # allParamsDict = dict(params_prep.items() + params_reg.items())
-
     pipe = BinThenReg(pipe_prep, pipe_class, pipe_reg)
     params = BinThenReg.make_params_dict(params_prep, params_class, params_reg)
 
@@ -44,7 +41,7 @@ if __name__=='__main__':
     #
     # dt = datetime.now()
     #
-    # _, bestParams, score = fitClfWithGridSearch('GB', pipe, params, data,
+    # _, bestParams, score = fitClfWithGridSearch(name, pipe, params, data,
     #                                             saveToDir='/home/jj/code/Kaggle/Loan Default Prediction/output/gridSearchOutput',
     #                                             useJJ=True, score_func=mean_absolute_error, n_jobs=20, verbosity=3,
     #                                             minimize=True, cvObjs=cvObjs, maxLearningSteps=10,
@@ -54,36 +51,19 @@ if __name__=='__main__':
     #
     # bestPipe = clone(pipe)
     # bestPipe.set_params(**bestParams)
-
-    bestPipe = loadObject('/home/jj/code/Kaggle/Loan Default Prediction/output/gridSearchOutput/GB.pk')['best_estimator']
-    print '>>> Classifier pipe roc score:', bestPipe.classification_roc(data.X, data.Y)
-
-    # ga = GAGridSearchCV_JJ(data=data, pipe=pipe, allParamsDict=params, cv=cvObj, minimize=True,
-    #                   maxValsForInputs=[len(x)-1 for x in params.values()],
-    #                   initialEvaluables=initPop[0], initialPopulation=initPop, populationSize=popSize, verbosity=5,
-    #                   maxLearningSteps=10, numConvergenceSteps=5, convergenceTolerance=0, eliteProportion=0.1,
-    #                   parentsProportion=0.4, mutationProportion=0.1, mutationProbability=0.1, mutationStdDev=None,
-    #                   n_jobs=20, scoreFunc=mean_absolute_error, numCvFolds=4)
-    # ga.learn()
-    # bestParams = getParamsFromIndices(ga.bestEvaluable, params)
-    # print_GSCV_info(ga, isGAJJ=True, bestParams=bestParams)
-    # bestPipe = clone(pipe)
-    # bestPipe.set_params(**bestParams)
-
-    # gscv = GridSearchCV(pipe, params, loss_func=mean_absolute_error, n_jobs=20, cv=4, verbose=5)
-    # gscv.fit(smallTrainX, smallTrainY)
-    # print_GSCV_info(gscv)
-    # bestPipe = gscv.best_estimator_
     #
-    print 'CV Took', datetime.now() - dt
+    # print 'CV Took', datetime.now() - dt
 
+    bestPipe = loadObject('/home/jj/code/Kaggle/Loan Default Prediction/output/gridSearchOutput/logistic.pk')['best_estimator']
 
-
-    # ---------- double-check cv score
+    # ---------- double-check cv score and classification roc auc
+    # dt = datetime.now()
+    # print 'jj score:', quick_score(bestPipe, smallTrainX, smallTrainY)
+    # print 'quick jj score took', datetime.now() - dt
 
     dt = datetime.now()
-    print 'jj score:', quick_score(bestPipe, smallTrainX, smallTrainY)
-    print 'quick jj score took', datetime.now() - dt
+    print '>>> Classifier pipe roc score:', bestPipe.classification_roc(data.X, data.Y, n_iter=10)
+    print 'roc auc took', datetime.now() - dt
 
     # ---------- learn the full training data
     fullTrainX, fullTrainY, _, enc = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modTrain.csv",
@@ -96,6 +76,6 @@ if __name__=='__main__':
     write_predictions_to_file(predictor=bestPipe,
                               testDataFname="/home/jj/code/Kaggle/Loan Default Prediction/Data/modTest.csv",
                               enc=enc,
-                              outputFname="/home/jj/code/Kaggle/Loan Default Prediction/submissions/GBR_binReg_GAJJ_notSimple.csv")
+                              outputFname="/home/jj/code/Kaggle/Loan Default Prediction/submissions/" + name + "_Simple.csv")
 
     print '----- FIN -----'

@@ -103,7 +103,7 @@ class BinThenReg(BaseEstimator, TransformerMixin):
             pipeToUse.fit(trainX, trainY)
             y_scores = pipeToUse.predict_proba(testX)
             temp = next((i for i in range(len(testY)) if pipeToUse.predict(testX)[i]==1), None)
-            res += roc_auc_score(testY, y_scores[:,1])
+            res += roc_auc_score(testY, y_scores[:, 1])
 
         return res/n_iter
 
