@@ -8,6 +8,7 @@ from utilities import makePipe, jjcross_val_score, MyPool, printDoneTime, getNum
 # from titanic.titanicutilities import readData
 from titanic.globalVariables import rootdir, fillertoTry, normalizerToTry, classifiersToTry
 
+import traceback
 import numpy as np
 from copy import copy
 from time import time
@@ -22,6 +23,7 @@ from sklearn import clone
 from pybrain.optimization import GA
 from pybrain.utilities import DivergenceError
 
+
 def GAGridSearchCV_JJ_learnStepInit(*args):
     """
     called in _learnStep of GAGridSearchCV_JJ
@@ -31,25 +33,32 @@ def GAGridSearchCV_JJ_learnStepInit(*args):
     global allCvData, origpipe, allParamsDict, scoreFunc
     allCvData, origpipe, allParamsDict, scoreFunc = args
 
+
 def GAGridSearchCV_JJ_learnStepInner(args):
     """ called in _learnStep of GAGridSearchCV_JJ. evaluates one evaluator.
     @return fitness
     """
 
-    global allCvData, origpipe, allParamsDict, scoreFunc
-    evaluable, cvIndex = args
+    try:
+        global allCvData, origpipe, allParamsDict, scoreFunc
+        evaluable, cvIndex = args
 
-    trainX, trainY, testX, testY = allCvData[cvIndex]
+        trainX, trainY, testX, testY = allCvData[cvIndex]
 
-    params = getParamsFromIndices(evaluable, allParamsDict)
-    newpipe = clone(origpipe)
-    newpipe.set_params(**params)
-    newpipe.fit(trainX, trainY)
+        params = getParamsFromIndices(evaluable, allParamsDict)
+        newpipe = clone(origpipe)
+        newpipe.set_params(**params)
+        newpipe.fit(trainX, trainY)
 
-    # res = accuracy_score(testY, newpipe.predict(testX))
-    res = scoreFunc(testY, newpipe.predict(testX))
+        # res = accuracy_score(testY, newpipe.predict(testX))
+        res = scoreFunc(testY, newpipe.predict(testX))
+        return res
 
-    return res
+    except:
+        print('SOME ERROR HAPPENED: %s' % traceback.format_exc())
+        return None
+
+
 
 
 class GAGridSearchCV_JJ(GA):
@@ -412,7 +421,11 @@ class GAGridSearchCV_JJ(GA):
             if self._verbosity >=1: print 'Draining the pool. no more swimming :('
 
             self._pool.close()
-            self._pool.join()
+            print 'here-2'
+            # self._pool.join()
+            self._pool.terminate()
+            print 'here-1'
+
 
 
 def mutateIndiv(indiv, maxValsForInputs, mutationProportion, mutationStdDev):

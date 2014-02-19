@@ -22,7 +22,7 @@ if __name__=='__main__':
                                                  selectFeatures=False, enc=None)
 
     # ---------- make pipes and params
-    simple = False
+    simple = True
     pipe_prep, params_prep = prepPipes(simple=simple)
     pipe_class, params_class = classifierPipes(simple=simple)
     pipe_reg, params_reg = regressorPipes(simple=simple)
@@ -37,7 +37,7 @@ if __name__=='__main__':
     data = DatasetPair(np.array(smallTrainX), np.array(smallTrainY))
 
     randomStates = [0, 1]       # try multiple random states for better calibration
-    popSize = 20
+    popSize = 8
 
     cvObjs = [StratifiedShuffleSplit([0 if y == 0 else 1 for y in data.Y], n_iter=5, test_size=0.25,
                                    random_state=randomState) for randomState in randomStates]
