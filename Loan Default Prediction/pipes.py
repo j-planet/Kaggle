@@ -1,5 +1,6 @@
 from helpers import *
-from Kaggle.utilities import makePipe, Normalizer
+from Kaggle.utilities import makePipe, Normalizer, roc_loss_func
+
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
 
 def prepPipes(simple):
@@ -62,4 +63,3 @@ def regressorPipes(simple):
 
     # return makePipe([pcaReducerToTry_reg, rfReducerToTry_reg, regressorToTry])
     return makePipe([rfReducerToTry_reg, regressorToTry])
-

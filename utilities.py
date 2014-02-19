@@ -734,4 +734,3 @@ def print_GSCV_info(gsv, isGAJJ=False, bestParams=None):
         print '\n>>> Best score:', gsv.best_score_
         print '\n>>> Best Params:'
         pprint(gsv.best_params_)
-

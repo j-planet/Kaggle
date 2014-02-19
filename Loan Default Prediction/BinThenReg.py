@@ -2,13 +2,10 @@ from datetime import datetime
 import numpy as np
 from copy import deepcopy
 
-from sklearn.ensemble.tests.test_gradient_boosting import test_check_max_features
-from sklearn.metrics import mean_absolute_error, zero_one
-from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier
-from sklearn.grid_search import GridSearchCV
+from sklearn import clone
+from sklearn.metrics import mean_absolute_error, zero_one, roc_auc_score
+from sklearn.cross_validation import StratifiedShuffleSplit
 
-from Kaggle.utilities import makePipe, Normalizer
-from helpers import *
 from pipes import *
 
 
@@ -79,6 +76,36 @@ class BinThenReg(BaseEstimator, TransformerMixin):
             print 'All zero output...'
 
         return binaryOutput
+
+    def classification_roc(self, X, y, n_iter=10, test_size=0.25, random_state=0):
+        """
+        returns the roc auc of the classifier via CV. binary only.
+        @param y: all non-zero will be set to 1
+        @param n_iter, test_size: StratifiedShuffleSplit parameters
+        @param random_state: random state used for StratifiedShuffleSplit
+        """
+
+        res = 0
+        y = np.array([0 if d == 0 else 1 for d in y])
+        prePipe = clone(self.common_preprocessing_pipe)
+        pipeToUse = clone(self.classifier_pipe)
+        cvObj = StratifiedShuffleSplit(y, n_iter=n_iter, test_size=test_size,
+                               random_state=random_state)
+
+        for trainInds, testInds in cvObj:    # all cv data
+            trainX = X[trainInds]
+            trainY = y[trainInds]
+            testX = X[testInds]
+            testY = y[testInds]
+
+            trainX = prePipe.fit_transform(trainX)
+            testX = prePipe.transform(testX)
+            pipeToUse.fit(trainX, trainY)
+            y_scores = pipeToUse.predict_proba(testX)
+            temp = next((i for i in range(len(testY)) if pipeToUse.predict(testX)[i]==1), None)
+            res += roc_auc_score(testY, y_scores[:,1])
+
+        return res/n_iter
 
     @staticmethod
     def make_params_dict(prepParamsDict, classParamsDict, regParamsDict):

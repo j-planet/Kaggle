@@ -12,8 +12,7 @@ from globalVars import *
 from pipes import *
 from BinThenReg import *
 from Kaggle.utilities import DatasetPair, print_GSCV_info
-from Kaggle.CV_Utilities import fitClfWithGridSearch
-from Kaggle.GA_JJ import GAGridSearchCV_JJ, getParamsFromIndices
+from Kaggle.CV_Utilities import fitClfWithGridSearch, loadObject
 
 
 if __name__=='__main__':
@@ -35,27 +34,29 @@ if __name__=='__main__':
 
     # ---------- select learner
     data = DatasetPair(np.array(smallTrainX), np.array(smallTrainY))
+    #
+    # randomStates = [0, 1]       # try multiple random states for better calibration
+    # popSize = 8
+    #
+    # cvObjs = [StratifiedShuffleSplit([0 if y == 0 else 1 for y in data.Y], n_iter=5, test_size=0.25,
+    #                                random_state=randomState) for randomState in randomStates]
+    # initPop = [[np.random.randint(len(v)) for v in params.items()] for _ in range(popSize)]
+    #
+    # dt = datetime.now()
+    #
+    # _, bestParams, score = fitClfWithGridSearch('GB', pipe, params, data,
+    #                                             saveToDir='/home/jj/code/Kaggle/Loan Default Prediction/output/gridSearchOutput',
+    #                                             useJJ=True, score_func=mean_absolute_error, n_jobs=20, verbosity=3,
+    #                                             minimize=True, cvObjs=cvObjs, maxLearningSteps=10,
+    #                                             numConvergenceSteps=3, convergenceTolerance=0, eliteProportion=0.1,
+    #                                             parentsProportion=0.4, mutationProportion=0.1, mutationProbability=0.1,
+    #                                             mutationStdDev=None, populationSize=popSize)
+    #
+    # bestPipe = clone(pipe)
+    # bestPipe.set_params(**bestParams)
 
-    randomStates = [0, 1]       # try multiple random states for better calibration
-    popSize = 8
-
-    cvObjs = [StratifiedShuffleSplit([0 if y == 0 else 1 for y in data.Y], n_iter=5, test_size=0.25,
-                                   random_state=randomState) for randomState in randomStates]
-    initPop = [[np.random.randint(len(v)) for v in params.items()] for _ in range(popSize)]
-
-    dt = datetime.now()
-
-    _, bestParams, score = fitClfWithGridSearch('GB', pipe, params, data,
-                                                saveToDir='/home/jj/code/Kaggle/Loan Default Prediction/output/gridSearchOutput',
-                                                useJJ=True, score_func=mean_absolute_error, n_jobs=20, verbosity=3,
-                                                minimize=True, cvObjs=cvObjs, maxLearningSteps=10,
-                                                numConvergenceSteps=3, convergenceTolerance=0, eliteProportion=0.1,
-                                                parentsProportion=0.4, mutationProportion=0.1, mutationProbability=0.1,
-                                                mutationStdDev=None, populationSize=popSize)
-
-    bestPipe = clone(pipe)
-    bestPipe.set_params(**bestParams)
-
+    bestPipe = loadObject('/home/jj/code/Kaggle/Loan Default Prediction/output/gridSearchOutput/GB.pk')['best_estimator']
+    print '>>> Classifier pipe roc score:', bestPipe.classification_roc(data.X, data.Y)
 
     # ga = GAGridSearchCV_JJ(data=data, pipe=pipe, allParamsDict=params, cv=cvObj, minimize=True,
     #                   maxValsForInputs=[len(x)-1 for x in params.values()],
