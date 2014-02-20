@@ -465,11 +465,12 @@ def generateInputs(maxValsForInputs, count=1):
     @return: a list of inputs
     """
 
-    if count==1:
+    if count == 1:
         return np.array([np.random.random_integers(low=0, high=v) for v in maxValsForInputs])
     else:
-        allPos = [v for v in product(*[range(i+1) for i in maxValsForInputs])]
-        return np.array([np.array(v) for v in sample(allPos, count)])
+        # allPos = [v for v in product(*[range(i+1) for i in maxValsForInputs])]
+        # return np.array([np.array(v) for v in sample(allPos, count)])
+        return np.array([np.array([np.random.randint(m+1) for m in maxValsForInputs]) for _ in range(count)])
 
 def getParamsFromIndices(indices, allParamsDict):
     return dict((k, v[indices[i]]) for i,(k,v) in enumerate(allParamsDict.iteritems()))

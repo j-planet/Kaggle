@@ -77,15 +77,20 @@ class BinThenReg(BaseEstimator, TransformerMixin):
 
         return binaryOutput
 
-    def classification_roc(self, X, y, n_iter=10, test_size=0.25, random_state=0):
+    def classification_metrics(self, X, y, n_iter=10, test_size=0.25, random_state=0):
         """
-        returns the roc auc of the classifier via CV. binary only.
+        returns the roc auc of the classifier binary only., and the portion of correct predictions via CV
         @param y: all non-zero will be set to 1
         @param n_iter, test_size: StratifiedShuffleSplit parameters
         @param random_state: random state used for StratifiedShuffleSplit
+        @return: roc, accuracy, accuracy_zero, accuracy_one
         """
 
-        res = 0
+        roc = 0
+        accuracy = 0
+        accuracy_zero = 0   # portion of zeros correctly predicted
+        accuracy_one = 0    # portion of ones correctly predicted
+
         y = np.array([0 if d == 0 else 1 for d in y])
         prePipe = clone(self.common_preprocessing_pipe)
         pipeToUse = clone(self.classifier_pipe)
@@ -102,10 +107,25 @@ class BinThenReg(BaseEstimator, TransformerMixin):
             testX = prePipe.transform(testX)
             pipeToUse.fit(trainX, trainY)
             y_scores = pipeToUse.predict_proba(testX)
-            temp = next((i for i in range(len(testY)) if pipeToUse.predict(testX)[i]==1), None)
-            res += roc_auc_score(testY, y_scores[:, 1])
+            y_pred = pipeToUse.predict(testX)
 
-        return res/n_iter
+            temp = next((i for i in range(len(testY)) if y_pred[i]==1), None)
+
+            roc += roc_auc_score(testY, y_scores[:, 1])
+            accuracy += sum(y_pred == testY)*1./len(testY)
+            accuracy_zero += 1. * sum(np.logical_and(y_pred == testY, testY == 0)) / sum(testY == 0)
+            accuracy_one += 1. * sum(np.logical_and(y_pred == testY, testY == 1)) / sum(testY == 1)
+
+        roc /= n_iter
+        accuracy_zero /= n_iter
+        accuracy_one /= n_iter
+        accuracy /= n_iter
+
+        print '>>> The classifier has roc = %0.3f, zero-accuracy = %0.3f, ' \
+              'one-accuracy = %0.3f, overall accuracy = %0.3f.' \
+              % (roc, accuracy_zero, accuracy_one, accuracy)
+
+        return roc, accuracy, accuracy_zero, accuracy_one
 
     @staticmethod
     def make_params_dict(prepParamsDict, classParamsDict, regParamsDict):

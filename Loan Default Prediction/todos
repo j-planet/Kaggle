@@ -1,6 +1,6 @@
 TO-DO to-dos:
 
-- try out some classifier other than GBC
+- try f528 - f274
 - using area under the ROC curve to evaluate your model.
 - get ROC to work with gradientboostingclassifier
 - scoring problem? (http://www.kaggle.com/c/loan-default-prediction/forums/t/6956/binary-classification-vs-regression)
@@ -35,4 +35,7 @@ finished to-do:
 - make the binary->reg one pipeline
 - use GA_JJ instead of gridsearchcv
 - self.minimize not setting in GA_JJ
-- look at the roc auc for classification (at least 0.7 benchmark). Mine is 0.665. :(
+- look at the roc auc for classification (at least 0.7 benchmark). Mine is 0.68. :(
+- try out some classifier other than GBC
+- fixed out-of-memory error with large params
+- look at classifier accuracy
