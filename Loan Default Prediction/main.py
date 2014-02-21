@@ -17,22 +17,22 @@ from Kaggle.CV_Utilities import fitClfWithGridSearch, loadObject
 
 if __name__=='__main__':
 
-    # featuresToTry = [u'f528f274', u'f674', u'f776_isOne', u'f776_isZero', u'f222', u'f221', u'f2', u'f653', u'f767',
-    #                  u'f251', u'f25', u'f670', u'f675', u'f293', u'f471', u'f768', u'f766', u'f324', u'f377', u'f73',
-    #                  u'f318', u'f329', u'f592', u'f676', u'f326']
-    featuresToTry = None
+    featuresToTry = [u'f528f274', u'f674', u'f776_isOne', u'f776_isZero', u'f222', u'f221', u'f2', u'f653', u'f767',
+                     u'f251', u'f25', u'f670', u'f675', u'f293', u'f471', u'f768', u'f766', u'f324', u'f377', u'f73',
+                     u'f318', u'f329', u'f592', u'f676', u'f326']
+    # featuresToTry = None
     smallTrainX, smallTrainY, _, enc = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modSmallTrain.csv",
                                                  enc=None, features=featuresToTry)
     fullTrainX, fullTrainY, _, enc = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modTrain.csv",
                                                enc=None, features=featuresToTry)
 
     # ---------- make pipes and params
-    simple = True
+    simple = False
     name = 'logistic'
     useSmallForCalibration = False
     pipe_prep, params_prep = prepPipes(simple=simple)
-    pipe_class, params_class = classifierPipes(simple=simple, name=name, usePCA=False, useRF=True)
-    pipe_reg, params_reg = regressorPipes(simple=simple, usePCA=False, useRF=True)
+    pipe_class, params_class = classifierPipes(simple=simple, name=name, usePCA=False, useRF=featuresToTry is None)
+    pipe_reg, params_reg = regressorPipes(simple=simple, usePCA=False, useRF=featuresToTry is None)
     pipe = BinThenReg(pipe_prep, pipe_class, pipe_reg)
     params = BinThenReg.make_params_dict(params_prep, params_class, params_reg)
 
@@ -67,7 +67,7 @@ if __name__=='__main__':
 
     print 'CV Took', datetime.now() - dt
 
-    # bestPipe = loadObject('/home/jj/code/Kaggle/Loan Default Prediction/output/gridSearchOutput/logistic.pk')['best_estimator']
+    # bestPipe = loadObject('/home/jj/code/Kaggle/Loan Default Prediction/output/gridSearchOutput/logistic_simple_25fts.pk')['best_estimator']
 
     bestPipe.classification_metrics(trainX, trainY, n_iter=10)
     # ---------- learn the full training data
@@ -80,8 +80,8 @@ if __name__=='__main__':
                               testDataFname="/home/jj/code/Kaggle/Loan Default Prediction/Data/modTest.csv",
                               enc=enc,
                               outputFname="/home/jj/code/Kaggle/Loan Default Prediction/submissions/"
-                                          + name + "_noPCA_" + ("Simple" if simple else "NonSimple")
-                                          + "_top25fts_fullCal.csv",
+                                          + name + "_noPCA_" + ("Simple" if simple else "NonSimple") + "_"
+                                          + ("small" if useSmallForCalibration else "full") + "_top25fts.csv",
                               features=featuresToTry)
 
     print '----- FIN -----'

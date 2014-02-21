@@ -6,7 +6,7 @@ from Kaggle.utilities import DatasetPair
 from helpers import quick_score, make_data
 
 
-bestPipe = loadObject('/home/jj/code/Kaggle/Loan Default Prediction/output/gridSearchOutput/logistic.pk')['best_estimator']
+bestPipe = loadObject('/home/jj/code/Kaggle/Loan Default Prediction/output/gridSearchOutput/logistic_simple_25fts.pk')['best_estimator']
 
 # ------ small
 # x, y, _, enc = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modSmallTrain.csv", enc=None)

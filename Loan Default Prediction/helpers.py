@@ -84,7 +84,7 @@ def make_data(dataFname, enc, features=None):
     del origData['id']
 
     # remove "data leakage" columns
-    for f in ['f11', 'f12', 'f462', 'f463', 'f473', 'f474', 'f602', 'f603', 'f605']:
+    for f in prohobitedFeatures:
         del origData[f]
 
     # separate into X & y values
