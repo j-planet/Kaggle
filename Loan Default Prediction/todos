@@ -1,6 +1,8 @@
 TO-DO to-dos:
 
-- try f528 - f274
+- use 'f527','f528' only?! Are they picked up by RF feature selection??
+- remove outliers
+- identify all correlated features and take differences(?!)
 - using area under the ROC curve to evaluate your model.
 - get ROC to work with gradientboostingclassifier
 - scoring problem? (http://www.kaggle.com/c/loan-default-prediction/forums/t/6956/binary-classification-vs-regression)
@@ -39,3 +41,4 @@ finished to-do:
 - try out some classifier other than GBC
 - fixed out-of-memory error with large params
 - look at classifier accuracy
+- try f528 - f274

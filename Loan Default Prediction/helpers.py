@@ -83,10 +83,17 @@ def make_data(dataFname, selectFeatures, enc):
     if 'Unnamed: 0' in origData.columns: del origData['Unnamed: 0']
     del origData['id']
 
+    # remove "data leakage" columns
+    for f in ['f11', 'f12', 'f462', 'f463', 'f473', 'f474', 'f602', 'f603', 'f605']:
+        del origData[f]
+
     # separate into X & y values
     xData = origData[[col for col in origData.columns if not col=='loss']]
     set_vars_as_type(xData, discreteVars, object)
     yVec = origData.loss if 'loss' in origData.columns else None
+
+    # try f528 - f274
+    xData['f528f274'] = xData['f528'] - xData['f274']
 
     # encode the categorical features f776 and f777
     if enc is None:
@@ -247,9 +254,12 @@ class RandomForester(BaseEstimator, TransformerMixin):
         @return: new x
         """
 
-        importances = self._forest.feature_importances_
+        # importances = self._forest.feature_importances_
         num_features_to_use = int(self.num_features if self.num_features > 1 else np.shape(X)[1]*self.num_features)
-        indices = np.argsort(importances)[::-1][:num_features_to_use]
+        # indices = np.argsort(importances)[::-1][:num_features_to_use]
+
+        indices = self.top_indices(num_features_to_use)
+
         return X[:, indices]
 
     def fit_transform(self, X, y=None, **fit_params):
@@ -261,7 +271,16 @@ class RandomForester(BaseEstimator, TransformerMixin):
 
         return self.transform(X)
 
-    def plot(self, num_features='auto'):
+    def top_indices(self, num_features):
+        """
+        returns the top indices
+        """
+
+        importances = self._forest.feature_importances_
+
+        return np.argsort(importances)[::-1][:num_features]
+
+    def plot(self, num_features='auto', labels=None):
         """
         makes a bar plot of feature importances and corresp. standard deviations
         call only after the "fit" method has been called
@@ -273,7 +292,6 @@ class RandomForester(BaseEstimator, TransformerMixin):
         """
 
         importances = self._forest.feature_importances_
-
 
         if num_features == 'auto':
             numTicks = int(self.num_features if self.num_features > 1 else len(importances)*self.num_features)
@@ -288,6 +306,10 @@ class RandomForester(BaseEstimator, TransformerMixin):
         std = np.std([tree.feature_importances_ for tree in self._forest.estimators_], axis=0)
 
         plt.bar(range(len(indices)), importances[indices], color="r", yerr=std[indices], align="center")
+
+        if labels is not None:
+            plt.xticks(range(len(indices)), labels[indices])
+
         plt.show()
 
 

@@ -347,7 +347,7 @@ class GAGridSearchCV_JJ(GA):
                 res = runPool(self._pool, GAGridSearchCV_JJ_learnStepInner, inputData)    # temporary results: [p1_fold1, ..., p1_fold5, ..., p10_fold1,... p10_fold5]
                 self.fitnesses = [res[i*self._numCvFolds : (i*self._numCvFolds + self._numCvFolds)].mean() for i in xrange(len(self.currentpop))]
 
-            if self._verbosity >= 3:    # for debugging purposes
+            if self._verbosity >= 4:    # for debugging purposes
                 print 'x'*20, 'in _learnStep'
                 print 'inputData:'
                 pprint(inputData)
@@ -421,10 +421,8 @@ class GAGridSearchCV_JJ(GA):
             if self._verbosity >=1: print 'Draining the pool. no more swimming :('
 
             self._pool.close()
-            print 'here-2'
             # self._pool.join()
             self._pool.terminate()
-            print 'here-1'
 
 
 

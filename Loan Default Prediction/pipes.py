@@ -4,7 +4,8 @@ from Kaggle.utilities import makePipe, Normalizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
 
-def prepPipes(simple):
+
+def prepPipes(simple, useImputer=True, useNormalizer=True):
     """
     the preprocessing pipes
     @param simple: whether a small range of parameters are desired
@@ -17,7 +18,14 @@ def prepPipes(simple):
     normalizerToTry = ('normalizer', (Normalizer(), {})) if simple else \
         ('normalizer', (Normalizer(), {'method': ['standardize', 'rescale']}))
 
-    return makePipe([imputerToTry, normalizerToTry])
+    if useImputer and useNormalizer:
+        return makePipe([imputerToTry, normalizerToTry])
+    elif useImputer and not useNormalizer:
+        return makePipe([imputerToTry])
+    elif not useImputer and useNormalizer:
+        makePipe([normalizerToTry])
+    else:
+        raise Exception('Have to use at least one of imputer and normalizer.')
 
 
 def classifierPipes(simple, name, usePCA = True, useRF = True):

@@ -80,7 +80,6 @@ def fitClfWithGridSearch(name, origpipe, paramDict, data, saveToDir, useJJ,
                 best_estimator.set_params(**best_params)
 
                 if verbosity >= 1: print_GSCV_info(ga, isGAJJ=True, bestParams=best_params)
-                print 'here0'
 
         else:           # use GridSearchCV
             score = 0
@@ -99,7 +98,6 @@ def fitClfWithGridSearch(name, origpipe, paramDict, data, saveToDir, useJJ,
 
             score /= sum(getNumCvFolds(cv) for cv in cvObjs)
 
-        print 'here1'
         printDoneTime(t0)
 
         print 'CV score:', score
@@ -118,7 +116,6 @@ def fitClfWithGridSearch(name, origpipe, paramDict, data, saveToDir, useJJ,
                 if verbosity>=1:
                     print 'Does not beat best score so far for', name
         else:
-            print 'here2', outputFname
             print 'No previous scores available. Saving...'
             saveObject({'best_estimator': best_estimator, 'best_params': best_params, 'score':score}, fname = outputFname)
 
