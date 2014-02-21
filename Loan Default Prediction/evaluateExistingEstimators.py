@@ -9,11 +9,9 @@ from helpers import quick_score, make_data
 bestPipe = loadObject('/home/jj/code/Kaggle/Loan Default Prediction/output/gridSearchOutput/logistic.pk')['best_estimator']
 
 # ------ small
-# x, y, _, enc = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modSmallTrain.csv",
-#                                              selectFeatures=False, enc=None)
+# x, y, _, enc = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modSmallTrain.csv", enc=None)
 # ------ full
-x, y, _, enc = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modTrain.csv",
-                                           selectFeatures=False, enc=None)
+x, y, _, enc = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modTrain.csv", enc=None)
 data = DatasetPair(np.array(x), np.array(y))
 
 # ---------- double-check cv score and classification roc auc

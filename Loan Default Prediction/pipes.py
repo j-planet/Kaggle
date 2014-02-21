@@ -39,8 +39,8 @@ def classifierPipes(simple, name, usePCA = True, useRF = True):
     pcaReducerToTry_class = ('PCAer', (PcaEr(total_var=0.85), {'whiten': [True, False]})) if simple else \
         ('PCAer', (PcaEr(total_var=0.999), {'total_var': [0.85, 0.9], 'whiten': [True, False]}))
 
-    rfReducerToTry_class = ('RFer', (RandomForester(n_estimators=5, num_features=99), {'num_features':[15, 25]})) if simple else \
-        ('RFer', (RandomForester(num_features=999, n_estimators=999), {'num_features':[0.5, 15, 25], 'n_estimators':[5, 10, 25]}))
+    rfReducerToTry_class = ('RFer', (RandomForester(n_estimators=25, num_features=99), {'num_features':[15, 25]})) if simple else \
+        ('RFer', (RandomForester(num_features=999, n_estimators=999), {'num_features':[0.5, 15, 25], 'n_estimators':[25, 50]}))
 
     if name == 'GBC':
         classifierToTry = ('GBC', (GradientBoostingClassifier(subsample=0.7, n_estimators=25),
@@ -77,8 +77,8 @@ def regressorPipes(simple, usePCA = True, useRF = True):
     pcaReducerToTry_reg = ('PCAer', (PcaEr(total_var=0.85), {'whiten': [True, False]})) if simple else \
         ('PCAer', (PcaEr(total_var=0.999), {'total_var': [0.85, 0.9], 'whiten': [True, False]}))
 
-    rfReducerToTry_reg = ('RFer', (RandomForester(n_estimators=5, num_features=99), {'num_features':[15, 25]})) if simple else \
-        ('RFer', (RandomForester(num_features=999, n_estimators=999), {'num_features':[0.5, 15, 25], 'n_estimators':[5, 10, 25]}))
+    rfReducerToTry_reg = ('RFer', (RandomForester(n_estimators=25, num_features=99), {'num_features':[15, 25]})) if simple else \
+        ('RFer', (RandomForester(num_features=999, n_estimators=999), {'num_features':[0.5, 15, 25], 'n_estimators':[25, 50]}))
 
     regressorToTry = ('GBR', (GradientBoostingRegressor(loss='lad', max_features='auto', learning_rate=0.1, n_estimators=5, subsample=0.7),
                               {'learning_rate': [0.1, 0.5]})) if simple else \

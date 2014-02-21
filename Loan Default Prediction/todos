@@ -1,6 +1,6 @@
 TO-DO to-dos:
 
-- use 'f527','f528' only?! Are they picked up by RF feature selection??
+- GBC: massive improvement in classification. but much worse final prediction. why?
 - remove outliers
 - identify all correlated features and take differences(?!)
 - using area under the ROC curve to evaluate your model.

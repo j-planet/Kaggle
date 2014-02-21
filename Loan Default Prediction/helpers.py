@@ -66,12 +66,12 @@ def impute_data(xData, yData):
     return newXData, imp
 
 
-def make_data(dataFname, selectFeatures, enc):
+def make_data(dataFname, enc, features=None):
     """
     reads x and y data (no imputation, yes feature selection)
     also encodes the categorical features f776 and f777
     @param dataFname: name of the training csv file
-    @param selectFeatures: if True output only the best features. Otherwise, the original data. True by default.
+    @param features: specific features to use. None by default.
     @param enc: the OneHotEncoder. None for training data, not-None for testing data
     @return xdata, ydata (None if test data), ids, enc (OneHotEncoder for f776 and f777)
     """
@@ -107,25 +107,20 @@ def make_data(dataFname, selectFeatures, enc):
     print_missing_values_info(origData)
 
     # feature selection
-    if selectFeatures:
-
-        columns_final = ['f536', 'f602', 'f603', 'f4', 'f605', 'f6', 'f2', 'f696', 'f473', 'f344', 'f261', 'f767', 'f285', 'f765', 'f666',
-                         'f281', 'f282', 'f665', 'f221', 'f323', 'f322', 'f47', 'f5', 'f103', 'f667', 'f68', 'f67', 'f474', 'f675', 'f674',
-                         'f676', 'f631', 'f462', 'f468', 'f425', 'f400', 'f778', 'f405', 'f776', 'f463', 'f428', 'f471', 'f777', 'f314', 'f211',
-                         'f315', 'f252', 'f251', 'f426', 'f12', 'f11', 'f70']
-        filteredXData = xData[list(columns_final)]
+    if features:
+        filteredXData = xData[features]
     else:   # use ALL features
         filteredXData = xData
 
     return filteredXData, yVec, ids, enc
 
 
-def write_predictions_to_file(predictor, testDataFname, enc, outputFname):
+def write_predictions_to_file(predictor, testDataFname, enc, outputFname, features=None):
     """
     write output to file
     """
 
-    testData, _, testDataIds, _ = make_data(testDataFname, selectFeatures=False, enc=enc)
+    testData, _, testDataIds, _ = make_data(testDataFname, features=features, enc=enc)
 
     dt = datetime.now()
     predictions = predictor.predict(testData)
