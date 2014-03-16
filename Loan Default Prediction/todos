@@ -1,8 +1,8 @@
 TO-DO to-dos:
 
-- GBC: massive improvement in classification. but much worse final prediction. why?
 - remove outliers
-- identify all correlated features and take differences(?!)
+- feature construction (no idea how to... yet)
+    - identify all correlated features and take differences(?!)
 - using area under the ROC curve to evaluate your model.
 - get ROC to work with gradientboostingclassifier
 - scoring problem? (http://www.kaggle.com/c/loan-default-prediction/forums/t/6956/binary-classification-vs-regression)
@@ -14,9 +14,8 @@ TO-DO to-dos:
 
     4.  Estimate the LGD (loss given default) as a joint probability (careful with bias estimations)
 
-- feature construction (no idea how to... yet)
+
 - better imputation (e.g. predict missing values)
-- remove outliers
 
 - use kernel pca instead of pca
 - vectorize f778 and f6 (discrete variables with lots of unique values)
