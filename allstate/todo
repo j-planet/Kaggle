@@ -1,7 +1,10 @@
 TODOs:
-
+- try using the last line instead of the average
 - look at correlation matrix. rf may be messed up now
 - encode state and location
+
+BUGs:
+
 
 Finished todos:
 - encode car value
@@ -12,3 +15,5 @@ bug fixes:
     <= pandas merge messes up the order
 - pandas pivot table ignore "object" fields. i.e. even if we map from string to int (e.g. car_value), it will still be ignored due to the dtype still being object.
     <= created a new field.  pandas u r a piece of shit
+- shows NaN where the data is NOT missing (e.g. day and homeowner for 10000000)
+    <= i typed >0 instead of >-1, assuming that all values are positive. In fact, they are all non-negative.

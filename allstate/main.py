@@ -31,6 +31,7 @@ def condense_data(origDataFpath, outputFpath, isTraining, verbose=False):
     """
 
     origData = pandas.read_csv(origDataFpath)
+
     if verbose:
         print '\n------- original data ---------'
         pdf(origData)
@@ -57,7 +58,11 @@ def condense_data(origDataFpath, outputFpath, isTraining, verbose=False):
         print '\n------- countTable ---------'
         pdf(countTable)
 
-    inputTable = pandas.pivot_table(origData, rows = ind_col, values=const_cols, aggfunc=lambda vec: np.mean(vec[vec>0]), dropna=False)[const_cols]
+    # inputTable = pandas.pivot_table(origData, rows = ind_col, values=const_cols,
+    #                                 aggfunc=lambda vec: np.mean(vec[vec > -1]), dropna=False)[const_cols]
+    inputTable = pandas.pivot_table(origData, rows = ind_col, values=const_cols,
+                                    aggfunc=lambda vec: vec.iloc[len(vec)-1], dropna=False)[const_cols]
+
     if verbose:
         print '\n------- inputTable ---------'
         pdf(inputTable)
