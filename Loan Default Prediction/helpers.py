@@ -12,30 +12,12 @@ from sklearn.decomposition import KernelPCA, PCA
 from sklearn.pipeline import Pipeline
 from sklearn.feature_selection import SelectPercentile, f_regression, RFECV
 from sklearn.svm import SVR
-from sklearn.ensemble import ExtraTreesRegressor
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.metrics import mean_absolute_error
 from tornado.test import import_test
 
 from globalVars import *
-from Kaggle.utilities import plot_histogram, jjcross_val_score
-
-
-def print_missing_values_info(data):
-    """
-    Prints the number of missing data columns and values of a pandas data frame.
-    @param data 2D pandas data frame
-    @return None
-    """
-
-    temp_col = pandas.isnull(data).sum()
-    temp_row = pandas.isnull(data).sum(axis=1)
-
-    print 'The data has', (temp_col > 0).sum(), 'or', round(100. * (temp_col > 0).sum() / data.shape[1], 1), '% columns with missing values.'
-    print 'The data has', (temp_row > 0).sum(), 'or', round(100. * (temp_row > 0).sum() / data.shape[0], 1), '% rows with missing values.'
-
-    print 'The data has', temp_col.sum(), 'or', round(
-        100. * temp_col.sum() / (data.shape[0] * data.shape[1]), 1), '% missing values.'
+from Kaggle.utilities import plot_histogram, jjcross_val_score, print_missing_values_info
 
 
 def set_vars_as_type(df, varNames, dtype):
@@ -215,97 +197,6 @@ class PcaEr(BaseEstimator, TransformerMixin):
         return self.transform(X)
 
 
-class RandomForester(BaseEstimator, TransformerMixin):
-
-    def __init__(self, num_features, n_estimators, max_depth=None, min_samples_split=2, n_jobs=20):
-        """
-        Constructor
-        @param num_features:
-            number of features. if in (0,1), represents the proportion of features. if >1,
-            represents the final number of features.
-        @param n_estimators, max_depth, min_samples_split, n_jobs: params used in ExtraTreesRegressor
-        """
-
-        self.num_features = num_features
-        self.n_estimators = n_estimators
-        self.max_depth = max_depth
-        self.min_samples_split = min_samples_split
-        self.n_jobs = n_jobs
-
-        self._forest = ExtraTreesRegressor(n_estimators=self.n_estimators, max_depth=self.max_depth,
-                                           min_samples_split=self.min_samples_split, n_jobs=self.n_jobs)
-
-    def fit(self, X, y=None):
-        """
-        @return: self
-        """
-
-        self._forest.fit(X, y)
-
-        return self
-
-    def transform(self, X):
-        """
-        @return: new x
-        """
-
-        # importances = self._forest.feature_importances_
-        num_features_to_use = int(self.num_features if self.num_features > 1 else np.shape(X)[1]*self.num_features)
-        # indices = np.argsort(importances)[::-1][:num_features_to_use]
-
-        indices = self.top_indices(num_features_to_use)
-
-        return X[:, indices]
-
-    def fit_transform(self, X, y=None, **fit_params):
-        """
-        @return: new x
-        """
-
-        self.fit(X, y)
-
-        return self.transform(X)
-
-    def top_indices(self, num_features):
-        """
-        returns the top indices
-        """
-
-        importances = self._forest.feature_importances_
-
-        return np.argsort(importances)[::-1][:num_features]
-
-    def plot(self, num_features='auto', labels=None):
-        """
-        makes a bar plot of feature importances and corresp. standard deviations
-        call only after the "fit" method has been called
-        @param num_features:
-            number of features to show.
-              'auto': same as the class' number of  features
-              'all': all features
-              a number: specific # features
-        """
-
-        importances = self._forest.feature_importances_
-
-        if num_features == 'auto':
-            numTicks = int(self.num_features if self.num_features > 1 else len(importances)*self.num_features)
-        elif num_features== 'all':
-            numTicks = len(importances)
-        elif isinstance(num_features, int):
-            numTicks = num_features
-        else:
-            raise Exception('Invalid num_features provided:', num_features)
-
-        indices = np.argsort(importances)[::-1][:numTicks]
-        std = np.std([tree.feature_importances_ for tree in self._forest.estimators_], axis=0)
-
-        plt.bar(range(len(indices)), importances[indices], color="r", yerr=std[indices], align="center")
-
-        if labels is not None:
-            plt.xticks(range(len(indices)), labels[indices])
-
-        plt.show()
 
 
 def quick_score(clf, X, y, cv=5, n_jobs=20):

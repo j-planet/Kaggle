@@ -1,5 +1,6 @@
-from helpers import make_data, RandomForester
+from helpers import make_data
 from BinThenReg import *
+from Kaggle.utilities import RandomForester
 
 # trainX, trainY, _, enc = make_data("/home/jj/code/Kaggle/Loan Default Prediction/Data/modSmallTrain.csv", enc=None)
 

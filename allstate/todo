@@ -1,0 +1,7 @@
+TODOs:
+- the leading factors are strange now
+- look at correlation matrix. rf may be messed up now
+- encode state and location
+
+Finished todos:
+- encode car value
