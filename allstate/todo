@@ -1,7 +1,14 @@
 TODOs:
-- the leading factors are strange now
+
 - look at correlation matrix. rf may be messed up now
 - encode state and location
 
 Finished todos:
 - encode car value
+- pandas pivot table avergae function needs to ignore nans
+
+bug fixes:
+- the leading factors are strange now
+    <= pandas merge messes up the order
+- pandas pivot table ignore "object" fields. i.e. even if we map from string to int (e.g. car_value), it will still be ignored due to the dtype still being object.
+    <= created a new field.  pandas u r a piece of shit
