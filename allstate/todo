@@ -1,5 +1,6 @@
 TODOs:
-- try using the last line instead of the average
+
+- predict risk first
 - look at correlation matrix. rf may be messed up now
 - encode state and location
 
@@ -9,6 +10,8 @@ BUGs:
 Finished todos:
 - encode car value
 - pandas pivot table avergae function needs to ignore nans
+- try using the last line instead of the average
+- add cheapest options features
 
 bug fixes:
 - the leading factors are strange now
