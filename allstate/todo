@@ -1,5 +1,6 @@
 TODOs:
-
+- use classifiers
+- look at misclassifieds
 - predict risk first
 - look at correlation matrix. rf may be messed up now
 - encode state and location
