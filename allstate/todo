@@ -1,5 +1,5 @@
 TODOs:
-- use classifiers
+- write prediction code
 - look at misclassifieds
 - predict risk first
 - look at correlation matrix. rf may be messed up now
@@ -13,6 +13,9 @@ Finished todos:
 - pandas pivot table avergae function needs to ignore nans
 - try using the last line instead of the average
 - add cheapest options features
+- use classifiers
+- write a pipe class that combines predictions
+
 
 bug fixes:
 - the leading factors are strange now

@@ -1,9 +1,11 @@
 import pandas
 import numpy as np
 from copy import copy
-from globalVars import *
 
+from globalVars import *
 from Kaggle.utilities import RandomForester
+
+from sklearn.base import BaseEstimator, TransformerMixin
 
 
 def pdf(df, head=5):
@@ -130,3 +132,33 @@ def plot_feature_importances(X, outputTable, labels, numEstimators = 50, numTopF
         rf.fit(X, y)
         rf.plot(num_features=numTopFeatures, labels=labels)
         print rf.top_indices(labels=labels)[1]
+
+
+class CombinedClassifier(BaseEstimator, TransformerMixin):
+
+    def __init__(self, clfs):
+        self.clfs = clfs
+
+    def fit(self, X, y):
+        """
+        @param y: an array of strings such as '0100122'
+        """
+        assert len(y[0])==len(self.clfs), "outputTable must have the same num of columns as len(self.clfs)"
+
+        for col, clf in enumerate(self.clfs):
+            curY = np.array([int(s[col]) for s in y])
+            clf.fit(X, curY)
+
+    def predict(self, X):
+
+        return self.combine_outputs([clf.predict(X) for clf in self.clfs])
+
+
+    @staticmethod
+    def combine_outputs(listOfOutputs):
+        """
+        @param listOfOutputs: a list of vectors of the same length
+        """
+
+        return [''.join([str(listOfOutputs[l][i]) for l in np.arange(0, len(listOfOutputs))])
+                for i in np.arange(0, len(listOfOutputs[0]))]

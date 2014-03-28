@@ -5,7 +5,7 @@ from Kaggle.utilities import print_missing_values_info, jjcross_val_score
 
 from sklearn.preprocessing import Imputer, Normalizer, LabelEncoder
 from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import accuracy_score
 
 from globalVars import *
 from helpers import *
@@ -29,8 +29,15 @@ X = Normalizer().fit_transform(Imputer().fit_transform(inputTable))  # TODO: bet
 
 # plot_feature_importances(X, outputTable, inputTable.columns)
 
+print '====== combined accuracy score'
+y = np.array(CombinedClassifier.combine_outputs([np.array(outputTable[col]) for col in outputTable.columns]))
+clfs = [GradientBoostingClassifier(subsample=0.7, n_estimators=50, learning_rate=0.1)]*len(OUTPUT_COLS)
+print jjcross_val_score(CombinedClassifier(clfs), X, y, accuracy_score, cv=5, n_jobs=20)
+
+
+print '====== individual accuracy score'
 for col in outputTable.columns:
     y = outputTable[col]
     clf = GradientBoostingClassifier(subsample=0.7, n_estimators=50, learning_rate=0.1)
 
-    print col, (1-jjcross_val_score(clf, X, y, mean_absolute_error, cv=5, n_jobs=20).mean())*100
+    print col, (1-jjcross_val_score(clf, X, y, accuracy_score, cv=5, n_jobs=20).mean())*100

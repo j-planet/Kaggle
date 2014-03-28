@@ -14,7 +14,6 @@ from sklearn.feature_selection import SelectPercentile, f_regression, RFECV
 from sklearn.svm import SVR
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.metrics import mean_absolute_error
-from tornado.test import import_test
 
 from globalVars import *
 from Kaggle.utilities import plot_histogram, jjcross_val_score, print_missing_values_info
