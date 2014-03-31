@@ -1,7 +1,9 @@
 TODOs:
-- write prediction code
+
 - look at misclassifieds
 - predict risk first
+- should the same normalizer and imputer be used for training and prediction??
+
 - look at correlation matrix. rf may be messed up now
 - encode state and location
 
@@ -15,6 +17,7 @@ Finished todos:
 - add cheapest options features
 - use classifiers
 - write a pipe class that combines predictions
+- write prediction code
 
 
 bug fixes:

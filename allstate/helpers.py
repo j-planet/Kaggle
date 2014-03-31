@@ -20,13 +20,15 @@ def pdf(df, head=5):
         print df.head(n=head).to_string()
 
 
-def condense_data(origDataFpath, outputFpath, isTraining, verbose=False):
+def condense_data(origDataFpath, isTraining, outputFpath = None, verbose=False):
     """
     condenses the data and outputs to file
     @param origDataFpath: path to the original data provided by Kaggle
-    @param outputFpath: path to the output file, containing the condensed (i.e. one row per customer) data
     @param isTraining: whether the data is training data
     @param verbose: whether to print the first few lines of each table
+    @param outputFpath: path to the output file, containing the condensed (i.e. one row per customer) data. Does not
+                        write to file if None.
+
     @return: countDF, inputDF, outputTable, combinedTable
     """
 
@@ -50,7 +52,7 @@ def condense_data(origDataFpath, outputFpath, isTraining, verbose=False):
 
     # ------------- consolidate into one row per customer -----------------
     ind_col = u'customer_ID'
-    changing_cols = [u'shopping_pt', u'record_type', u'time', u'state', u'car_value'] + OUTPUT_COLS # TODO: handle state properly
+    changing_cols = [u'shopping_pt', u'record_type', u'time', u'state', u'location', u'car_value'] + OUTPUT_COLS    # TODO: handle state and location properly
     val_cols = [c for c in inputData.columns if c != ind_col]     # all columns except customer ID
     const_cols = [c for c in val_cols if c not in changing_cols]    # columns that are supposedly uniq per customer
     cids = inputData.customer_ID.unique()
@@ -109,7 +111,8 @@ def condense_data(origDataFpath, outputFpath, isTraining, verbose=False):
         pdf(combinedTable)
 
     # write to file
-    combinedTable.to_csv(outputFpath)
+    if outputFpath is not None:
+        combinedTable.to_csv(outputFpath)
 
     return countDF, inputDF, outputTable, combinedTable
 
@@ -143,7 +146,7 @@ class CombinedClassifier(BaseEstimator, TransformerMixin):
         """
         @param y: an array of strings such as '0100122'
         """
-        assert len(y[0])==len(self.clfs), "outputTable must have the same num of columns as len(self.clfs)"
+        assert len(y[0]) == len(self.clfs), "outputTable must have the same num of columns as len(self.clfs)"
 
         for col, clf in enumerate(self.clfs):
             curY = np.array([int(s[col]) for s in y])
@@ -151,14 +154,18 @@ class CombinedClassifier(BaseEstimator, TransformerMixin):
 
     def predict(self, X):
 
-        return self.combine_outputs([clf.predict(X) for clf in self.clfs])
+        return self.combine_outputs(np.array([clf.predict(X) for clf in self.clfs]).transpose())
 
 
     @staticmethod
-    def combine_outputs(listOfOutputs):
+    def combine_outputs(outputTable):
         """
-        @param listOfOutputs: a list of vectors of the same length
+        @param outputTable: a 2D numpy array
+        @return a numpy array of strings
         """
 
-        return [''.join([str(listOfOutputs[l][i]) for l in np.arange(0, len(listOfOutputs))])
-                for i in np.arange(0, len(listOfOutputs[0]))]
+        numRows = outputTable.shape[0]
+        numCols = outputTable.shape[1]
+
+        return np.array([''.join([str(outputTable[i, l]) for l in np.arange(0, numCols)])
+                for i in np.arange(0, numRows)])

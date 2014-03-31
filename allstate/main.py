@@ -11,33 +11,60 @@ from globalVars import *
 from helpers import *
 
 
-# --------- read data ---------
-partname = 'smallTrain'
+
+# ======= read data =======
+partname = 'train'
 # origDataFpath = os.path.join(os.path.dirname(__file__), 'Data', partname + '.csv')
 # outputFpath = os.path.join(os.path.dirname(__file__), 'Data', 'condensed_' + partname + '.csv')
-origDataFpath = '/home/jj/code/Kaggle/allstate/Data/' + partname + '.csv'
-outputFpath = '/home/jj/code/Kaggle/allstate/Data/' + 'condensed_' + partname + '.csv'
+origDataFpath = DATA_PATH + partname + '.csv'
+outputFpath = DATA_PATH + 'condensed_' + partname + '.csv'
 
-countTable, inputTable, outputTable, condensedTable = condense_data(origDataFpath, outputFpath, isTraining=True, verbose=False)
+_, inputTable, outputTable, _ = condense_data(origDataFpath, isTraining=True,
+                                                                    outputFpath = outputFpath, verbose=False)
 
 pdf(inputTable)
 
-del inputTable[u'location']
-
-# --------- impute and normalize ---------
-X = Normalizer().fit_transform(Imputer().fit_transform(inputTable))  # TODO: better imputation
-
+# ======= validate classifiers =======
+X_train = Normalizer().fit_transform(Imputer().fit_transform(inputTable))  # TODO: better imputation
+y_train = CombinedClassifier.combine_outputs(np.array(outputTable))
 # plot_feature_importances(X, outputTable, inputTable.columns)
 
 print '====== combined accuracy score'
-y = np.array(CombinedClassifier.combine_outputs([np.array(outputTable[col]) for col in outputTable.columns]))
-clfs = [GradientBoostingClassifier(subsample=0.7, n_estimators=50, learning_rate=0.1)]*len(OUTPUT_COLS)
-print jjcross_val_score(CombinedClassifier(clfs), X, y, accuracy_score, cv=5, n_jobs=20)
 
+# individualClfs = [GradientBoostingClassifier(subsample=0.7, n_estimators=50, learning_rate=0.1)]*len(OUTPUT_COLS)
+# combinedClf = CombinedClassifier(individualClfs)
+#
+# print jjcross_val_score(combinedClf, X, y, accuracy_score, cv=5, n_jobs=1)
+#
+#
+# print '====== individual accuracy score'
+# for col in outputTable.columns:
+#     y = outputTable[col]
+#     clf = GradientBoostingClassifier(subsample=0.7, n_estimators=50, learning_rate=0.1)
+#
+#     print col, jjcross_val_score(clf, X, y, accuracy_score, cv=5, n_jobs=20).mean()
 
-print '====== individual accuracy score'
-for col in outputTable.columns:
-    y = outputTable[col]
-    clf = GradientBoostingClassifier(subsample=0.7, n_estimators=50, learning_rate=0.1)
+# ======= predict =======
+partname = 'test_v2'
+isValidation = False
+testFpath = DATA_PATH + partname + '.csv'
 
-    print col, (1-jjcross_val_score(clf, X, y, accuracy_score, cv=5, n_jobs=20).mean())*100
+_, inputTable_test, outputTable_test, combinedTable_test = condense_data(testFpath, isTraining=isValidation, verbose=False)
+X_test = Normalizer().fit_transform(Imputer().fit_transform(inputTable_test))
+
+print '====== TRAINING'
+individualClfs = [GradientBoostingClassifier(subsample=0.7, n_estimators=50, learning_rate=0.1)]*len(OUTPUT_COLS)
+combinedClf = CombinedClassifier(individualClfs)
+combinedClf.fit(X_train, y_train)
+
+print '====== PREDICTING'
+preds = combinedClf.predict(X_test)
+
+if isValidation:
+    combinedTable_test['PRED'] = preds
+    combinedTable_test.to_csv(DATA_PATH + 'val.csv')
+
+# --- write out to file
+res = pandas.DataFrame(index = inputTable_test.index, data = preds)
+res.columns = ['plan']
+res.to_csv('/home/jj/code/Kaggle/allstate/submissions/initialPred.csv')
