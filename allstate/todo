@@ -27,3 +27,5 @@ bug fixes:
     <= created a new field.  pandas u r a piece of shit
 - shows NaN where the data is NOT missing (e.g. day and homeowner for 10000000)
     <= i typed >0 instead of >-1, assuming that all values are positive. In fact, they are all non-negative.
+- the prediction for every option is the same!! :(
+    <= the same classifiers are used for all options.

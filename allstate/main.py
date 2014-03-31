@@ -21,20 +21,20 @@ outputFpath = DATA_PATH + 'condensed_' + partname + '.csv'
 
 _, inputTable, outputTable, _ = condense_data(origDataFpath, isTraining=True,
                                                                     outputFpath = outputFpath, verbose=False)
+X_train = Normalizer().fit_transform(Imputer().fit_transform(inputTable))  # TODO: better imputation
+y_train = CombinedClassifier.combine_outputs(np.array(outputTable))
 
 pdf(inputTable)
 
 # ======= validate classifiers =======
-X_train = Normalizer().fit_transform(Imputer().fit_transform(inputTable))  # TODO: better imputation
-y_train = CombinedClassifier.combine_outputs(np.array(outputTable))
-# plot_feature_importances(X, outputTable, inputTable.columns)
-
-print '====== combined accuracy score'
-
-# individualClfs = [GradientBoostingClassifier(subsample=0.7, n_estimators=50, learning_rate=0.1)]*len(OUTPUT_COLS)
-# combinedClf = CombinedClassifier(individualClfs)
+# # plot_feature_importances(X, outputTable, inputTable.columns)
 #
-# print jjcross_val_score(combinedClf, X, y, accuracy_score, cv=5, n_jobs=1)
+# print '====== combined accuracy score'
+#
+# combinedClf = CombinedClassifier.create_by_cloning(
+#     GradientBoostingClassifier(subsample=0.7, n_estimators=50, learning_rate=0.1), len(OUTPUT_COLS))
+#
+# print jjcross_val_score(combinedClf, X_train, y_train, accuracy_score, cv=5, n_jobs=20)
 #
 #
 # print '====== individual accuracy score'
@@ -42,7 +42,7 @@ print '====== combined accuracy score'
 #     y = outputTable[col]
 #     clf = GradientBoostingClassifier(subsample=0.7, n_estimators=50, learning_rate=0.1)
 #
-#     print col, jjcross_val_score(clf, X, y, accuracy_score, cv=5, n_jobs=20).mean()
+#     print col, jjcross_val_score(clf, X_train, y_train, accuracy_score, cv=5, n_jobs=20).mean()
 
 # ======= predict =======
 partname = 'test_v2'
@@ -53,8 +53,9 @@ _, inputTable_test, outputTable_test, combinedTable_test = condense_data(testFpa
 X_test = Normalizer().fit_transform(Imputer().fit_transform(inputTable_test))
 
 print '====== TRAINING'
-individualClfs = [GradientBoostingClassifier(subsample=0.7, n_estimators=50, learning_rate=0.1)]*len(OUTPUT_COLS)
-combinedClf = CombinedClassifier(individualClfs)
+
+combinedClf = CombinedClassifier.create_by_cloning(
+    GradientBoostingClassifier(subsample=0.7, n_estimators=50, learning_rate=0.1), len(OUTPUT_COLS))
 combinedClf.fit(X_train, y_train)
 
 print '====== PREDICTING'

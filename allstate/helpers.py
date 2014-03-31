@@ -6,6 +6,7 @@ from globalVars import *
 from Kaggle.utilities import RandomForester
 
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn import clone
 
 
 def pdf(df, head=5):
@@ -169,3 +170,18 @@ class CombinedClassifier(BaseEstimator, TransformerMixin):
 
         return np.array([''.join([str(outputTable[i, l]) for l in np.arange(0, numCols)])
                 for i in np.arange(0, numRows)])
+
+
+    @staticmethod
+    def create_by_cloning(clf, num):
+        """
+        create a CombinedClassifier by cloning multiple copies of one single classifer
+        @return a CombinedClassifier
+        """
+        
+        res = []
+        
+        for _ in np.arange(0, num):
+            res.append(clone(clf))
+            
+        return CombinedClassifier(res)
