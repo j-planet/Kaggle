@@ -4,7 +4,7 @@ sys.path.append('/home/jj/code/Kaggle/allstate')
 from Kaggle.utilities import print_missing_values_info, jjcross_val_score
 
 from sklearn.preprocessing import Imputer, Normalizer, LabelEncoder
-from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.metrics import accuracy_score
 
 from globalVars import *
@@ -27,22 +27,23 @@ y_train = CombinedClassifier.combine_outputs(np.array(outputTable))
 pdf(inputTable)
 
 # ======= validate classifiers =======
-# # plot_feature_importances(X, outputTable, inputTable.columns)
-#
+# plot_feature_importances(X_train, outputTable, inputTable.columns)
+
 # print '====== combined accuracy score'
 #
 # combinedClf = CombinedClassifier.create_by_cloning(
 #     GradientBoostingClassifier(subsample=0.7, n_estimators=50, learning_rate=0.1), len(OUTPUT_COLS))
 #
 # print jjcross_val_score(combinedClf, X_train, y_train, accuracy_score, cv=5, n_jobs=20)
-#
-#
+
+
 # print '====== individual accuracy score'
 # for col in outputTable.columns:
 #     y = outputTable[col]
-#     clf = GradientBoostingClassifier(subsample=0.7, n_estimators=50, learning_rate=0.1)
+#     clf = GradientBoostingClassifier(subsample=0.8, n_estimators=50, learning_rate=0.05)
+#     # clf = RandomForestClassifier(n_estimators=25, n_jobs=20)
 #
-#     print col, jjcross_val_score(clf, X_train, y_train, accuracy_score, cv=5, n_jobs=20).mean()
+#     print col, jjcross_val_score(clf, X_train, y, accuracy_score, cv=5, n_jobs=20).mean()
 
 # ======= predict =======
 partname = 'test_v2'
@@ -54,8 +55,10 @@ X_test = Normalizer().fit_transform(Imputer().fit_transform(inputTable_test))
 
 print '====== TRAINING'
 
+# combinedClf = CombinedClassifier.create_by_cloning(
+#     GradientBoostingClassifier(subsample=0.8, n_estimators=25, learning_rate=0.05), len(OUTPUT_COLS))
 combinedClf = CombinedClassifier.create_by_cloning(
-    GradientBoostingClassifier(subsample=0.7, n_estimators=50, learning_rate=0.1), len(OUTPUT_COLS))
+    RandomForestClassifier(n_estimators=50, n_jobs=20), len(OUTPUT_COLS))
 combinedClf.fit(X_train, y_train)
 
 print '====== PREDICTING'
@@ -68,4 +71,4 @@ if isValidation:
 # --- write out to file
 res = pandas.DataFrame(index = inputTable_test.index, data = preds)
 res.columns = ['plan']
-res.to_csv('/home/jj/code/Kaggle/allstate/submissions/initialPred.csv')
+res.to_csv('/home/jj/code/Kaggle/allstate/submissions/rf.csv')
