@@ -13,7 +13,7 @@ from helpers import *
 
 
 # ======= read data =======
-partname = 'train'
+partname = 'smallerTrain'
 # origDataFpath = os.path.join(os.path.dirname(__file__), 'Data', partname + '.csv')
 # outputFpath = os.path.join(os.path.dirname(__file__), 'Data', 'condensed_' + partname + '.csv')
 origDataFpath = DATA_PATH + partname + '.csv'
@@ -36,36 +36,36 @@ pdf(inputTable)
 #
 # print jjcross_val_score(combinedClf, X_train, y_train, accuracy_score, cv=5, n_jobs=20)
 #
-#
-# print '====== individual accuracy score'
-# for col in outputTable.columns:
-#     y = outputTable[col]
-#     clf = GradientBoostingClassifier(subsample=0.7, n_estimators=50, learning_rate=0.1)
-#
-#     print col, jjcross_val_score(clf, X_train, y_train, accuracy_score, cv=5, n_jobs=20).mean()
+
+print '====== individual accuracy score'
+for col in outputTable.columns:
+     y = outputTable[col]
+     clf = GradientBoostingClassifier(subsample=0.7, n_estimators=50, learning_rate=0.1)
+
+     print col, jjcross_val_score(clf, X_train, y_train, accuracy_score, cv=5, n_jobs=20).mean()
 
 # ======= predict =======
-partname = 'test_v2'
-isValidation = False
-testFpath = DATA_PATH + partname + '.csv'
-
-_, inputTable_test, outputTable_test, combinedTable_test = condense_data(testFpath, isTraining=isValidation, verbose=False)
-X_test = Normalizer().fit_transform(Imputer().fit_transform(inputTable_test))
-
-print '====== TRAINING'
-
-combinedClf = CombinedClassifier.create_by_cloning(
-    GradientBoostingClassifier(subsample=0.7, n_estimators=50, learning_rate=0.1), len(OUTPUT_COLS))
-combinedClf.fit(X_train, y_train)
-
-print '====== PREDICTING'
-preds = combinedClf.predict(X_test)
-
-if isValidation:
-    combinedTable_test['PRED'] = preds
-    combinedTable_test.to_csv(DATA_PATH + 'val.csv')
-
-# --- write out to file
-res = pandas.DataFrame(index = inputTable_test.index, data = preds)
-res.columns = ['plan']
-res.to_csv('/home/jj/code/Kaggle/allstate/submissions/initialPred.csv')
+#partname = 'test_v2'
+#isValidation = False
+#testFpath = DATA_PATH + partname + '.csv'
+#
+#_, inputTable_test, outputTable_test, combinedTable_test = condense_data(testFpath, isTraining=isValidation, verbose=False)
+#X_test = Normalizer().fit_transform(Imputer().fit_transform(inputTable_test))
+#
+#print '====== TRAINING'
+#
+#combinedClf = CombinedClassifier.create_by_cloning(
+#    GradientBoostingClassifier(subsample=0.7, n_estimators=50, learning_rate=0.1), len(OUTPUT_COLS))
+#combinedClf.fit(X_train, y_train)
+#
+#print '====== PREDICTING'
+#preds = combinedClf.predict(X_test)
+#
+#if isValidation:
+#    combinedTable_test['PRED'] = preds
+#    combinedTable_test.to_csv(DATA_PATH + 'val.csv')
+#
+## --- write out to file
+#res = pandas.DataFrame(index = inputTable_test.index, data = preds)
+#res.columns = ['plan']
+#res.to_csv('/home/jj/code/Kaggle/allstate/submissions/initialPred.csv')
