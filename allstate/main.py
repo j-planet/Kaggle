@@ -13,7 +13,7 @@ from helpers import *
 
 
 # ======= read data =======
-partname = 'smallerTrain'
+partname = 'smallTrain'
 # origDataFpath = os.path.join(os.path.dirname(__file__), 'Data', partname + '.csv')
 # outputFpath = os.path.join(os.path.dirname(__file__), 'Data', 'condensed_' + partname + '.csv')
 origDataFpath = DATA_PATH + partname + '.csv'
