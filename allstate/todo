@@ -1,6 +1,5 @@
 TODOs:
 
-- read from condensed tables instead of creating new ones everytime
 - look at how much data each option (A, B, etc) has
 - try classifiers other than GBC (especially for G, whose accuracy is the lowest)
 - when calibrating remove the last few rows
@@ -24,7 +23,7 @@ Finished todos:
 - write a pipe class that combines predictions
 - write prediction code
 - calibrate classifiers for each option separately
-
+- read from condensed tables instead of creating new ones everytime
 
 bug fixes:
 - the leading factors are strange now
