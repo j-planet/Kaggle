@@ -50,7 +50,7 @@ for col in outputTable_cal.columns:
                                        'n_estimators': [5, 10, 25, 50, 100],
                                        'subsample': [0.7, 0.85, 1]}))])
 
-    newpipe, bestParams, score = fitClfWithGridSearch('GBC', pipe, params, DatasetPair(X_cal, cur_y),
+    _, bestParams, score = fitClfWithGridSearch('GBC', pipe, params, DatasetPair(X_cal, cur_y),
                                                 saveToDir='/home/jj/code/Kaggle/allstate/output/gridSearchOutput',
                                                 useJJ=True, score_func=accuracy_score, n_jobs=20, verbosity=3,
                                                 minimize=False, cvSplitNum=5,
@@ -59,11 +59,12 @@ for col in outputTable_cal.columns:
                                                 parentsProportion=0.4, mutationProportion=0.1, mutationProbability=0.1,
                                                 mutationStdDev=None, populationSize=6)
 
+    bestPipe = clone(pipe)
+    bestPipe.set_params(**bestParams)
 
-    indivClfs.append(newpipe)
+    indivClfs.append(bestPipe)
     print '---->', col, '<----', score
     pprint(bestParams)
-    #print col, jjcross_val_score(clf, X_train, cur_y, accuracy_score, cv=5, n_jobs=20).mean()
 
 
 print '====== TRAINING'
