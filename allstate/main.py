@@ -42,6 +42,9 @@ pdf(inputTable)
 #     y = outputTable[col]
 #     clf = GradientBoostingClassifier(subsample=0.8, n_estimators=50, learning_rate=0.05)
 #     # clf = RandomForestClassifier(n_estimators=25, n_jobs=20)
+
+
+
 #
 #     print col, jjcross_val_score(clf, X_train, y, accuracy_score, cv=5, n_jobs=20).mean()
 
