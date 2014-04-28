@@ -1,4 +1,5 @@
 import pandas
+import os
 import numpy as np
 from copy import copy
 
@@ -21,25 +22,45 @@ def pdf(df, head=5):
         print df.head(n=head).to_string()
 
 
-def condense_data(origDataFpath, isTraining, outputFpath = None, verbose=False):
+def condense_data(name, inputDir, isTraining, readFromFiles, outputDir=None, verbose=False):
     """
     condenses the data and outputs to file
-    @param origDataFpath: path to the original data provided by Kaggle
+    @param inputDir: path to the directory that contains the original data provided by Kaggle
     @param isTraining: whether the data is training data
+    @param readFromFiles: whether to read condensed data from files (only if all 4 exist). If false, redo calculations
+                          and overwrite files.
     @param verbose: whether to print the first few lines of each table
-    @param outputFpath: path to the output file, containing the condensed (i.e. one row per customer) data. Does not
+    @param outputDir: path to the output directory, containing the condensed (i.e. one row per customer) data. Does not
                         write to file if None.
+    @param name: used to identify output condensed files; cannot be None if outputDir is not None
 
     @return: countDF, inputDF, outputTable, combinedTable
     """
 
-    origData = pandas.read_csv(origDataFpath)
+    # ===================== read saved data whenever possible =====================
+    if readFromFiles:
+
+        try:
+            countDF = pandas.read_csv(os.path.join(outputDir, name + '_count.csv')).set_index(IND_COL)
+            inputDF = pandas.read_csv(os.path.join(outputDir, name + '_input.csv')).set_index(IND_COL)
+            outputTable = pandas.read_csv(os.path.join(outputDir, name + '_output.csv')).set_index(IND_COL)
+            combinedTable = pandas.read_csv(os.path.join(outputDir, name + '_combined.csv')).set_index(IND_COL)
+
+            print '>>> Successfully read tables from files. :)'
+            return countDF, inputDF, outputTable, combinedTable
+
+        except:
+            print '>>> Tried to read from tables from files but failed. :('
+
+    # ===================== read original data =====================
+    origData = pandas.read_csv(os.path.join(inputDir, name + '.csv'))
     print 'Done original reading.'
 
     if verbose:
         print '\n------- original data ---------'
         pdf(origData)
 
+    # ===================== input data frame =====================
     inputData = origData[origData.record_type == 0]
 
     # ------------- encode discrete data -----------------
@@ -53,23 +74,22 @@ def condense_data(origDataFpath, isTraining, outputFpath = None, verbose=False):
         pdf(inputData)
 
     # ------------- consolidate into one row per customer -----------------
-    ind_col = u'customer_ID'
     changing_cols = [u'shopping_pt', u'record_type', u'time', u'state', u'location', u'car_value'] + OUTPUT_COLS    # TODO: handle state and location properly
-    val_cols = [c for c in inputData.columns if c != ind_col]     # all columns except customer ID
+    val_cols = [c for c in inputData.columns if c != IND_COL]     # all columns except customer ID
     const_cols = [c for c in val_cols if c not in changing_cols]    # columns that are supposedly uniq per customer
     cids = inputData.customer_ID.unique()
 
-    countDF = pandas.pivot_table(inputData, rows = ind_col, values=val_cols, aggfunc = lambda vec: len(vec.unique()))[val_cols]
+    countDF = pandas.pivot_table(inputData, rows = IND_COL, values=val_cols, aggfunc = lambda vec: len(vec.unique()))[val_cols]
     if verbose:
         print '\n------- countDF ---------'
         pdf(countDF)
 
     # average
-    avgDF = pandas.pivot_table(inputData, rows = ind_col, values=const_cols + OUTPUT_COLS,
+    avgDF = pandas.pivot_table(inputData, rows = IND_COL, values=const_cols + OUTPUT_COLS,
                                aggfunc=lambda vec: np.mean(vec[vec > -1]), dropna=False)[const_cols + OUTPUT_COLS]
 
     # last row
-    lastDF = pandas.pivot_table(inputData, rows = ind_col, values = OUTPUT_COLS,
+    lastDF = pandas.pivot_table(inputData, rows = IND_COL, values = OUTPUT_COLS,
                                 aggfunc = lambda vec: vec.iloc[len(vec)-1], dropna=False)[OUTPUT_COLS]
     lastDF.columns = [c + '_last' for c in OUTPUT_COLS]
 
@@ -94,27 +114,28 @@ def condense_data(origDataFpath, isTraining, outputFpath = None, verbose=False):
         print '\n------- avgDF ---------'
         pdf(avgDF)
 
-    # ------------- output data frame -----------------
+    # ===================== output data frame =====================
     outputTable = None
     if isTraining:
-        outputTable = origData[origData.record_type==1][[ind_col] + OUTPUT_COLS]
-        outputTable.columns = [ind_col] + [c + '_res' for c in OUTPUT_COLS]
-        outputTable = outputTable.set_index(ind_col)
+        outputTable = origData[origData.record_type==1][[IND_COL] + OUTPUT_COLS]
+        outputTable.columns = [IND_COL] + [c + '_res' for c in OUTPUT_COLS]
+        outputTable = outputTable.set_index(IND_COL)
         if verbose:
             print '\n------- outputTable ---------'
             pdf(outputTable)
 
-        combinedTable = inputDF.join(outputTable)
-    else:
-        combinedTable = inputDF
-
+    # ===================== combined data frame =====================
+    combinedTable = inputDF.join(outputTable) if isTraining else inputDF
     if verbose:
         print '\n------- combinedTable ---------'
         pdf(combinedTable)
 
     # write to file
-    if outputFpath is not None:
-        combinedTable.to_csv(outputFpath)
+    if outputDir is not None:
+        countDF.to_csv(os.path.join(outputDir, name + '_count.csv'))
+        inputDF.to_csv(os.path.join(outputDir, name + '_input.csv'))
+        outputTable.to_csv(os.path.join(outputDir, name + '_output.csv'))
+        combinedTable.to_csv(os.path.join(outputDir, name + '_combined.csv'))
 
     return countDF, inputDF, outputTable, combinedTable
 
