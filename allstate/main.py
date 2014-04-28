@@ -12,7 +12,6 @@ from globalVars import *
 from helpers import *
 
 
-
 # ======= read data =======
 partname = 'smallerTrain'
 # origDataFpath = os.path.join(os.path.dirname(__file__), 'Data', partname + '.csv')
@@ -44,7 +43,7 @@ print '----------- individual accuracy score'
 indivClfs = []
 
 for col in outputTable.columns:
-    cur_y = outputTable[col]
+    cur_y = np.array(outputTable[col])
     clf = GradientBoostingClassifier(subsample=0.8, n_estimators=50, learning_rate=0.05)
     #clf = RandomForestClassifier(n_estimators=25, n_jobs=20)
 
@@ -55,16 +54,16 @@ for col in outputTable.columns:
 
     newpipe, bestParams, score = fitClfWithGridSearch('GBC', pipe, params, DatasetPair(X_train, cur_y),
                                                 saveToDir='/home/jj/code/Kaggle/allstate/output/gridSearchOutput',
-                                                useJJ=True, score_func=accuracy_score, n_jobs=4, verbosity=3,
+                                                useJJ=True, score_func=accuracy_score, n_jobs=20, verbosity=3,
                                                 minimize=False, cvSplitNum=5,
                                                 maxLearningSteps=10,
                                                 numConvergenceSteps=3, convergenceTolerance=0, eliteProportion=0.1,
                                                 parentsProportion=0.4, mutationProportion=0.1, mutationProbability=0.1,
-                                                mutationStdDev=None, populationSize=4)
+                                                mutationStdDev=None, populationSize=6)
 
 
     indivClfs.append(newpipe)
-    print '-> ', col, score
+    print '---->', col, '<----', score
     pprint(bestParams)
     #print col, jjcross_val_score(clf, X_train, cur_y, accuracy_score, cv=5, n_jobs=20).mean()
 
@@ -92,4 +91,4 @@ if isValidation:
 # --- write out to file
 res = pandas.DataFrame(index = inputTable_test.index, data = preds)
 res.columns = ['plan']
-res.to_csv('/home/jj/code/Kaggle/allstate/submissions/rf_indiv.csv')
+res.to_csv('/home/jj/code/Kaggle/allstate/submissions/gbc_indiv.csv')
