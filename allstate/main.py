@@ -13,18 +13,16 @@ from helpers import *
 
 
 # ======= read data =======
-partname = 'smallTrain'
-# origDataFpath = os.path.join(os.path.dirname(__file__), 'Data', partname + '.csv')
-# outputFpath = os.path.join(os.path.dirname(__file__), 'Data', 'condensed_' + partname + '.csv')
-origDataFpath = DATA_PATH + partname + '.csv'
-outputFpath = DATA_PATH + 'condensed_' + partname + '.csv'
+partname = 'tinyTrain'
+calDataFpath = DATA_PATH + partname + '.csv'
+outputFpath_cal = DATA_PATH + 'condensed_' + partname + '.csv'
 
-_, inputTable, outputTable, _ = condense_data(origDataFpath, isTraining=True,
-                                                                    outputFpath = outputFpath, verbose=False)
-X_train = Normalizer().fit_transform(Imputer().fit_transform(inputTable))  # TODO: better imputation
-y_train = CombinedClassifier.combine_outputs(np.array(outputTable))
+_, inputTable_cal, outputTable_cal, _ = condense_data(calDataFpath, isTraining=True,
+                                                                    outputFpath = outputFpath_cal, verbose=False)
+X_cal = Normalizer().fit_transform(Imputer().fit_transform(inputTable_cal))  # TODO: better imputation
+y_cal = CombinedClassifier.combine_outputs(np.array(outputTable_cal))
 
-pdf(inputTable)
+pdf(inputTable_cal)
 
 # ======= GRID SEARCH and validate classifiers =======
 
@@ -42,8 +40,8 @@ print '----------- individual accuracy score'
 
 indivClfs = []
 
-for col in outputTable.columns:
-    cur_y = np.array(outputTable[col])
+for col in outputTable_cal.columns:
+    cur_y = np.array(outputTable_cal[col])
     clf = GradientBoostingClassifier(subsample=0.8, n_estimators=50, learning_rate=0.05)
     #clf = RandomForestClassifier(n_estimators=25, n_jobs=20)
 
@@ -52,7 +50,7 @@ for col in outputTable.columns:
                                        'n_estimators': [5, 10, 25, 50, 100],
                                        'subsample': [0.7, 0.85, 1]}))])
 
-    newpipe, bestParams, score = fitClfWithGridSearch('GBC', pipe, params, DatasetPair(X_train, cur_y),
+    newpipe, bestParams, score = fitClfWithGridSearch('GBC', pipe, params, DatasetPair(X_cal, cur_y),
                                                 saveToDir='/home/jj/code/Kaggle/allstate/output/gridSearchOutput',
                                                 useJJ=True, score_func=accuracy_score, n_jobs=20, verbosity=3,
                                                 minimize=False, cvSplitNum=5,
@@ -67,21 +65,30 @@ for col in outputTable.columns:
     pprint(bestParams)
     #print col, jjcross_val_score(clf, X_train, cur_y, accuracy_score, cv=5, n_jobs=20).mean()
 
-# ======= predict =======
-partname = 'test_v2'
-isValidation = False
-testFpath = DATA_PATH + partname + '.csv'
-
-_, inputTable_test, outputTable_test, combinedTable_test = condense_data(testFpath, isTraining=isValidation, verbose=False)
-X_test = Normalizer().fit_transform(Imputer().fit_transform(inputTable_test))
 
 print '====== TRAINING'
+trainDataFpath = DATA_PATH + 'train.csv'
+outputFpath_train = DATA_PATH + 'condensed_' + partname + '.csv'
+
+_, inputTable_train, outputTable_train, _ = condense_data(trainDataFpath, isTraining=True,
+                                                      outputFpath = outputFpath_train, verbose=False)
+pdf(inputTable_train)
+X_train = Normalizer().fit_transform(Imputer().fit_transform(inputTable_cal))  # TODO: better imputation
+y_train = CombinedClassifier.combine_outputs(np.array(outputTable_cal))
 
 #combinedClf = CombinedClassifier.create_by_cloning(RandomForestClassifier(n_estimators=50, n_jobs=20), len(OUTPUT_COLS))
 combinedClf = CombinedClassifier(indivClfs)
 combinedClf.fit(X_train, y_train)
 
 print '====== PREDICTING'
+partname = 'test_v2'
+isValidation = False
+testFpath = DATA_PATH + partname + '.csv'
+
+_, inputTable_test, outputTable_test, combinedTable_test = condense_data(testFpath, isTraining=isValidation, verbose=False)
+pdf(inputTable_test)
+X_test = Normalizer().fit_transform(Imputer().fit_transform(inputTable_test))
+
 preds = combinedClf.predict(X_test)
 
 if isValidation:
