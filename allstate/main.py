@@ -50,7 +50,7 @@ for col in outputTable_cal.columns:
                                        'n_estimators': [5, 10, 25, 50, 100],
                                        'subsample': [0.7, 0.85, 1]}))])
 
-    _, bestParams, score = fitClfWithGridSearch('GBC', pipe, params, DatasetPair(X_cal, cur_y),
+    _, bestParams, score = fitClfWithGridSearch('GBC_' + col, pipe, params, DatasetPair(X_cal, cur_y),
                                                 saveToDir='/home/jj/code/Kaggle/allstate/output/gridSearchOutput',
                                                 useJJ=True, score_func=accuracy_score, n_jobs=20, verbosity=3,
                                                 minimize=False, cvSplitNum=5,

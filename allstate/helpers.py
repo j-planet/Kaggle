@@ -34,6 +34,7 @@ def condense_data(origDataFpath, isTraining, outputFpath = None, verbose=False):
     """
 
     origData = pandas.read_csv(origDataFpath)
+    print 'Done original reading.'
 
     if verbose:
         print '\n------- original data ---------'
