@@ -1,6 +1,7 @@
 """
 GridSearch CV using Genetic Algorithm
 """
+from matplotlib import Verbose
 
 __author__ = 'jjin'
 
@@ -184,7 +185,8 @@ class GAGridSearchCV_JJ(GA):
         if self.initialPopulation is None:
             # complete random guess for the initial population
             self.currentpop = [self._initEvaluable] + \
-                [mutateIndiv(self._initEvaluable, self._maxValsForInputs, self.mutationProportion, self.mutationStdDev) for _ in range(self.populationSize-1)]
+                [mutateIndiv(self._initEvaluable, self._maxValsForInputs, self.mutationProportion, self.mutationStdDev, verbose=self._verbosity>=3)
+                 for _ in range(self.populationSize-1)]
 
         else:
             self.currentpop = self.initialPopulation
@@ -192,7 +194,7 @@ class GAGridSearchCV_JJ(GA):
     def mutated(self, indiv):
         """ mutate some genes of the given individual """
         if np.random.random() < self.mutationProbability:
-            return mutateIndiv(indiv, self._maxValsForInputs, self.mutationProportion, self.mutationStdDev)
+            return mutateIndiv(indiv, self._maxValsForInputs, self.mutationProportion, self.mutationStdDev, verbose=self._verbosity>=3)
 
         else:
             return copy(indiv)
@@ -426,7 +428,7 @@ class GAGridSearchCV_JJ(GA):
 
 
 
-def mutateIndiv(indiv, maxValsForInputs, mutationProportion, mutationStdDev):
+def mutateIndiv(indiv, maxValsForInputs, mutationProportion, mutationStdDev, verbose=True):
     """
     mutates an input to within a range
     @param indiv: the individual (numpy array) to be mutated
@@ -452,7 +454,9 @@ def mutateIndiv(indiv, maxValsForInputs, mutationProportion, mutationStdDev):
         else:
             res[i] = indiv[i]
 
-    print 'mutating:', indiv, '--->', res
+    if verbose:
+        print 'mutating:', indiv, '--->', res
+
     return res
 
 def generateInputs(maxValsForInputs, count=1):
