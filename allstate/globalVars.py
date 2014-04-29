@@ -1,5 +1,6 @@
 import numpy as np
 
+N_JOBS = 20
 DATA_DIR = '/home/jj/code/Kaggle/allstate/Data/'
 CONDENSED_TABLES_DIR = '/home/jj/code/Kaggle/allstate/condensedTables/'
 

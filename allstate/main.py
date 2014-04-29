@@ -3,11 +3,9 @@ from pprint import pprint
 sys.path.append('/home/jj/code/Kaggle/allstate')
 
 from sklearn.preprocessing import Imputer, Normalizer, LabelEncoder
-from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
-from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
 
-from Kaggle.utilities import jjcross_val_score, makePipe, DatasetPair
+from Kaggle.utilities import jjcross_val_score, DatasetPair
 from Kaggle.CV_Utilities import fitClfWithGridSearch
 from helpers import *
 from pipes import make_pipes
@@ -22,6 +20,7 @@ y_cal = CombinedClassifier.combine_outputs(np.array(outputTable_cal))
 pdf(inputTable_cal)
 # plot_feature_importances(X_train, outputTable, inputTable.columns)
 
+
 # ======= CALIBRATE CLASSIFIERS =======
 
 print '----------- individual accuracy score'
@@ -32,11 +31,6 @@ for col in outputTable_cal.columns:
     print '>'*20, col, '<'*20
     cur_y = np.array(outputTable_cal[col])
 
-    # pipe, params = makePipe([('GBC', (GradientBoostingClassifier(),
-    #                                   {'learning_rate': [0.01, 0.1, 0.5, 1],
-    #                                    'n_estimators': [5, 10, 25, 50, 100],
-    #                                    'subsample': [0.7, 0.85, 1]}))])
-
     bestScore = -1
     bestPipe = None
     bestParams = None
@@ -45,7 +39,7 @@ for col in outputTable_cal.columns:
         print '>'*10, name, '<'*10
         _, cur_bestParams, cur_bestScore = fitClfWithGridSearch(name + '_' + col, pipe, params, DatasetPair(X_cal, cur_y),
                                                     saveToDir='/home/jj/code/Kaggle/allstate/output/gridSearchOutput',
-                                                    useJJ=True, score_func=accuracy_score, n_jobs=20, verbosity=2,
+                                                    useJJ=True, score_func=accuracy_score, n_jobs=N_JOBS, verbosity=0,
                                                     minimize=False, cvSplitNum=5,
                                                     maxLearningSteps=10,
                                                     numConvergenceSteps=4, convergenceTolerance=0, eliteProportion=0.1,
@@ -63,7 +57,7 @@ for col in outputTable_cal.columns:
     pprint(bestParams)
 
 combinedClf = CombinedClassifier(indivClfs)
-print 'OVERALL CV SCORE:', np.mean(jjcross_val_score(combinedClf, X_cal, y_cal, accuracy_score, cv=5, n_jobs=20)) # validate classifier
+print 'OVERALL CV SCORE:', np.mean(jjcross_val_score(combinedClf, X_cal, y_cal, accuracy_score, cv=5, n_jobs=N_JOBS)) # validate classifier
 
 print '====== TRAINING'
 

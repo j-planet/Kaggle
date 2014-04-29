@@ -1,3 +1,5 @@
+from globalVars import *
+
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression, SGDClassifier
 from sklearn.svm import SVC
@@ -14,7 +16,7 @@ def make_pipes():
                                        'n_estimators': [5, 10, 25, 50, 100],
                                        'subsample': [0.7, 0.85, 1]}))]),
 
-            'RF': makePipe([('RF', (RandomForestClassifier(n_jobs = 20),
+            'RF': makePipe([('RF', (RandomForestClassifier(n_jobs = N_JOBS),
                                     {'n_estimators': [5, 10, 25, 50, 100],
                                      'max_features': [3, 0.7, 'auto', 'log2', None]
                                     }))]),
