@@ -4,15 +4,17 @@ sys.path.append('/home/jj/code/Kaggle/allstate')
 
 from sklearn.preprocessing import Imputer, Normalizer, LabelEncoder
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
 
-from Kaggle.utilities import print_missing_values_info, jjcross_val_score, makePipe, DatasetPair
+from Kaggle.utilities import jjcross_val_score, makePipe, DatasetPair
 from Kaggle.CV_Utilities import fitClfWithGridSearch
 from helpers import *
+from pipes import make_pipes
 
 
 # ======= read data =======
-_, inputTable_cal, outputTable_cal, _ = condense_data('smallTrain', DATA_DIR, isTraining=True, readFromFiles=True,
+_, inputTable_cal, outputTable_cal, _ = condense_data('smallerTrain', DATA_DIR, isTraining=True, readFromFiles=True,
                                                                     outputDir= CONDENSED_TABLES_DIR)
 X_cal = Normalizer().fit_transform(Imputer().fit_transform(inputTable_cal))  # TODO: better imputation
 y_cal = CombinedClassifier.combine_outputs(np.array(outputTable_cal))
@@ -27,29 +29,37 @@ print '----------- individual accuracy score'
 indivClfs = []
 
 for col in outputTable_cal.columns:
+    print '>'*20, col, '<'*20
     cur_y = np.array(outputTable_cal[col])
-    clf = GradientBoostingClassifier(subsample=0.8, n_estimators=50, learning_rate=0.05)
-    #clf = RandomForestClassifier(n_estimators=25, n_jobs=20)
 
-    pipe, params = makePipe([('GBC', (GradientBoostingClassifier(),
-                                      {'learning_rate': [0.01, 0.1, 0.5, 1],
-                                       'n_estimators': [5, 10, 25, 50, 100],
-                                       'subsample': [0.7, 0.85, 1]}))])
+    # pipe, params = makePipe([('GBC', (GradientBoostingClassifier(),
+    #                                   {'learning_rate': [0.01, 0.1, 0.5, 1],
+    #                                    'n_estimators': [5, 10, 25, 50, 100],
+    #                                    'subsample': [0.7, 0.85, 1]}))])
 
-    _, bestParams, score = fitClfWithGridSearch('GBC_' + col, pipe, params, DatasetPair(X_cal, cur_y),
-                                                saveToDir='/home/jj/code/Kaggle/allstate/output/gridSearchOutput',
-                                                useJJ=True, score_func=accuracy_score, n_jobs=20, verbosity=2,
-                                                minimize=False, cvSplitNum=5,
-                                                maxLearningSteps=10,
-                                                numConvergenceSteps=4, convergenceTolerance=0, eliteProportion=0.1,
-                                                parentsProportion=0.4, mutationProportion=0.1, mutationProbability=0.1,
-                                                mutationStdDev=None, populationSize=6)
+    bestScore = -1
+    bestPipe = None
+    bestParams = None
 
-    bestPipe = clone(pipe)
-    bestPipe.set_params(**bestParams)
+    for name, (pipe, params) in make_pipes().iteritems():
+        print '>'*10, name, '<'*10
+        _, cur_bestParams, cur_bestScore = fitClfWithGridSearch(name + '_' + col, pipe, params, DatasetPair(X_cal, cur_y),
+                                                    saveToDir='/home/jj/code/Kaggle/allstate/output/gridSearchOutput',
+                                                    useJJ=True, score_func=accuracy_score, n_jobs=20, verbosity=2,
+                                                    minimize=False, cvSplitNum=5,
+                                                    maxLearningSteps=10,
+                                                    numConvergenceSteps=4, convergenceTolerance=0, eliteProportion=0.1,
+                                                    parentsProportion=0.4, mutationProportion=0.1, mutationProbability=0.1,
+                                                    mutationStdDev=None, populationSize=6)
+
+        if cur_bestScore > bestScore:
+
+            bestPipe = clone(pipe)
+            bestPipe.set_params(**cur_bestParams)
+            bestParams = cur_bestParams
 
     indivClfs.append(bestPipe)
-    print '---->', col, '<----', score
+    print '---->', col, '<----', bestScore
     pprint(bestParams)
 
 combinedClf = CombinedClassifier(indivClfs)
