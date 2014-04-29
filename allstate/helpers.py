@@ -2,9 +2,10 @@ import pandas
 import os
 import numpy as np
 from copy import copy
+from time import time
 
 from globalVars import *
-from Kaggle.utilities import RandomForester
+from Kaggle.utilities import RandomForester, printDoneTime
 
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn import clone
@@ -43,8 +44,10 @@ def condense_data(name, inputDir, isTraining, readFromFiles, outputDir=None, ver
         try:
             countDF = pandas.read_csv(os.path.join(outputDir, name + '_count.csv')).set_index(IND_COL)
             inputDF = pandas.read_csv(os.path.join(outputDir, name + '_input.csv')).set_index(IND_COL)
-            outputTable = pandas.read_csv(os.path.join(outputDir, name + '_output.csv')).set_index(IND_COL)
             combinedTable = pandas.read_csv(os.path.join(outputDir, name + '_combined.csv')).set_index(IND_COL)
+
+            if isTraining:
+                outputTable = pandas.read_csv(os.path.join(outputDir, name + '_output.csv')).set_index(IND_COL)
 
             print '>>> Successfully read tables from files. :)'
             return countDF, inputDF, outputTable, combinedTable
@@ -134,8 +137,11 @@ def condense_data(name, inputDir, isTraining, readFromFiles, outputDir=None, ver
     if outputDir is not None:
         countDF.to_csv(os.path.join(outputDir, name + '_count.csv'))
         inputDF.to_csv(os.path.join(outputDir, name + '_input.csv'))
-        outputTable.to_csv(os.path.join(outputDir, name + '_output.csv'))
         combinedTable.to_csv(os.path.join(outputDir, name + '_combined.csv'))
+
+        if isTraining:
+            outputTable.to_csv(os.path.join(outputDir, name + '_output.csv'))
+
 
     return countDF, inputDF, outputTable, combinedTable
 
@@ -172,8 +178,11 @@ class CombinedClassifier(BaseEstimator, TransformerMixin):
         assert len(y[0]) == len(self.clfs), "outputTable must have the same num of columns as len(self.clfs)"
 
         for col, clf in enumerate(self.clfs):
+            t0 = time()
+            print 'Fitting', col
             curY = np.array([int(s[col]) for s in y])
             clf.fit(X, curY)
+            printDoneTime(t0)
 
     def predict(self, X):
 

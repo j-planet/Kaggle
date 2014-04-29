@@ -8,12 +8,11 @@ from sklearn.metrics import accuracy_score
 
 from Kaggle.utilities import print_missing_values_info, jjcross_val_score, makePipe, DatasetPair
 from Kaggle.CV_Utilities import fitClfWithGridSearch
-from globalVars import *
 from helpers import *
 
 
 # ======= read data =======
-_, inputTable_cal, outputTable_cal, _ = condense_data('train', DATA_DIR, isTraining=True, readFromFiles=True,
+_, inputTable_cal, outputTable_cal, _ = condense_data('smallTrain', DATA_DIR, isTraining=True, readFromFiles=True,
                                                                     outputDir= CONDENSED_TABLES_DIR)
 X_cal = Normalizer().fit_transform(Imputer().fit_transform(inputTable_cal))  # TODO: better imputation
 y_cal = CombinedClassifier.combine_outputs(np.array(outputTable_cal))
@@ -39,10 +38,10 @@ for col in outputTable_cal.columns:
 
     _, bestParams, score = fitClfWithGridSearch('GBC_' + col, pipe, params, DatasetPair(X_cal, cur_y),
                                                 saveToDir='/home/jj/code/Kaggle/allstate/output/gridSearchOutput',
-                                                useJJ=True, score_func=accuracy_score, n_jobs=20, verbosity=3,
+                                                useJJ=True, score_func=accuracy_score, n_jobs=20, verbosity=2,
                                                 minimize=False, cvSplitNum=5,
                                                 maxLearningSteps=10,
-                                                numConvergenceSteps=5, convergenceTolerance=0, eliteProportion=0.1,
+                                                numConvergenceSteps=4, convergenceTolerance=0, eliteProportion=0.1,
                                                 parentsProportion=0.4, mutationProportion=0.1, mutationProbability=0.1,
                                                 mutationStdDev=None, populationSize=6)
 
@@ -53,6 +52,8 @@ for col in outputTable_cal.columns:
     print '---->', col, '<----', score
     pprint(bestParams)
 
+combinedClf = CombinedClassifier(indivClfs)
+print 'OVERALL CV SCORE:', np.mean(jjcross_val_score(combinedClf, X_cal, y_cal, accuracy_score, cv=5, n_jobs=20)) # validate classifier
 
 print '====== TRAINING'
 
@@ -62,10 +63,8 @@ pdf(inputTable_train)
 X_train = Normalizer().fit_transform(Imputer().fit_transform(inputTable_train))  # TODO: better imputation
 y_train = CombinedClassifier.combine_outputs(np.array(outputTable_train))
 
-combinedClf = CombinedClassifier(indivClfs)
 combinedClf.fit(X_train, y_train)
 
-print jjcross_val_score(combinedClf, X_train, y_train, accuracy_score, cv=5, n_jobs=20) # validate classifier
 
 
 print '====== PREDICTING'
