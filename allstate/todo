@@ -1,6 +1,5 @@
 TODOs:
 
-- look at how much data each option (A, B, etc) has
 - try classifiers other than GBC (especially for G, whose accuracy is the lowest)
 - when calibrating remove the last few rows
 - predict risk first
