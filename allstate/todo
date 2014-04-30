@@ -1,6 +1,5 @@
 TODOs:
 
-- try classifiers other than GBC (especially for G, whose accuracy is the lowest)
 - when calibrating remove the last few rows
 - predict risk first
 
@@ -23,6 +22,8 @@ Finished todos:
 - write prediction code
 - calibrate classifiers for each option separately
 - read from condensed tables instead of creating new ones everytime
+- try classifiers other than GBC (especially for G, whose accuracy is the lowest)
+
 
 bug fixes:
 - the leading factors are strange now

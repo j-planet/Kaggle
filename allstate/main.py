@@ -12,7 +12,7 @@ from pipes import make_pipes
 
 
 # ======= read data =======
-_, inputTable_cal, outputTable_cal, _ = condense_data('tinyTrain', DATA_DIR, isTraining=True, readFromFiles=True,
+_, inputTable_cal, outputTable_cal, _ = condense_data('smallTrain', DATA_DIR, isTraining=True, readFromFiles=True,
                                                                     outputDir= CONDENSED_TABLES_DIR)
 X_cal = Normalizer().fit_transform(Imputer().fit_transform(inputTable_cal))  # TODO: better imputation
 y_cal = CombinedClassifier.combine_outputs(np.array(outputTable_cal))
