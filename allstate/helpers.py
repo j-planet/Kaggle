@@ -44,10 +44,8 @@ def condense_data(name, inputDir, isTraining, readFromFiles, outputDir=None, ver
         try:
             countDF = pandas.read_csv(os.path.join(outputDir, name + '_count.csv')).set_index(IND_COL)
             inputDF = pandas.read_csv(os.path.join(outputDir, name + '_input.csv')).set_index(IND_COL)
+            outputTable = pandas.read_csv(os.path.join(outputDir, name + '_output.csv')).set_index(IND_COL) if isTraining else None
             combinedTable = pandas.read_csv(os.path.join(outputDir, name + '_combined.csv')).set_index(IND_COL)
-
-            if isTraining:
-                outputTable = pandas.read_csv(os.path.join(outputDir, name + '_output.csv')).set_index(IND_COL)
 
             print '>>> Successfully read tables from files. :)'
             return countDF, inputDF, outputTable, combinedTable

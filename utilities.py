@@ -860,3 +860,21 @@ def print_missing_values_info(data):
 
     print 'The data has', temp_col.sum(), 'or', round(
         100. * temp_col.sum() / (data.shape[0] * data.shape[1]), 1), '% missing values.'
+
+
+def impute_field(inputTable, fieldName):
+    """
+    fieldName is the field to be imputed
+    @param inputTable: a pandas data frame with fieldName and other features
+    @return: X_present, y_present, X_missing
+    """
+
+    ind_missing = np.isnan(inputTable[fieldName])
+    X_present = inputTable[-ind_missing]
+    del X_present[fieldName]
+    y_present = np.array(inputTable[-ind_missing][fieldName])  # use mode in case of multiple risk_factors per condensed row
+
+    X_missing = inputTable[ind_missing]
+    del X_missing[fieldName]
+
+    return X_present, y_present, X_missing
