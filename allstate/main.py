@@ -12,8 +12,11 @@ from pipes import make_pipes
 from RiskFactors import ImputerJJ
 
 
+calibrationName = 'smallerTrain'
+trainingName = 'train'
+
 # ======= CALIBRATE CLASSIFIERS =======
-_, inputTable_cal, outputTable_cal, _ = condense_data('smallerTrain', isTraining=True, readFromFiles=True)
+_, inputTable_cal, outputTable_cal, _ = condense_data(calibrationName, isTraining=True, readFromFiles=True)
 pdf(inputTable_cal)
 
 riskFactorImp = ImputerJJ(inputTable_cal)
@@ -38,14 +41,15 @@ for col in outputTable_cal.columns:
 
     for name, (pipe, params) in make_pipes().iteritems():
         print '>'*10, name, '<'*10
-        _, cur_bestParams, cur_bestScore = fitClfWithGridSearch(name + '_' + col, pipe, params, DatasetPair(X_cal, cur_y),
-                                                                saveToDir='/home/jj/code/Kaggle/allstate/output/gridSearchOutput',
-                                                                useJJ=True, score_func=accuracy_score, n_jobs=N_JOBS, verbosity=0,
-                                                                minimize=False, cvSplitNum=5,
-                                                                maxLearningSteps=10,
-                                                                numConvergenceSteps=4, convergenceTolerance=0, eliteProportion=0.1,
-                                                                parentsProportion=0.4, mutationProportion=0.1, mutationProbability=0.1,
-                                                                mutationStdDev=None, populationSize=6)
+        _, cur_bestParams, cur_bestScore = fitClfWithGridSearch(
+            '_'.join([name, col, calibrationName]), pipe, params, DatasetPair(X_cal, cur_y),
+            saveToDir='/home/jj/code/Kaggle/allstate/output/gridSearchOutput',
+            useJJ=True, score_func=accuracy_score, n_jobs=N_JOBS, verbosity=0,
+            minimize=False, cvSplitNum=5,
+            maxLearningSteps=10,
+            numConvergenceSteps=4, convergenceTolerance=0, eliteProportion=0.1,
+            parentsProportion=0.4, mutationProportion=0.1, mutationProbability=0.1,
+            mutationStdDev=None, populationSize=6)
 
         if cur_bestScore > bestScore:
 
@@ -63,7 +67,7 @@ print 'OVERALL CV SCORE:', np.mean(jjcross_val_score(combinedClf, X_cal, y_cal, 
 
 print '====== TRAINING'
 
-_, inputTable_train, outputTable_train, _ = condense_data('smallTrain', isTraining=True, readFromFiles = True)
+_, inputTable_train, outputTable_train, _ = condense_data(trainingName, isTraining=True, readFromFiles = True)
 pdf(inputTable_train)
 
 X_train = Normalizer().fit_transform(riskFactorImp.fit_transform(inputTable_train))
