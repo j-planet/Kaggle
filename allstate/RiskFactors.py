@@ -14,27 +14,25 @@ from Kaggle.CV_Utilities import fitClfWithGridSearch
 from Kaggle.utilities import DatasetPair, impute_field
 
 
-def impute_risk_factors(name, readFromFiles=True):
+def impute_risk_factors(inputTable):
     """
     normalizes and imputes X
     rounds y
     @param name: name of the training/testing input file
     @return: X_present, y_present, X_missing
     """
-    inputTable = condense_data(name, DATA_DIR, isTraining=False, readFromFiles=readFromFiles,
-                               outputDir=CONDENSED_TABLES_DIR)[1]
 
-    X_present, y_present, X_missing = impute_field(inputTable, 'risk_factor')
+    X_present, y_present, X_missing, ind_missing = impute_field(inputTable, 'risk_factor')
 
     X_present = Normalizer().fit_transform(Imputer().fit_transform(X_present))
     y_present = y_present.round()
     X_missing = Normalizer().fit_transform(Imputer().fit_transform(X_missing))
 
-    return X_present, y_present, X_missing
+    return X_present, y_present, X_missing, ind_missing
 
 
 # ---------- read data ----------
-X_cal, y_cal, _ = impute_risk_factors('smallerTrain')
+X_cal, y_cal, _, _ = impute_risk_factors(condense_data('tinyTrain', isTraining=False, readFromFiles=True)[1])
 
 # ---------- calibrate to find the best classifier ----------
 bestScore = -1
@@ -63,11 +61,16 @@ print '----> best score:', bestScore
 pprint(bestParams)
 
 # ---------- train the classifier ----------
-X_train, y_train, X_pred = impute_risk_factors('smallTrain')
+X_train, y_train, _, _ = impute_risk_factors(condense_data('tinyTrain', isTraining=False, readFromFiles=True)[1])
 bestPipe.fit(X_train, y_train)
 
 # ---------- predict missing risk factors ----------
+inputTable_pred = condense_data('tinyTrain', isTraining=False, readFromFiles=True)[1]
+_, _, X_pred, ind_missing = impute_risk_factors(inputTable_pred)
 y_pred = bestPipe.predict(X_pred)
 
+# ---------- fill in missing risk factors ----------
+inputTable_pred['risk_factor'][ind_missing] = y_pred
 
-print y_pred.shape, X_pred.shape
+
+print y_pred.shape, X_pred.shape, inputTable_pred['risk_factor'][ind_missing].sum()

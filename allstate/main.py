@@ -12,8 +12,7 @@ from pipes import make_pipes
 
 
 # ======= read data =======
-_, inputTable_cal, outputTable_cal, _ = condense_data('tinyTrain', DATA_DIR, isTraining=True, readFromFiles=True,
-                                                                    outputDir=CONDENSED_TABLES_DIR)
+_, inputTable_cal, outputTable_cal, _ = condense_data('tinyTrain', isTraining=True, readFromFiles=True)
 X_cal = Normalizer().fit_transform(Imputer().fit_transform(inputTable_cal))
 y_cal = CombinedClassifier.combine_outputs(np.array(outputTable_cal))
 
@@ -62,10 +61,9 @@ print 'OVERALL CV SCORE:', np.mean(jjcross_val_score(combinedClf, X_cal, y_cal, 
 
 print '====== TRAINING'
 
-_, inputTable_train, outputTable_train, _ = condense_data('tinyTrain', DATA_DIR, isTraining=True, readFromFiles = True,
-                                                      outputDir= CONDENSED_TABLES_DIR)
+_, inputTable_train, outputTable_train, _ = condense_data('tinyTrain', isTraining=True, readFromFiles = True)
 pdf(inputTable_train)
-X_train = Normalizer().fit_transform(Imputer().fit_transform(inputTable_train))  # TODO: better imputation
+X_train = Normalizer().fit_transform(Imputer().fit_transform(inputTable_train))
 y_train = CombinedClassifier.combine_outputs(np.array(outputTable_train))
 
 combinedClf.fit(X_train, y_train)
@@ -74,8 +72,7 @@ combinedClf.fit(X_train, y_train)
 
 print '====== PREDICTING'
 isValidation = False
-_, inputTable_test, _, combinedTable_test = condense_data('train', DATA_DIR, isTraining=isValidation,
-                                                                         readFromFiles=True, outputDir=CONDENSED_TABLES_DIR)
+_, inputTable_test, _, combinedTable_test = condense_data('train', isTraining=isValidation, readFromFiles=True)
 pdf(inputTable_test)
 X_test = Normalizer().fit_transform(Imputer().fit_transform(inputTable_test))
 

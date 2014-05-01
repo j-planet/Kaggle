@@ -11,6 +11,8 @@ TODOs:
 
 
 BUGs:
+- either do not save gridSearchOutput or save it with the filename, since, for example, smallTrain and tinyTrain can
+    give rise to different optimal classifers
 
 Finished todos:
 - encode car value

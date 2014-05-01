@@ -866,7 +866,7 @@ def impute_field(inputTable, fieldName):
     """
     fieldName is the field to be imputed
     @param inputTable: a pandas data frame with fieldName and other features
-    @return: X_present, y_present, X_missing
+    @return: X_present, y_present, X_missing, ind_missing
     """
 
     ind_missing = np.isnan(inputTable[fieldName])
@@ -877,4 +877,4 @@ def impute_field(inputTable, fieldName):
     X_missing = inputTable[ind_missing]
     del X_missing[fieldName]
 
-    return X_present, y_present, X_missing
+    return X_present, y_present, X_missing, ind_missing

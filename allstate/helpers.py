@@ -23,7 +23,7 @@ def pdf(df, head=5):
         print df.head(n=head).to_string()
 
 
-def condense_data(name, inputDir, isTraining, readFromFiles, outputDir=None, verbose=False):
+def condense_data(name, isTraining, readFromFiles, inputDir=DATA_DIR, outputDir=CONDENSED_TABLES_DIR, verbose=False):
     """
     condenses the data and outputs to file
     @param inputDir: path to the directory that contains the original data provided by Kaggle
