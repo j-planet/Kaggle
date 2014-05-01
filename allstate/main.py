@@ -20,7 +20,8 @@ _, inputTable_cal, outputTable_cal, _ = condense_data(calibrationName, isTrainin
 pdf(inputTable_cal)
 
 riskFactorImp = ImputerJJ(inputTable_cal)
-X_cal = Normalizer().fit_transform(riskFactorImp.fit_transform(inputTable_cal))
+temp = riskFactorImp.fit_transform(inputTable_cal)
+X_cal = Normalizer().fit_transform(temp)
 # X_cal = Normalizer().fit_transform(Imputer().fit_transform(inputTable_cal))
 y_cal = CombinedClassifier.combine_outputs(np.array(outputTable_cal))
 
@@ -41,6 +42,7 @@ for col in outputTable_cal.columns:
 
     for name, (pipe, params) in make_pipes().iteritems():
         print '>'*10, name, '<'*10
+
         _, cur_bestParams, cur_bestScore = fitClfWithGridSearch(
             '_'.join([name, col, calibrationName]), pipe, params, DatasetPair(X_cal, cur_y),
             saveToDir='/home/jj/code/Kaggle/allstate/output/gridSearchOutput',

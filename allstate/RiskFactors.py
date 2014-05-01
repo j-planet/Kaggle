@@ -52,14 +52,16 @@ class ImputerJJ(BaseEstimator, TransformerMixin):
 
         for name, (pipe, params) in make_pipes().iteritems():
             print '>'*10, name, '<'*10
-            _, cur_bestParams, cur_bestScore = fitClfWithGridSearch(name + '_risk', pipe, params, DatasetPair(np.array(X_cal), y_cal),
-                                                                    saveToDir='/home/jj/code/Kaggle/allstate/output/gridSearchOutput',
-                                                                    useJJ=True, score_func=score_func, n_jobs=N_JOBS, verbosity=0,
-                                                                    minimize=False, cvSplitNum=5,
-                                                                    maxLearningSteps=10,
-                                                                    numConvergenceSteps=4, convergenceTolerance=0, eliteProportion=0.1,
-                                                                    parentsProportion=0.4, mutationProportion=0.1, mutationProbability=0.1,
-                                                                    mutationStdDev=None, populationSize=6)
+
+            _, cur_bestParams, cur_bestScore = fitClfWithGridSearch(
+                name + '_risk', pipe, params, DatasetPair(np.array(X_cal), y_cal),
+                saveToDir='/home/jj/code/Kaggle/allstate/output/gridSearchOutput',
+                useJJ=True, score_func=score_func, n_jobs=N_JOBS, verbosity=0,
+                minimize=False, cvSplitNum=5,
+                maxLearningSteps=10,
+                numConvergenceSteps=4, convergenceTolerance=0, eliteProportion=0.1,
+                parentsProportion=0.4, mutationProportion=0.1, mutationProbability=0.1,
+                mutationStdDev=None, populationSize=6)
 
             if cur_bestScore > bestScore:
 
