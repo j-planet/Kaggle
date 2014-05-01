@@ -5,7 +5,7 @@ from pprint import pprint
 sys.path.extend(['/home/jj/code/Kaggle/allstate'])
 
 from sklearn.preprocessing import Imputer, Normalizer
-from sklearn.metrics import auc_score, accuracy_score, precision_score
+from sklearn.metrics import accuracy_score
 from sklearn.base import BaseEstimator, TransformerMixin
 
 from helpers import *
@@ -37,7 +37,7 @@ class ImputerJJ(BaseEstimator, TransformerMixin):
     class used for imputation of features with missing values
     """
 
-    def __init__(self, calibrationTable):
+    def __init__(self, calibrationTable, score_func=accuracy_score):
         """
         calibrate a classifier
         @param calibrationTable: a pandas data frame
@@ -54,7 +54,7 @@ class ImputerJJ(BaseEstimator, TransformerMixin):
             print '>'*10, name, '<'*10
             _, cur_bestParams, cur_bestScore = fitClfWithGridSearch(name + '_risk', pipe, params, DatasetPair(np.array(X_cal), y_cal),
                                                                     saveToDir='/home/jj/code/Kaggle/allstate/output/gridSearchOutput',
-                                                                    useJJ=True, score_func=accuracy_score, n_jobs=N_JOBS, verbosity=0,
+                                                                    useJJ=True, score_func=score_func, n_jobs=N_JOBS, verbosity=0,
                                                                     minimize=False, cvSplitNum=5,
                                                                     maxLearningSteps=10,
                                                                     numConvergenceSteps=4, convergenceTolerance=0, eliteProportion=0.1,

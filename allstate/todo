@@ -1,10 +1,11 @@
 TODOs:
 
 - when calibrating remove the last few rows
-- predict risk first
+- make metrics part of the calibration...?
 
 - look at misclassifieds
 - should the same normalizer and imputer be used for training and prediction??
+- make the ImputeJJ more generic than for risk factors only
 
 - look at correlation matrix. rf may be messed up now
 - encode state and location
@@ -25,7 +26,7 @@ Finished todos:
 - calibrate classifiers for each option separately
 - read from condensed tables instead of creating new ones everytime
 - try classifiers other than GBC (especially for G, whose accuracy is the lowest)
-
+- predict risk first
 
 bug fixes:
 - the leading factors are strange now

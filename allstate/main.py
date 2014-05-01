@@ -9,18 +9,20 @@ from Kaggle.utilities import jjcross_val_score, DatasetPair
 from Kaggle.CV_Utilities import fitClfWithGridSearch
 from helpers import *
 from pipes import make_pipes
-
-
-# ======= read data =======
-_, inputTable_cal, outputTable_cal, _ = condense_data('tinyTrain', isTraining=True, readFromFiles=True)
-X_cal = Normalizer().fit_transform(Imputer().fit_transform(inputTable_cal))
-y_cal = CombinedClassifier.combine_outputs(np.array(outputTable_cal))
-
-pdf(inputTable_cal)
-# plot_feature_importances(X_train, outputTable, inputTable.columns)
+from RiskFactors import ImputerJJ
 
 
 # ======= CALIBRATE CLASSIFIERS =======
+_, inputTable_cal, outputTable_cal, _ = condense_data('smallerTrain', isTraining=True, readFromFiles=True)
+pdf(inputTable_cal)
+
+riskFactorImp = ImputerJJ(inputTable_cal)
+X_cal = Normalizer().fit_transform(riskFactorImp.fit_transform(inputTable_cal))
+# X_cal = Normalizer().fit_transform(Imputer().fit_transform(inputTable_cal))
+y_cal = CombinedClassifier.combine_outputs(np.array(outputTable_cal))
+
+
+# plot_feature_importances(X_train, outputTable, inputTable.columns)
 
 print '----------- individual accuracy score'
 
@@ -61,9 +63,11 @@ print 'OVERALL CV SCORE:', np.mean(jjcross_val_score(combinedClf, X_cal, y_cal, 
 
 print '====== TRAINING'
 
-_, inputTable_train, outputTable_train, _ = condense_data('tinyTrain', isTraining=True, readFromFiles = True)
+_, inputTable_train, outputTable_train, _ = condense_data('smallTrain', isTraining=True, readFromFiles = True)
 pdf(inputTable_train)
-X_train = Normalizer().fit_transform(Imputer().fit_transform(inputTable_train))
+
+X_train = Normalizer().fit_transform(riskFactorImp.fit_transform(inputTable_train))
+# X_train = Normalizer().fit_transform(Imputer().fit_transform(inputTable_train))
 y_train = CombinedClassifier.combine_outputs(np.array(outputTable_train))
 
 combinedClf.fit(X_train, y_train)
@@ -72,10 +76,11 @@ combinedClf.fit(X_train, y_train)
 
 print '====== PREDICTING'
 isValidation = False
-_, inputTable_test, _, combinedTable_test = condense_data('train', isTraining=isValidation, readFromFiles=True)
+_, inputTable_test, _, combinedTable_test = condense_data('test_v2', isTraining=isValidation, readFromFiles=True)
 pdf(inputTable_test)
-X_test = Normalizer().fit_transform(Imputer().fit_transform(inputTable_test))
 
+# X_test = Normalizer().fit_transform(Imputer().fit_transform(inputTable_test))
+X_test = Normalizer().fit_transform(riskFactorImp.fit_transform(inputTable_test))
 preds = combinedClf.predict(X_test)
 
 if isValidation:
