@@ -1,7 +1,8 @@
 TODOs:
 
+- does rounding all risk factors (i.e. take the mode) give better results??
 - when calibrating remove the last few rows
-- make metrics part of the calibration...?
+
 
 - look at misclassifieds
 - should the same normalizer and imputer be used for training and prediction??
@@ -9,7 +10,7 @@ TODOs:
 
 - look at correlation matrix. rf may be messed up now
 - encode state and location
-
+- make metrics part of the calibration...?
 
 BUGs:
 

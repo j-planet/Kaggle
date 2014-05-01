@@ -12,7 +12,7 @@ from pipes import make_pipes
 from RiskFactors import ImputerJJ
 
 
-calibrationName = 'smallerTrain'
+calibrationName = 'smallTrain'
 trainingName = 'train'
 
 # ======= CALIBRATE CLASSIFIERS =======
@@ -21,10 +21,10 @@ pdf(inputTable_cal)
 
 riskFactorImp = ImputerJJ(inputTable_cal)
 temp = riskFactorImp.fit_transform(inputTable_cal)
-X_cal = Normalizer().fit_transform(temp)
+assert np.isnan(temp.risk_factor).sum() == 0
+X_cal = Normalizer().fit_transform(Imputer().fit_transform(temp))
 # X_cal = Normalizer().fit_transform(Imputer().fit_transform(inputTable_cal))
 y_cal = CombinedClassifier.combine_outputs(np.array(outputTable_cal))
-
 
 # plot_feature_importances(X_train, outputTable, inputTable.columns)
 
@@ -72,12 +72,13 @@ print '====== TRAINING'
 _, inputTable_train, outputTable_train, _ = condense_data(trainingName, isTraining=True, readFromFiles = True)
 pdf(inputTable_train)
 
-X_train = Normalizer().fit_transform(riskFactorImp.fit_transform(inputTable_train))
+temp = riskFactorImp.fit_transform(inputTable_train)
+assert np.isnan(temp.risk_factor).sum() == 0
+X_train = Normalizer().fit_transform(Imputer().fit_transform(temp))
 # X_train = Normalizer().fit_transform(Imputer().fit_transform(inputTable_train))
 y_train = CombinedClassifier.combine_outputs(np.array(outputTable_train))
 
 combinedClf.fit(X_train, y_train)
-
 
 
 print '====== PREDICTING'
@@ -85,8 +86,10 @@ isValidation = False
 _, inputTable_test, _, combinedTable_test = condense_data('test_v2', isTraining=isValidation, readFromFiles=True)
 pdf(inputTable_test)
 
+temp = riskFactorImp.fit_transform(inputTable_test)
+assert np.isnan(temp.risk_factor).sum() == 0
 # X_test = Normalizer().fit_transform(Imputer().fit_transform(inputTable_test))
-X_test = Normalizer().fit_transform(riskFactorImp.fit_transform(inputTable_test))
+X_test = Normalizer().fit_transform(Imputer().fit_transform(temp))
 preds = combinedClf.predict(X_test)
 
 if isValidation:
@@ -96,4 +99,4 @@ if isValidation:
 # --- write out to file
 res = pandas.DataFrame(index = inputTable_test.index, data = preds)
 res.columns = ['plan']
-res.to_csv('/home/jj/code/Kaggle/allstate/submissions/test.csv')
+res.to_csv('/home/jj/code/Kaggle/allstate/submissions/wRisk.csv')
