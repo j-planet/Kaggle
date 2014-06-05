@@ -35,9 +35,9 @@ def make_pipes():
                                  'C': [0.01, 0.1, 0.5, 1, 3, 10]
                                 }))]),
 
-        'SGD': makePipe([('SGD', (SGDClassifier(n_jobs=20),
-                                  {'loss': ['hinge', 'log', 'modified_huber', 'squared_hinge', 'perceptron'],
-                                   'alpha': [1e-5, 1e-4, 1e-3, 0.01, 0.1],
-                                   'learning_rate': ['constant', 'optimal', 'invscaling']
-                                  }))])
+        # 'SGD': makePipe([('SGD', (SGDClassifier(n_jobs=20),
+        #                           {'loss': ['hinge', 'log', 'modified_huber', 'squared_hinge', 'perceptron'],
+        #                            'alpha': [1e-5, 1e-4, 1e-3, 0.01, 0.1],
+        #                            'learning_rate': ['constant', 'optimal', 'invscaling']
+        #                           }))])
     }
