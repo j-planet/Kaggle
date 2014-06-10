@@ -1,5 +1,6 @@
 Todos:
 - build auc into GBC
 - compress transaction history
+- amend offers without blowing up memory
 
 - CV function
