@@ -1,6 +1,12 @@
 Todos:
-- build auc into GBC
-- compress transaction history
-- amend offers without blowing up memory
 
+- build auc into GBC
+- amend offers without blowing up memory
 - CV function
+
+
+finished todos: :)
+
+- compress transaction history (all in memory)
+- compress transaction using index file (not in memory) :)
+- output compressed transactions in chunk
