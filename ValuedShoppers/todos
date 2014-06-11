@@ -13,3 +13,7 @@ finished todos: :)
 - compress transaction using index file (not in memory) :)
 - output compressed transactions in chunk
 - compress in parallel
+
+BUGS: :(
+- out of 5000 ids in the first block, only 4963.5 got dumped
+- loop gets slower every time :'(
