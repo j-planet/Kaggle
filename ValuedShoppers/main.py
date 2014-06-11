@@ -30,24 +30,6 @@ X_test = historyAndOffers_test[fieldsToUse]
 pandas.DataFrame({'id':testHistory.id, 'repeatProbability': clf.predict_proba(X_test)[:, 1]}).\
         to_csv('/home/jj/code/Kaggle/ValuedShoppers/submissions/initialSub_3.csv', index=False)
 
-# add dates to transactions
-dates = [parser.parse(d) for d in transactions.date]  # convert to datetime objects
-
-dayOfTheWeek = [d.weekday() for d in dates]
-isWeekend = (np.array(dayOfTheWeek) >= 5)                         # Saturday=5; Sunday=6
-days = [d.day for d in dates]
-months = [d.month for d in dates]
-
-transactions['dayOfTheWeek'] = dayOfTheWeek
-transactions['isWeekend'] = isWeekend
-transactions['days'] = days
-transactions['months'] = months
-
-del transactions['date']
-
-# TODO: compress transaction history. most frequent for each field? count for each field? histogram of each field?
-# TODO: convert productmeasure
-
 # t = transactions[transactions.id == 86246]
 t = transactions
 
@@ -64,8 +46,4 @@ temp = np.log(np.abs(t.purchaseamount))
 
 _,bins,_ = plt.hist(temp[temp>0])
 plt.show()
-
-
-def compress_transactions():
-    pass
 

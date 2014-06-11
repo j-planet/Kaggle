@@ -75,7 +75,7 @@ def innerFunc(args):
 
             if curTransData is None:    # skip if there's no transactions data. unlikely
                 print 'No data. skipping.'
-                return
+                continue
 
             # ---- frequency (has shopped, frequency of shopping at a chain, for example)
             curRow = {'id': customerId}
@@ -127,7 +127,7 @@ compressedTransFile = open(compTransFname, 'a')     # re-open the outputfile in 
 
 allIds = historyAndOffers.id.unique()
 
-pool = MyPool(processes=20, initializer = initStep,
+pool = MyPool(processes=16, initializer = initStep,
               initargs = (historyAndOffers, transactionsIndexData, compEmptyDf))
 
 for curBlockIds in chunks(allIds, chunkSize_major):
