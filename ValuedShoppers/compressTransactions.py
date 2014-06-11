@@ -60,15 +60,15 @@ def initStep(*args):
 
 
 def innerFunc(args):
-    try:
-        global historyAndOffers, transactionsIndexData, compEmptyDf
 
-        customerIds = args
-        compChunk = compEmptyDf
+    global historyAndOffers, transactionsIndexData, compEmptyDf
 
-        for customerId in customerIds:
-            print '-----:', customerId
+    customerIds = args
+    compChunk = compEmptyDf
 
+    for customerId in customerIds:
+        # print '-----:', customerId
+        try:
             hao = historyAndOffers[historyAndOffers.id == customerId]    # history and offers
             curTransData = read_transactions_given_id(customerId, transactionsIndexData,
                                                       "/home/jj/code/Kaggle/ValuedShoppers/Data/transactions.csv")
@@ -101,13 +101,11 @@ def innerFunc(args):
 
             # add to the chunk
             compChunk = compChunk.append(curRow, ignore_index=True)
+        except:
+            print('SOME ERROR HAPPENED in customer (%d): %s' % (customerId, traceback.format_exc()))
 
-        print 'Done with current chunk:', compChunk.shape[0], 'rows.'
-        return compChunk
-
-    except:
-        print('SOME ERROR HAPPENED: %s' % traceback.format_exc())
-        return None
+    print 'Done with current chunk:', compChunk.shape[0], 'rows.'
+    return compChunk
 
 
 trainHistory = pandas.read_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/trainHistory_wDateFields.csv")
@@ -116,7 +114,7 @@ historyAndOffers = pandas.merge(trainHistory, offers, left_on='offer', right_on=
 transactionsIndexData = pandas.read_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/transIndex.csv")    # id | startRowId | endRowId
 compTransFname = "/home/jj/code/Kaggle/ValuedShoppers/Data/transactions_train_compressed.csv"
 chunkSize_minor = 100       # number in each process
-chunkSize_major = 10000    # dump every n number of rows
+chunkSize_major = 5000    # dump every n number of rows
 
 freqFields = ['chain', 'category', 'company', 'brand']
 cols = [f + '_freq' for f in freqFields] \
