@@ -119,13 +119,13 @@ def innerFunc(args):
 
 
 if __name__ == '__main__':
-    trainHistory = pandas.read_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/testHistory_wDateFields.csv")
+    trainHistory = pandas.read_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/trainHistory_wDateFields.csv")
     offers = pandas.read_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/offers_amended.csv")
     historyAndOffers = pandas.merge(trainHistory, offers, left_on='offer', right_on='offer', how='left')  # join train history and offers
     transIndexData = pandas.read_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/transIndex.csv")
-    compTransFname = "/home/jj/code/Kaggle/ValuedShoppers/Data/transactions_test_compressed.csv"
-    chunkSize_minor = 250       # number in each process
-    chunkSize_major = 4000    # dump every n number of rows
+    compTransFname = "/home/jj/code/Kaggle/ValuedShoppers/Data/transactions_train_compressed.csv"
+    chunkSize_minor = 250    # number in each process
+    chunkSize_major = 4000   # dump every n number of rows
 
     freqFields = ['chain', 'category', 'company', 'brand']
     cols = [f + '_freq' for f in freqFields] \
@@ -141,11 +141,10 @@ if __name__ == '__main__':
     blockTransDict = {}
     print '======= NEW MAJOR BLOCK ========'
 
-    # for curBlockIds in chunks(allIds, chunkSize_major):
     t_dict = time()
 
     for rowNum in range(transIndexData.shape[0]):
-        # print 'row num =', rowNum
+
         # ----- keep building transactions data for this major block
         customerId, startRowId, endRowId = transIndexData.irow(rowNum)
         numRows = endRowId - startRowId + 1
@@ -171,14 +170,14 @@ if __name__ == '__main__':
             printDoneTime(t0, "Making the pool")
 
             t0 = time()
-            blockOutput = runPool(pool, innerFunc, chunks(blockTransDict.keys(), chunkSize_minor))
+            poolOutputs = runPool(pool, innerFunc, chunks(blockTransDict.keys(), chunkSize_minor))
             printDoneTime(t0, 'Running the pool')
 
-            # dump chunk to file
-            print '--- dumping ---', len(blockOutput), sum(chunk.shape[0] for chunk in blockOutput)
-
-            for chunk in blockOutput:
+            # dump pool output to file
+            for chunk in poolOutputs:
                 chunk.to_csv(compressedTransFile, header=False, index=False)
+
+            print '--- dumping ---', len(poolOutputs), sum(chunk.shape[0] for chunk in poolOutputs)
 
             pool.close()
             pool.join()
