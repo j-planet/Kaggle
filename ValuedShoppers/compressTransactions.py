@@ -3,7 +3,7 @@ from dateutil import parser
 import numpy as np
 import itertools
 import traceback
-from time import time
+from time import time, sleep
 
 from IterStreamer import IterStreamer
 from Kaggle.pool_JJ import MyPool
@@ -24,7 +24,6 @@ from Kaggle.utilities import runPool, printDoneTime
 
 # GLOBALCOUNT = 0
 
-
 def read_transactions_given_id(customerId, transIndexDict, transactionsFile, headers):
     """
     @return: pandas.dataframe of transactions for the given customerId.
@@ -32,24 +31,24 @@ def read_transactions_given_id(customerId, transIndexDict, transactionsFile, hea
     """
 
     # ASSUMES that everything ID in trainHistory also exists in transactions
-    # if not customerId in transIndexDict.keys():
-    #     return None
 
-    temp = transIndexDict[customerId]
-    startRowInd = temp[0]
-    endRowInd = temp[1]
+    # startRowInd = 2
+    # endRowInd = 3000
+    # t0 = time()
+    startRowInd, endRowInd = transIndexDict[customerId]
+    # printDoneTime(t0, 'startEndRowId')
+
 
     transactionsFile.seek(0)    # reset file pointer position
     rawData = itertools.islice(transactionsFile, startRowInd, endRowInd + 1)
+    # t0 = time()
     res = pandas.read_csv(IterStreamer(rawData), names=headers)
+    # print '----', int(100000. * (time()-t0)/res.shape[0])
 
-    # global GLOBALCOUNT
-    # GLOBALCOUNT += 1
-    # print GLOBALCOUNT
-
-    # print customerId, res.shape[0]
     return res
-
+    # sleep(0.5)
+    # return testRes
+    # return None
 
 def chunks(l, chunkSize):
     """
@@ -74,14 +73,7 @@ def innerFunc(args):
     for customerId in customerIds:
         try:
             hao = historyAndOffers[historyAndOffers.id == customerId]    # history and offers
-            # curTransData = read_transactions_given_id(customerId, transactionsIndexData,
-            #                                           "/home/jj/code/Kaggle/ValuedShoppers/Data/transactions.csv")
             curTransData = transDataDict[customerId]
-            # print '-----:', customerId, curTransData.shape[0]
-
-            if curTransData is None:    # skip if there's no transactions data. unlikely
-                print 'No data. skipping.'
-                continue
 
             # ---- frequency (has shopped, frequency of shopping at a chain, for example)
             curRow = {'id': customerId}
@@ -110,34 +102,30 @@ def innerFunc(args):
         except:
             print('SOME ERROR HAPPENED in customer (%d): %s' % (customerId, traceback.format_exc()))
 
-    # print 'Done with current chunk:', compChunk.shape[0], 'rows.'
     return compChunk
 
 
-def create_trans_index_dict(indexFpath = "/home/jj/code/Kaggle/ValuedShoppers/Data/transIndex.csv"):
-
-    transactionsIndexData = pandas.read_csv(indexFpath)    # id | startRowId | endRowId
-
-    res = {}
-
-    for i in range(transactionsIndexData.shape[0]):
-        r = transactionsIndexData.irow(i)
-        res[r['id']] = (r['startRowId'], r['endRowId'])
-
-    return res
+# def create_trans_index_dict(indexFpath = "/home/jj/code/Kaggle/ValuedShoppers/Data/transIndex.csv"):
+#
+#     transactionsIndexData = pandas.read_csv(indexFpath)    # id | startRowId | endRowId
+#
+#     res = {}
+#
+#     for i in range(transactionsIndexData.shape[0]):
+#         r = transactionsIndexData.irow(i)
+#         res[r['id']] = (r['startRowId'], r['endRowId'])
+#
+#     return res
 
 
 if __name__ == '__main__':
-    trainHistory = pandas.read_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/trainHistory_wDateFields.csv")
+    trainHistory = pandas.read_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/testHistory_wDateFields.csv")
     offers = pandas.read_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/offers_amended.csv")
     historyAndOffers = pandas.merge(trainHistory, offers, left_on='offer', right_on='offer', how='left')  # join train history and offers
-    transIndexDict = create_trans_index_dict()
-
-    transactionsFile = open("/home/jj/code/Kaggle/ValuedShoppers/Data/transactions.csv")
-    transHeaders = transactionsFile.readline().strip().split(',')
-    compTransFname = "/home/jj/code/Kaggle/ValuedShoppers/Data/transactions_train_compressed.csv"
-    chunkSize_minor = 2       # number in each process
-    chunkSize_major = 40    # dump every n number of rows
+    transIndexData = pandas.read_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/transIndex.csv")
+    compTransFname = "/home/jj/code/Kaggle/ValuedShoppers/Data/transactions_test_compressed.csv"
+    chunkSize_minor = 250       # number in each process
+    chunkSize_major = 4000    # dump every n number of rows
 
     freqFields = ['chain', 'category', 'company', 'brand']
     cols = [f + '_freq' for f in freqFields] \
@@ -148,32 +136,59 @@ if __name__ == '__main__':
     compEmptyDf.to_csv(compTransFname, index=False)     # create new file and write columns to compressed file
     compressedTransFile = open(compTransFname, 'a')     # re-open the outputfile in append mode
 
-    allIds = historyAndOffers.id.unique()
+    transactionsFile = open("/home/jj/code/Kaggle/ValuedShoppers/Data/transactions.csv")
+    transHeaders = transactionsFile.readline().strip().split(',')
+    blockTransDict = {}
+    print '======= NEW MAJOR BLOCK ========'
 
-    for curBlockIds in chunks(allIds, chunkSize_major):
+    # for curBlockIds in chunks(allIds, chunkSize_major):
+    t_dict = time()
 
-        print '======= NEW MAJOR BLOCK ========'
-        # reopening the file seems to speed things up
-        transactionsFile.close()
-        transactionsFile = open("/home/jj/code/Kaggle/ValuedShoppers/Data/transactions.csv")
+    for rowNum in range(transIndexData.shape[0]):
+        # print 'row num =', rowNum
+        # ----- keep building transactions data for this major block
+        customerId, startRowId, endRowId = transIndexData.irow(rowNum)
+        numRows = endRowId - startRowId + 1
+        rawData = [transactionsFile.next() for _ in range(numRows)]     # assumes the row numbers in the index file are adjacent
 
-        t0 = time()
-        curTransDict = {tempId: read_transactions_given_id(tempId, transIndexDict, transactionsFile, transHeaders)
-                        for tempId in curBlockIds}
-        print len(curBlockIds), len(curTransDict.keys())
-        printDoneTime(t0, "Building transactions dict")
+        if customerId in np.array(historyAndOffers.id):
+            # print customerId, 'is in train!!'
+            blockTransDict[customerId] = pandas.read_csv(IterStreamer(rawData), names = transHeaders)
+            # print len(blockTransDict)
 
-        to = time()
-        pool = MyPool(processes=16, initializer = initStep,
-                      initargs = (historyAndOffers, compEmptyDf, curTransDict))
-        printDoneTime(t0, "Making the pool")
+        # ---- finished building. run the pool for this major block
+        if len(blockTransDict) == chunkSize_major or rowNum == transIndexData.shape[0]-1:
 
-        blockOutput = runPool(pool, innerFunc, chunks(curBlockIds, chunkSize_minor))
+            totalTime = time() - t_dict
+            print "Building transactions dict total:", totalTime
+            print "Building transactions dict each:", 1000000.* totalTime/ sum(df.shape[0] for df in blockTransDict.values())
 
-        # dump chunk to file
-        print '--- dumping ---', len(blockOutput), sum(chunk.shape[0] for chunk in blockOutput)
-        for chunk in blockOutput:
-            chunk.to_csv(compressedTransFile, header=False, index=False)
+            print '--------- Finished building. Running pool. --------'
+
+            t0 = time()
+            pool = MyPool(processes=16, initializer = initStep,
+                          initargs = (historyAndOffers, compEmptyDf, blockTransDict))
+            printDoneTime(t0, "Making the pool")
+
+            t0 = time()
+            blockOutput = runPool(pool, innerFunc, chunks(blockTransDict.keys(), chunkSize_minor))
+            printDoneTime(t0, 'Running the pool')
+
+            # dump chunk to file
+            print '--- dumping ---', len(blockOutput), sum(chunk.shape[0] for chunk in blockOutput)
+
+            for chunk in blockOutput:
+                chunk.to_csv(compressedTransFile, header=False, index=False)
+
+            pool.close()
+            pool.join()
+            pool.terminate()
+
+            # reset major block dict
+            print '======= NEW MAJOR BLOCK ========'
+            blockTransDict = {}
+            t_dict = time()
+
 
     compressedTransFile.close()
     transactionsFile.close()

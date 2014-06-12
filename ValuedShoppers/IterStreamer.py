@@ -1,5 +1,6 @@
-# shamelessly copied from http://stackoverflow.com/questions/6657820/python-convert-an-iterable-to-a-stream
-
+# shamelessly copied and modified from http://stackoverflow.com/questions/6657820/python-convert-an-iterable-to-a-stream
+from time import time
+from Kaggle.utilities import printDoneTime
 
 class IterStreamer(object):
     """
@@ -20,18 +21,21 @@ class IterStreamer(object):
         return self.iterator.next()
 
     def read(self, size):
-        data = self.leftover
-        count = len(self.leftover)
-        try:
-            while count < size:
-                chunk = self.next()
-                data += chunk
-                count += len(chunk)
-        except StopIteration, e:
-            self.leftover = ''
-            return data
 
-        if count > size:
-            self.leftover = data[size:]
+        count = len(self.leftover)
+        data = self.leftover
+
+        # ----- does not have enough in leftover
+        if count < size:
+            try:
+                while count < size:
+                    chunk = self.next()
+                    data += chunk
+                    count += len(chunk)
+            except StopIteration, e:
+                pass
+
+        self.leftover = data[size:]
 
         return data[:size]
+

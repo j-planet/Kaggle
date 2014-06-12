@@ -14,6 +14,12 @@ finished todos: :)
 - output compressed transactions in chunk
 - compress in parallel
 
+-------------------------------------
+
 BUGS: :(
 - out of 5000 ids in the first block, only 4963.5 got dumped
-- loop gets slower every time :'(
+
+
+fixed BUGS: :D :D
+- loop gets slower every time :'( => non-binary files don't support "random access". therefore, the later in the file,
+    the longer file access takes
