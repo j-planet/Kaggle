@@ -13,10 +13,12 @@ finished todos: :)
 - output compressed transactions in chunk
 - compress in parallel
 - assess feature importance
+- train and predict using compressed transactions' data :)
+- very basic imputation
 
 -------------------------------------
 
-BUGS:
+BUGS: :'( :'(
 
 
 fixed BUGS: :D :D

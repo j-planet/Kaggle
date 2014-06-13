@@ -1,3 +1,4 @@
+import sys
 from os.path import join
 import pandas
 from pprint import pprint
@@ -7,21 +8,15 @@ from Kaggle.utilities import RandomForester, print_missing_values_info
 from globalVars import *
 
 from sklearn.ensemble import GradientBoostingClassifier
-
-
-
-trainHistory = pandas.read_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/trainHistory_wDateFields.csv")
-transactions = pandas.read_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/transactions_train_compressed.csv")
-offers = pandas.read_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/offers.csv")
-
-# join train history, offers and transactions
-historyOffers = pandas.merge(trainHistory, offers, left_on='offer', right_on='offer', how='left')
-historyOffersTrans = pandas.merge(historyOffers, transactions, left_on='id', right_on='id', how='left')
+sys.path.append('/home/jj/code/Kaggle/ValuedShoppers')
 
 
 def join_3_files(historyFpath, offersFpath, compressedTransFpath, isTrain, xFields):
     """
     joins history, offers, and compressed transactions data
+    handles rows with Inf values
+    selects the relevant fields via xFields
+
     @returns: X (pandas dataframe), Y_repeater (0 and 1's), Y_numRepeats (None if hasY is False)
     """
 
@@ -31,10 +26,8 @@ def join_3_files(historyFpath, offersFpath, compressedTransFpath, isTrain, xFiel
                          pandas.read_csv(compressedTransFpath),
                          left_on='id', right_on='id', how='left')
 
+    # ------------- find Ys
     if isTrain:
-        # remove lines with inf from training data
-        data = data[(data==np.inf).sum(axis=1) == 0]
-
         # extract Y values
         Y_numRepeats = data['repeattrips']
         Y_repeater = Y_numRepeats > 0
@@ -44,7 +37,20 @@ def join_3_files(historyFpath, offersFpath, compressedTransFpath, isTrain, xFiel
     else:
         Y_repeater = Y_numRepeats = None
 
-    return data[xFields], Y_repeater, Y_numRepeats
+    # ------------- find X
+    X = data[xFields if isTrain else ['id'] + xFields]
+
+    # impute missing data for X
+    for i in xrange(X.shape[1]):
+        col = X.icol(i)
+        infInds = np.logical_or(col == np.inf, col == -np.inf)
+
+        if infInds.sum() > 0:
+            print 'imputing column', i, X.columns[i], 'with', np.mean(col[np.logical_not(infInds)])
+
+        col[infInds] = np.mean(col[np.logical_not(infInds)])
+
+    return X, Y_repeater, Y_numRepeats
 
 
 def classify(X, Y_repeater, Y_numRepeats):
@@ -72,7 +78,11 @@ def predict(X, clf, outputFpath):
     @return predictions
     """
 
-    res = pandas.DataFrame({'id': X.id, 'repeatProbability': clf.predict_proba(X)[:, 1]})
+    ids = X.id
+    del X['id']
+
+    print_missing_values_info(X)
+    res = pandas.DataFrame({'id': ids, 'repeatProbability': clf.predict_proba(X)[:, 1]})
     res.to_csv(outputFpath, index=False)
 
     return res
@@ -95,7 +105,31 @@ def plot_feature_importances(X, Y, labels, numTopFeatures, numEstimators = 50):
 
 if __name__ == '__main__':
 
-    xFields = [f for f in historyOffersTrans.columns if f not in ['id', 'offer', 'repeattrips', 'repeater', 'offerdate']]
+    xFields = ['chain',
+               'market',
+               'dayOfTheWeek',
+               'isWeekend',
+               'isHoliday',
+               'isAWeekBeforeHol',
+               'isTwoWeeksBeforeHol',
+               'isAWeekAfterHol',
+               'isTwoWeeksAfterHol',
+               'category',
+               'quantity',
+               'company',
+               'offervalue',
+               'brand',
+               'chain_freq',
+               'category_freq',
+               'company_freq',
+               'brand_freq',
+               'chain_hasShopped',
+               'category_hasShopped',
+               'company_hasShopped',
+               'brand_hasShopped',
+               'daysSinceLastPch',
+               'avgWeeklyPchAmt',
+               'pchAmtWiWeekOfOffer']
 
     # ---- read data
     X_train, Y_repeater, Y_numRepeats = join_3_files(join(DATA_DIR, "trainHistory_wDateFields.csv"),
