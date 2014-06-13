@@ -806,7 +806,6 @@ class RandomForester(BaseEstimator, TransformerMixin):
         else:
             raise Exception('Invalid num_features provided:', num_features)
 
-
         ind = np.argsort(importances)[::-1][:n]
         indLabels = None if labels is None else labels[ind]
 

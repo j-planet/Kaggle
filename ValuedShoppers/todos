@@ -4,6 +4,9 @@ Todos:
 - amend offers without blowing up memory
 - build auc into GBC
 - CV function
+- use the information of number of repeats somehow...
+- quantile regression...?
+
 
 
 finished todos: :)
@@ -15,6 +18,7 @@ finished todos: :)
 - assess feature importance
 - train and predict using compressed transactions' data :)
 - very basic imputation
+- logistic regression...? (didn't really workout)
 
 -------------------------------------
 

@@ -1,5 +1,6 @@
 import sys
 from os.path import join
+from gst._gst import BUFFER_COPY_QDATA
 import pandas
 from pprint import pprint
 import numpy as np
@@ -7,7 +8,7 @@ import numpy as np
 from Kaggle.utilities import RandomForester, print_missing_values_info
 from globalVars import *
 
-from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
 sys.path.append('/home/jj/code/Kaggle/ValuedShoppers')
 
 
@@ -31,11 +32,12 @@ def join_3_files(historyFpath, offersFpath, compressedTransFpath, isTrain, xFiel
         # extract Y values
         Y_numRepeats = data['repeattrips']
         Y_repeater = Y_numRepeats > 0
+        Y_quantiles = data['repeatQuantiles']
 
         # check that repeater and numRepeats are consistent
         assert sum(data['repeater'][Y_numRepeats > 0] == 'f') == 0
     else:
-        Y_repeater = Y_numRepeats = None
+        Y_repeater = Y_numRepeats = Y_quantiles = None
 
     # ------------- find X
     X = data[xFields if isTrain else ['id'] + xFields]
@@ -50,45 +52,58 @@ def join_3_files(historyFpath, offersFpath, compressedTransFpath, isTrain, xFiel
 
         col[infInds] = np.mean(col[np.logical_not(infInds)])
 
-    return X, Y_repeater, Y_numRepeats
+    return X, Y_repeater, Y_numRepeats, Y_quantiles
 
 
-def classify(X, Y_repeater, Y_numRepeats):
+def test_training_results(clf, X, Y_repeater, Y_numRepeats):
+    """
+    check training predictions
+    """
+
+    temp = pandas.DataFrame({'repeattrips': Y_numRepeats,
+                             'repeater': Y_repeater,
+                             'pred': clf.predict(X),
+                             # 'probs': clf.predict_proba(X)[:,1]})
+                             'probs': clf.predict(X)})
+    temp.to_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/checkTrainPredictions.csv", index=False)
+
+
+def classify(X, y):
     """
     train classifier on training data
     @return classifier
     """
 
-    clf = GradientBoostingClassifier(learning_rate=0.01, loss='deviance', n_estimators=100, subsample=0.8)
-    clf.fit(X, Y_repeater)
-
-    # check training predictions
-    temp = pandas.DataFrame({'repeattrips': Y_numRepeats,
-                              'repeater': Y_repeater,
-                              'pred': clf.predict(X),
-                              'probs': clf.predict_proba(X)[:,1]})
-    temp.to_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/checkTrainPredictions.csv", index=False)
+    clf = GradientBoostingRegressor(learning_rate=0.01, loss='ls', n_estimators=100, subsample=0.8)
+    clf.fit(X, y)
 
     return clf
 
 
-def predict(X, clf, outputFpath):
+def _predict(ids, X, clf, outputFpath):
     """
     predict test data and write to file
     @return predictions
     """
 
-    ids = X.id
-    del X['id']
-
     print_missing_values_info(X)
-    res = pandas.DataFrame({'id': ids, 'repeatProbability': clf.predict_proba(X)[:, 1]})
+
+    # res = pandas.DataFrame({'id': ids, 'repeatProbability': clf.predict_proba(X)[:, 1]})
+    res = pandas.DataFrame({'id': ids, 'repeatProbability': clf.predict(X)})
     res.to_csv(outputFpath, index=False)
 
     return res
 
 
-def plot_feature_importances(X, Y, labels, numTopFeatures, numEstimators = 50):
+def predict(X, clf, outputFpath):
+
+    ids = X.id
+    del X['id']
+
+    return _predict(ids, np.array(X), clf, outputFpath)
+
+
+def _plot_feature_importances(X, Y, labels, numTopFeatures, numEstimators = 50):
 
     rf = RandomForester(num_features = X.shape[1], n_estimators = numEstimators)
     rf.fit(X, Y)
@@ -101,6 +116,15 @@ def plot_feature_importances(X, Y, labels, numTopFeatures, numEstimators = 50):
     rf.plot(num_features=numTopFeatures, labels=labels)
 
     return topFeatureInd, topFeatureLabels, topFeatureImportances
+
+
+def plot_feature_importances(X_train, Y_repeater, Y_numRepeats, Y_quantiles):
+
+    fields_repeater = _plot_feature_importances(np.array(X_train), Y_repeater, labels=X_train.columns, numTopFeatures=X_train.shape[1]/2)[1]
+    fields_numRepeats = _plot_feature_importances(np.array(X_train), Y_numRepeats, labels=X_train.columns, numTopFeatures=X_train.shape[1]/2)[1]
+    fields_quantiles = _plot_feature_importances(np.array(X_train), Y_quantiles, labels=X_train.columns, numTopFeatures=X_train.shape[1]/2)[1]
+
+    return fields_repeater, fields_numRepeats, fields_quantiles
 
 
 if __name__ == '__main__':
@@ -132,23 +156,29 @@ if __name__ == '__main__':
                'pchAmtWiWeekOfOffer']
 
     # ---- read data
-    X_train, Y_repeater, Y_numRepeats = join_3_files(join(DATA_DIR, "trainHistory_wDateFields.csv"),
-                                                     join(DATA_DIR, "offers.csv"),
-                                                     join(DATA_DIR, "transactions_train_compressed.csv"),
-                                                     True, xFields)
+    X_train, Y_repeater, Y_numRepeats, Y_quantiles = join_3_files(join(DATA_DIR, "trainHistory_wDatesQuantiles.csv"),
+                                                                  join(DATA_DIR, "offers.csv"),
+                                                                  join(DATA_DIR, "transactions_train_compressed.csv"),
+                                                                  True, xFields)
 
     # ---- assess feature importances
-    inds_repeater = plot_feature_importances(np.array(X_train), Y_repeater, labels=X_train.columns, numTopFeatures=X_train.shape[1]/2)[0]
-    inds_numRepeats = plot_feature_importances(np.array(X_train), Y_numRepeats, labels=X_train.columns, numTopFeatures=X_train.shape[1]/2)[0]
+    # fields_repeater, fields_numRepeats, fields_quantiles = plot_feature_importances(X_train, Y_repeater, Y_numRepeats, Y_quantiles)
+    # fieldsToUse = list(set(fields_repeater[:5] + fields_numRepeats[:5] + fields_quantiles[:X_train.shape[1]*2/3]))
+    fieldsToUse = ['category', 'pchAmtWiWeekOfOffer', 'dayOfTheWeek', 'chain_freq', 'chain', 'avgWeeklyPchAmt', 'brand', 'daysSinceLastPch', 'category_hasShopped', 'category_freq', 'brand_freq', 'brand_hasShopped', 'offervalue', 'company_freq', 'company', 'market', 'company_hasShopped']
+
+    print 'fields to use:', len(fieldsToUse), fieldsToUse
+
 
     # ---- classify and predict
     print '========= training'
-    clf = classify(X_train, Y_repeater, Y_numRepeats)
+    X_train = X_train[fieldsToUse]
+    clf = classify(np.array(X_train), Y_quantiles)
 
     X_test = join_3_files(join(DATA_DIR, "testHistory_wDateFields.csv"),
                          join(DATA_DIR, "offers.csv"),
                          join(DATA_DIR, "transactions_test_compressed.csv"),
-                         False, xFields)[0]
+                         False, fieldsToUse)[0]
 
     print '========= predicting'
-    predict(X_test, clf, '/home/jj/code/Kaggle/ValuedShoppers/submissions/25Fields.csv')
+    predict(X_test, clf, '/home/jj/code/Kaggle/ValuedShoppers/submissions/17Fields_quantiles_wLSLossFunc.csv')
+
