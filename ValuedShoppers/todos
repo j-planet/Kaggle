@@ -1,9 +1,8 @@
 Todos:
 
 - amend offers
-- assess feature importance
-- build auc into GBC
 - amend offers without blowing up memory
+- build auc into GBC
 - CV function
 
 
@@ -13,6 +12,7 @@ finished todos: :)
 - compress transaction using index file (not in memory) :)
 - output compressed transactions in chunk
 - compress in parallel
+- assess feature importance
 
 -------------------------------------
 

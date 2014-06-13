@@ -852,6 +852,7 @@ def print_missing_values_info(data):
     @return None
     """
 
+    # -------- check na -----------
     temp_col = pandas.isnull(data).sum()
     temp_row = pandas.isnull(data).sum(axis=1)
 
@@ -861,6 +862,15 @@ def print_missing_values_info(data):
     print 'The data has', temp_col.sum(), 'or', round(
         100. * temp_col.sum() / (data.shape[0] * data.shape[1]), 1), '% missing values.'
 
+    # -------- check inf -----------
+    for i in range(data.shape[1]):
+        try:
+            temp = np.isinf(list(np.array(data)[:, i])).sum()
+
+            if temp > 0:
+                print data.columns[i], 'has', temp, 'or', round(100.*temp/data.shape[0], 2), '% inf values.'
+        except:
+            print i, data.columns[i], 'skippped due to an error.'
 
 def impute_field(inputTable, fieldName):
     """
