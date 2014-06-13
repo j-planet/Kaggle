@@ -776,7 +776,7 @@ class RandomForester(BaseEstimator, TransformerMixin):
         num_features_to_use = int(self.num_features if self.num_features > 1 else np.shape(X)[1]*self.num_features)
         # indices = np.argsort(importances)[::-1][:num_features_to_use]
 
-        indices = self.top_indices(num_features_to_use)
+        indices, _, _ = self.top_indices(num_features_to_use)
 
         return X[:, indices]
 
@@ -810,7 +810,7 @@ class RandomForester(BaseEstimator, TransformerMixin):
         ind = np.argsort(importances)[::-1][:n]
         indLabels = None if labels is None else labels[ind]
 
-        return ind, indLabels
+        return ind, indLabels, importances[ind]
 
     def plot(self, num_features='auto', labels=None):
         """
@@ -840,7 +840,7 @@ class RandomForester(BaseEstimator, TransformerMixin):
         plt.bar(range(len(indices)), importances[indices], color="r", yerr=std[indices], align="center")
 
         if labels is not None:
-            plt.xticks(range(len(indices)), labels[indices])
+            plt.xticks(range(len(indices)), labels[indices], rotation=45)
 
         plt.show()
 

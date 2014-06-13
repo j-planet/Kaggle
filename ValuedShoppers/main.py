@@ -16,7 +16,7 @@ historyOffers = pandas.merge(trainHistory, offers, left_on='offer', right_on='of
 historyOffersTrans = pandas.merge(historyOffers, transactions, left_on='id', right_on='id', how='left')
 
 
-def classify(X, Y):
+def classify(X, Y, outputFpath):
     clf = GradientBoostingClassifier(learning_rate=0.01, loss='deviance', n_estimators=100, subsample=0.8)
     clf.fit(X, Y)
 
@@ -30,7 +30,7 @@ def classify(X, Y):
     historyAndOffers_test = pandas.merge(testHistory, offers, left_on='offer', right_on='offer', how='left')
     X_test = historyAndOffers_test[fieldsToUse]
     pandas.DataFrame({'id':testHistory.id, 'repeatProbability': clf.predict_proba(X_test)[:, 1]}).\
-            to_csv('/home/jj/code/Kaggle/ValuedShoppers/submissions/initialSub_3.csv', index=False)
+            to_csv(outputFpath, index=False)
 
 
 def plot_feature_importances(X, Y, labels, numTopFeatures, numEstimators = 50):
@@ -38,12 +38,14 @@ def plot_feature_importances(X, Y, labels, numTopFeatures, numEstimators = 50):
     rf = RandomForester(num_features = X.shape[1], n_estimators = numEstimators)
     rf.fit(X, Y)
 
+    topFeatureInd, topFeatureLabels, topFeatureImportances = rf.top_indices(labels=labels)
+
     print 'Top features:'
-    pprint(list(rf.top_indices(labels=labels)[1]))
+    pprint(np.transpose([topFeatureLabels, topFeatureImportances]))
 
     rf.plot(num_features=numTopFeatures, labels=labels)
 
-
+    return topFeatureInd, topFeatureLabels, topFeatureImportances
 
 
 if __name__ == '__main__':
@@ -54,9 +56,11 @@ if __name__ == '__main__':
     historyOffersTrans_mod = historyOffersTrans[(historyOffersTrans==np.inf).sum(axis=1) == 0]
 
     X_train = historyOffersTrans_mod[fieldsToUse]
-
     Y_numRepeats = historyOffersTrans_mod['repeattrips']
     Y_repeater = Y_numRepeats > 0
     assert sum(historyOffersTrans_mod['repeater'][Y_numRepeats > 0]=='f') == 0
 
     plot_feature_importances(np.array(X_train), Y_repeater, labels=X_train.columns, numTopFeatures=X_train.shape[1]/2)
+    plot_feature_importances(np.array(X_train), Y_numRepeats, labels=X_train.columns, numTopFeatures=X_train.shape[1]/2)
+
+    # '/home/jj/code/Kaggle/ValuedShoppers/submissions/initialSub_3.csv'

@@ -13,5 +13,5 @@ newX = prepPipe.fit_transform(trainX, trainY)
 num_features = 25
 rfReducer = RandomForester(num_features=num_features, n_estimators=25, n_jobs=10)
 rfReducer.fit(newX, trainY)
-print 'Important features:', trainX.columns[rfReducer.top_indices(num_features)]
+print 'Important features:', trainX.columns[rfReducer.top_indices(num_features)[0]]
 rfReducer.plot(labels=trainX.columns)
