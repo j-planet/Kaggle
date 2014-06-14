@@ -3,7 +3,7 @@ Todos:
 - amend offers
 - amend offers without blowing up memory
 - build auc into GBC
-- CV function
+
 - use the information of number of repeats somehow...
 - quantile regression...?
 
@@ -19,6 +19,7 @@ finished todos: :)
 - train and predict using compressed transactions' data :)
 - very basic imputation
 - logistic regression...? (didn't really workout)
+- CV function
 
 -------------------------------------
 

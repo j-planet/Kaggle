@@ -554,7 +554,7 @@ def splitTrainTest(X, y, testSize):
     return X[trainInd], y[trainInd], X[testInd], y[testInd]
 
 
-def cvScores(clf, X, y, scoreFuncsToUse='all', numCVs=10, n_jobs=1, test_size=0.25, doesPrint=True):
+def cvScores(clf, X, y, scoreFuncsToUse='all', numCVs=10, n_jobs=1, test_size=0.25, y_test=None, verbose=True):
     """
     evaluates cv scores under numerous measures
     @param clf: the classifier
@@ -566,7 +566,7 @@ def cvScores(clf, X, y, scoreFuncsToUse='all', numCVs=10, n_jobs=1, test_size=0.
     @return:
     """
     res = {}
-    if doesPrint:
+    if verbose:
         print '------- CV Scores -------'
 
     scoreFuncs = {'accuracy_score':accuracy_score, 'auc_score': roc_auc_score, 'average_precision_score':average_precision_score,
@@ -575,16 +575,20 @@ def cvScores(clf, X, y, scoreFuncsToUse='all', numCVs=10, n_jobs=1, test_size=0.
     for name, scoreFunc in scoreFuncs.iteritems():
 
         if not (scoreFuncsToUse=='all' or name==scoreFuncsToUse or name in scoreFuncsToUse): continue
-        if doesPrint:
+        if verbose:
             print '---', name, '---'
 
         try:
-            scores = jjcross_val_score(clf, X, y, score_func=scoreFunc, cv=StratifiedShuffleSplit(y, n_iter=numCVs,
-                test_size=test_size), n_jobs=n_jobs)
-            if doesPrint: print 'Results: %0.4f +/- %0.4f' % (scores.mean(), 2*scores.std())
+            scores = jjcross_val_score(clf, X, y, score_func=scoreFunc,
+                                       cv = StratifiedShuffleSplit(y if y_test is None else y_test,
+                                                                   n_iter=numCVs,
+                                                                   test_size=test_size),
+                                       n_jobs=n_jobs, y_test=y_test)
+
+            if verbose: print 'Results: %0.4f +/- %0.4f' % (scores.mean(), 2*scores.std())
             res[name] = (scores.mean(), scores.std())
-        except:
-            if doesPrint: print 'Error caught. :('
+        except Exception, e:
+            if verbose: print 'Error caught. :(', e.message
 
     return res
 
@@ -596,16 +600,18 @@ def jjcross_val_score_inner(args):
     @return: score
     """
 
-    global X, y, clf, score_func, fit_params
+    global X, y, clf, score_func, fit_params, y_test
     trainInds, testInds = args
 
     newClf = clone(clf)
     newClf.fit(X[trainInds], y[trainInds], **fit_params)
-    return score_func(y[testInds], newClf.predict(X[testInds]))
+
+
+    return score_func((y if y_test is None else y_test)[testInds], newClf.predict(X[testInds]))
 
 def jjcross_val_score_init(*args):
-    global X, y, clf, score_func, fit_params
-    X, y, clf, score_func, fit_params = args
+    global X, y, clf, score_func, fit_params, y_test
+    X, y, clf, score_func, fit_params, y_test = args
 
 
 def getNumCvFolds(cv):
@@ -624,12 +630,13 @@ def getNumCvFolds(cv):
         return cv.n_folds
 
 
-def jjcross_val_score(clf, X, y, score_func, cv, n_jobs=1, fit_params=None):
+def jjcross_val_score(clf, X, y, score_func, cv, y_test=None, n_jobs=1, fit_params=None):
     """
 
     @param clf:
     @param X: np.array
     @param y: np.array
+    @param y_test: np.array. If not None then the Y's used for testing are different from the ones used for training.
     @param score_func: a score function of the form func(y_true, y_pred)
     @param cv: either an integer indicating the number of StratifiedKFold folds, or an iterable
     @param n_jobs:
@@ -646,7 +653,7 @@ def jjcross_val_score(clf, X, y, score_func, cv, n_jobs=1, fit_params=None):
         # figure out the number of folds
         n_jobs = min(n_jobs, getNumCvFolds(cv))
         # print 'jjcvscore with %d proceses' % n_jobs
-        pool = MyPool(n_jobs, initializer=jjcross_val_score_init, initargs=(X, y, clf, score_func, fit_params))
+        pool = MyPool(n_jobs, initializer=jjcross_val_score_init, initargs=(X, y, clf, score_func, fit_params, y_test))
         data = [[trainInds, testInds] for trainInds, testInds in cv]
         temp = pool.map_async(jjcross_val_score_inner, data)
         temp.wait()
@@ -663,7 +670,7 @@ def jjcross_val_score(clf, X, y, score_func, cv, n_jobs=1, fit_params=None):
             trainX = X[trainInds]
             trainY = y[trainInds]
             testX = X[testInds]
-            testY = y[testInds]
+            testY = (y if y_test is None else y_test)[testInds]
 
             if len(np.unique(trainY))==1:
                 yPred = np.repeat(trainY[0], len(testY))
