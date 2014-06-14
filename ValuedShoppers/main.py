@@ -1,4 +1,5 @@
 import sys
+sys.path.append('/home/jj/code/Kaggle/ValuedShoppers')
 from os.path import join
 import pandas
 from pprint import pprint
@@ -10,7 +11,7 @@ from globalVars import *
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
-sys.path.append('/home/jj/code/Kaggle/ValuedShoppers')
+
 
 
 def join_3_files(historyFpath, offersFpath, compressedTransFpath, isTrain, xFields):
@@ -56,7 +57,7 @@ def join_3_files(historyFpath, offersFpath, compressedTransFpath, isTrain, xFiel
     return X, Y_repeater, Y_numRepeats, Y_quantiles
 
 
-def cv_scores(clf, X, Y_train, Y_test, n_jobs=16):
+def cv_scores(clf, X, Y_train, Y_test, numCvs=5, n_jobs=16):
     """
     uses auc score as the score func
     @param Y_train: Y_quantiles if targeting the quantiles
@@ -82,14 +83,14 @@ def test_training_results(clf, X, Y_repeater, Y_numRepeats):
     return roc_auc_score(Y_repeater, pred)
 
 
-def classify(X, y, fit=True):
+def classify(X, y, lossString, fit=True):
     """
     train classifier on training data
     @return classifier
     """
 
-    clf = LogisticRegression()
-    # clf = GradientBoostingRegressor(learning_rate=0.01, loss='ls', n_estimators=100, subsample=0.8)
+    # clf = LogisticRegression()
+    clf = GradientBoostingRegressor(learning_rate=0.01, loss=lossString, n_estimators=100, subsample=0.8)
 
     if fit:
         clf.fit(X, y)
@@ -144,34 +145,61 @@ def plot_feature_importances(X_train, Y_repeater, Y_numRepeats, Y_quantiles):
     return fields_repeater, fields_numRepeats, fields_quantiles
 
 
+def compare_test_and_train_data(X_train, X_test):
+    """
+    checks if the test data is representitative of training data
+    """
+
+    for f in X_train.columns:
+        print '------', f
+        if X_FIELDS[f]: # is discrete
+            d = set(X_test[f].unique()) - set(X_train[f].unique())
+
+            if len(d) > 0:
+                print len(d), 1. * sum(v in d for v in X_test[f]) / X_test.shape[0]
+                pprint(d)
+        else:
+            minTest = X_test[f].min()
+            maxTest = X_test[f].max()
+            minTrain = X_train[f].min()
+            maxTrain = X_train[f].max()
+
+            if minTest < minTrain or maxTest > maxTrain:
+                print 'Test range is wider: (%f, %f) vs (%f, %f)' % (minTest, maxTest, minTrain, maxTrain)
+                print 'test range/ train range =', 1.*(maxTest-minTest)/(maxTrain-minTrain)
+
+
 if __name__ == '__main__':
 
     # ---- read data
     X_train, Y_repeater, Y_numRepeats, Y_quantiles = join_3_files(join(DATA_DIR, "trainHistory_wDatesQuantiles.csv"),
                                                                   join(DATA_DIR, "offers.csv"),
                                                                   join(DATA_DIR, "transactions_train_compressed.csv"),
-                                                                  True, X_FIELDS)
+                                                                  True, X_FIELDS.keys())
 
     # ---- assess feature importances
     # fields_repeater, fields_numRepeats, fields_quantiles = plot_feature_importances(X_train, Y_repeater, Y_numRepeats, Y_quantiles)
-    # fieldsToUse = list(set(fields_repeater[:5] + fields_numRepeats[:5] + fields_quantiles[:X_train.shape[1]*2/3]))
-    fieldsToUse = ['category', 'pchAmtWiWeekOfOffer', 'dayOfTheWeek', 'chain_freq', 'chain', 'avgWeeklyPchAmt', 'brand', 'daysSinceLastPch', 'category_hasShopped', 'category_freq', 'brand_freq', 'brand_hasShopped', 'offervalue', 'company_freq', 'company', 'market', 'company_hasShopped']
-
+    # fieldsToUse = list(set(fields_repeater[:5] + fields_numRepeats[:5] + fields_quantiles[:8]))
+    fieldsToUse = FIELDS_17
     print 'fields to use:', len(fieldsToUse), fieldsToUse
-
 
     # ---- classify and predict
     print '========= training'
     X_train = X_train[fieldsToUse]
-    clf = classify(np.array(X_train), Y_quantiles, fit=False)
-    print 'CV scores:', cv_scores(clf, np.array(X_train), np.array(Y_quantiles), np.array(Y_repeater), n_jobs=16)
+    y_train = np.array(Y_quantiles)
+    # y_train = np.array(Y_numRepeats)
+    y_val = np.array(Y_repeater)
+    # clf = classify(np.array(X_train), y_train, lossString='ls', fit=True)
+    #
+    # print 'CV scores:', cv_scores(clf, np.array(X_train), y_train, y_val, n_jobs=16, numCvs=16)
 
     print '========= predicting'
-    # X_test = join_3_files(join(DATA_DIR, "testHistory_wDateFields.csv"),
-    #                      join(DATA_DIR, "offers.csv"),
-    #                      join(DATA_DIR, "transactions_test_compressed.csv"),
-    #                      False, fieldsToUse)[0]
-    #
-    #
-    # predict(X_test, clf, '/home/jj/code/Kaggle/ValuedShoppers/submissions/17Fields_quantiles_logisticReg.csv')
-    #
+    X_test = join_3_files(join(DATA_DIR, "testHistory_wDateFields.csv"),
+                         join(DATA_DIR, "offers.csv"),
+                         join(DATA_DIR, "transactions_test_compressed.csv"),
+                         False, fieldsToUse)[0]
+
+
+    # predict(X_test, clf, '/home/jj/code/Kaggle/ValuedShoppers/submissions/10fields_quantiles_gbc.csv')
+
+    compare_test_and_train_data(X_train, X_test)

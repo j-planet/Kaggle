@@ -4,10 +4,26 @@ Todos:
 - amend offers without blowing up memory
 - build auc into GBC
 
-- use the information of number of repeats somehow...
-- quantile regression...?
+- cv where the validation data come from a different time period to simulate realistic kaggle test scores, since the
+    kaggle test data set are for May~July whereas the training data come from March~April
 
+- calibrate classifier parameters (after getting the  test score into the ball park)
 
+- some offers are in the test set but never appeared in the training set:
+    set([1221665,
+         1190530,
+         1221667,
+         1230218,
+         1221666,
+         1203439,
+         1220502,
+         1220503,
+         1221658,
+         1219903,
+         1219900,
+         1213242,
+         1221663])
+     => could amending offers be the answer? i.e. replace company by the reputation of the company
 
 finished todos: :)
 
@@ -20,6 +36,8 @@ finished todos: :)
 - very basic imputation
 - logistic regression...? (didn't really workout)
 - CV function
+- quantile regression...?
+- use the information of number of repeats somehow...
 
 -------------------------------------
 
