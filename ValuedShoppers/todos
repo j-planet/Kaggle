@@ -1,7 +1,6 @@
 Todos:
 
-- amend offers
-- amend offers without blowing up memory
+- vw
 - build auc into GBC
 
 - cv where the validation data come from a different time period to simulate realistic kaggle test scores, since the
@@ -38,6 +37,8 @@ finished todos: :)
 - CV function
 - quantile regression...?
 - use the information of number of repeats somehow...
+- amend offers
+- amend offers without blowing up memory
 
 -------------------------------------
 

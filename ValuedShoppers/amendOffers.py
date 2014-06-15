@@ -8,7 +8,7 @@ from IterStreamer import IterStreamer
 offers = pandas.read_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/offers.csv")
 transactionsFile = open("/home/jj/code/Kaggle/ValuedShoppers/Data/transactions.csv")
 transHeaders = transactionsFile.readline().strip().split(',')
-chunkSize = 10000
+chunkSize = 100000
 numLinesLeft = TRANSACTIONS_FILE_NUM_LINES
 
 singleFieldDict = {name: {v: {'avgPrice': 0, 'totalQuantity': 0, 'returnRate': 0, 'count': 0, 'avgReturnAmt': 0}
@@ -104,8 +104,8 @@ def write_singleDict_to_offers():
         for fieldValue, res in d.iteritems():
             ind = offers[fieldName] == fieldValue
 
-        for k, v in res.iteritems():
-            offers[fieldName + '_' + k][ind] = v
+            for k, v in res.iteritems():
+                offers[fieldName + '_' + k][ind] = v
 
 
 def write_doubleDict_to_offers():
@@ -143,11 +143,14 @@ def write_tripleDict_to_offers():
 offers['offerPrice'] = offers.offervalue / offers.quantity
 
 # fill the dicts
-while numLinesLeft > 0:
+while numLinesLeft >= chunkSize:
+    print numLinesLeft, 'lines left.'
     inner_loop(chunkSize)
     numLinesLeft -= chunkSize
 
-inner_loop(numLinesLeft)    # the leftover chunk
+if numLinesLeft > 0:
+    inner_loop(numLinesLeft)    # the leftover chunk
+
 transactionsFile.close()
 
 # post process the dicts
@@ -157,7 +160,5 @@ postprocess_dicts()
 write_singleDict_to_offers()
 write_doubleDict_to_offers()
 write_tripleDict_to_offers()
-
-
 
 offers.to_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/offers_amended.csv")

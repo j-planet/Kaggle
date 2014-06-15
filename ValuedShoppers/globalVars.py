@@ -4,7 +4,8 @@ import numpy as np
 HOLIDAY_TRAIN = datetime(2013, 5, 27)
 HOLIDAY_TEST = datetime(2013, 7, 4)
 
-TRANSACTIONS_FILE_NUM_LINES = 349655790
+TRANSACTIONS_FILE_NUM_LINES = 349655789
+# TRANSACTIONS_FILE_NUM_LINES = 999992
 
 DATA_DIR = "/home/jj/code/Kaggle/ValuedShoppers/Data/"
 

@@ -90,7 +90,7 @@ def classify(X, y, lossString, fit=True):
     """
 
     # clf = LogisticRegression()
-    clf = GradientBoostingRegressor(learning_rate=0.01, loss=lossString, n_estimators=100, subsample=0.8)
+    clf = GradientBoostingRegressor(learning_rate=0.001, loss=lossString, n_estimators=100, subsample=0.9)
 
     if fit:
         clf.fit(X, y)
@@ -189,8 +189,8 @@ if __name__ == '__main__':
     y_train = np.array(Y_quantiles)
     # y_train = np.array(Y_numRepeats)
     y_val = np.array(Y_repeater)
-    # clf = classify(np.array(X_train), y_train, lossString='ls', fit=True)
-    #
+    clf = classify(np.array(X_train), y_train, lossString='ls', fit=True)
+
     # print 'CV scores:', cv_scores(clf, np.array(X_train), y_train, y_val, n_jobs=16, numCvs=16)
 
     print '========= predicting'
@@ -200,6 +200,6 @@ if __name__ == '__main__':
                          False, fieldsToUse)[0]
 
 
-    # predict(X_test, clf, '/home/jj/code/Kaggle/ValuedShoppers/submissions/10fields_quantiles_gbc.csv')
+    predict(X_test, clf, '/home/jj/code/Kaggle/ValuedShoppers/submissions/17fields_quantiles_gbc_long.csv')
 
-    compare_test_and_train_data(X_train, X_test)
+    # compare_test_and_train_data(X_train, X_test)
