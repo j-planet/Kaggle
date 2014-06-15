@@ -800,25 +800,40 @@ class RandomForester(BaseEstimator, TransformerMixin):
         """
         returns the top indices
         """
-        n = None    # num of features to output
 
+        n = self.__get_num_ticks(num_features)
         importances = self._forest.feature_importances_
-
-        if num_features == 'auto':
-            n = int(self.num_features if self.num_features > 1 else len(importances)*self.num_features)
-        elif num_features == 'all':
-            n = len(importances)
-        elif isinstance(num_features, int):
-            n = num_features
-        else:
-            raise Exception('Invalid num_features provided:', num_features)
 
         ind = np.argsort(importances)[::-1][:n]
         indLabels = None if labels is None else labels[ind]
 
         return ind, indLabels, importances[ind]
 
-    def plot(self, num_features='auto', labels=None):
+    def __get_num_ticks(self, num_features):
+
+        importances = self._forest.feature_importances_
+
+        if num_features == 'auto':
+            return int(self.num_features if self.num_features > 1 else len(importances) * self.num_features)
+        elif num_features == 'all':
+            return len(importances)
+        elif isinstance(num_features, int):
+            return num_features
+        elif isinstance(num_features, float) and num_features > 0 and num_features < 1:
+            print 'total importance =', np.sum(importances)
+            numTicks = 0
+            totalImp = 0
+            for i in np.sort(importances)[::-1]:
+                totalImp += i
+                numTicks += 1
+                if totalImp >= num_features:
+                    break
+            print 'Using %d features to achieve a total of %f importance.' % (numTicks, totalImp)
+            return numTicks
+        else:
+            raise Exception('Invalid num_features provided:', num_features)
+
+    def plot(self, num_features='auto', labels=None, title=None):
         """
         makes a bar plot of feature importances and corresp. standard deviations
         call only after the "fit" method has been called
@@ -827,18 +842,12 @@ class RandomForester(BaseEstimator, TransformerMixin):
               'auto': same as the class' number of  features
               'all': all features
               a number: specific # features
+              a decimal: however many features it takes to sum up to that importance
         """
 
         importances = self._forest.feature_importances_
 
-        if num_features == 'auto':
-            numTicks = int(self.num_features if self.num_features > 1 else len(importances)*self.num_features)
-        elif num_features== 'all':
-            numTicks = len(importances)
-        elif isinstance(num_features, int):
-            numTicks = num_features
-        else:
-            raise Exception('Invalid num_features provided:', num_features)
+        numTicks = self.__get_num_ticks(num_features)
 
         indices = np.argsort(importances)[::-1][:numTicks]
         std = np.std([tree.feature_importances_ for tree in self._forest.estimators_], axis=0)
@@ -847,6 +856,9 @@ class RandomForester(BaseEstimator, TransformerMixin):
 
         if labels is not None:
             plt.xticks(range(len(indices)), labels[indices], rotation=45)
+
+        if title is not None:
+            plt.title(title)
 
         plt.show()
 

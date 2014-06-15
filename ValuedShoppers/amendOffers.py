@@ -161,4 +161,4 @@ write_singleDict_to_offers()
 write_doubleDict_to_offers()
 write_tripleDict_to_offers()
 
-offers.to_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/offers_amended.csv")
+offers.to_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/offers_amended.csv", index=False)

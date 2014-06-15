@@ -11,6 +11,7 @@ from globalVars import *
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
+from sklearn.preprocessing import Imputer
 
 
 
@@ -64,6 +65,7 @@ def cv_scores(clf, X, Y_train, Y_test, numCvs=5, n_jobs=16):
     @param Y_test: Y_repeater
     """
 
+    X = Imputer().fit_transform(X)
     return cvScores(clf, X, Y_train, scoreFuncsToUse='auc_score', numCVs=5, n_jobs=n_jobs, test_size=0.25, y_test=Y_test)
 
 
@@ -89,8 +91,12 @@ def classify(X, y, lossString, fit=True):
     @return classifier
     """
 
+    print 'Training data:'
+    print_missing_values_info(X)
+    X = Imputer().fit_transform(X)
+
     # clf = LogisticRegression()
-    clf = GradientBoostingRegressor(learning_rate=0.001, loss=lossString, n_estimators=100, subsample=0.9)
+    clf = GradientBoostingRegressor(learning_rate=0.01, loss=lossString, n_estimators=100, subsample=0.9)
 
     if fit:
         clf.fit(X, y)
@@ -104,7 +110,9 @@ def _predict(ids, X, clf, outputFpath):
     @return predictions
     """
 
+    print 'Prediction data:'
     print_missing_values_info(X)
+    X = Imputer().fit_transform(X)
 
     # res = pandas.DataFrame({'id': ids, 'repeatProbability': clf.predict_proba(X)[:, 1]})
     res = pandas.DataFrame({'id': ids, 'repeatProbability': clf.predict(X)})
@@ -121,26 +129,36 @@ def predict(X, clf, outputFpath):
     return _predict(ids, np.array(X), clf, outputFpath)
 
 
-def _plot_feature_importances(X, Y, labels, numTopFeatures, numEstimators = 50):
+def _plot_feature_importances(X, Y, labels, numTopFeatures, numEstimators = 50, title = None):
+    """
+    @param X: np.array
+    """
+
+    # impute missing data
+    imp = Imputer()
+    X = imp.fit_transform(X)
 
     rf = RandomForester(num_features = X.shape[1], n_estimators = numEstimators)
     rf.fit(X, Y)
 
-    topFeatureInd, topFeatureLabels, topFeatureImportances = rf.top_indices(labels=labels)
+    topFeatureInd, topFeatureLabels, topFeatureImportances = rf.top_indices(labels=labels, num_features=numTopFeatures)
 
     print 'Top features:'
     pprint(np.transpose([topFeatureLabels, topFeatureImportances]))
 
-    rf.plot(num_features=numTopFeatures, labels=labels)
+    rf.plot(num_features=numTopFeatures, labels=labels, title=title)
 
     return topFeatureInd, topFeatureLabels, topFeatureImportances
 
 
-def plot_feature_importances(X_train, Y_repeater, Y_numRepeats, Y_quantiles):
+def plot_feature_importances(X_train, Y_repeater, Y_numRepeats, Y_quantiles, num_features):
+    """
+    @param num_features: number of features for [repeater, numrepeats, quantiles]
+    """
 
-    fields_repeater = _plot_feature_importances(np.array(X_train), Y_repeater, labels=X_train.columns, numTopFeatures=X_train.shape[1]/2)[1]
-    fields_numRepeats = _plot_feature_importances(np.array(X_train), Y_numRepeats, labels=X_train.columns, numTopFeatures=X_train.shape[1]/2)[1]
-    fields_quantiles = _plot_feature_importances(np.array(X_train), Y_quantiles, labels=X_train.columns, numTopFeatures=X_train.shape[1]/2)[1]
+    fields_repeater = _plot_feature_importances(np.array(X_train), Y_repeater, labels=X_train.columns, numTopFeatures=num_features[0], title='Repeater')[1]
+    fields_numRepeats = _plot_feature_importances(np.array(X_train), Y_numRepeats, labels=X_train.columns, numTopFeatures=num_features[1], title='Number of Repeats')[1]
+    fields_quantiles = _plot_feature_importances(np.array(X_train), Y_quantiles, labels=X_train.columns, numTopFeatures=num_features[2], title='Quantiles of Number of Repeats')[1]
 
     return fields_repeater, fields_numRepeats, fields_quantiles
 
@@ -173,14 +191,15 @@ if __name__ == '__main__':
 
     # ---- read data
     X_train, Y_repeater, Y_numRepeats, Y_quantiles = join_3_files(join(DATA_DIR, "trainHistory_wDatesQuantiles.csv"),
-                                                                  join(DATA_DIR, "offers.csv"),
+                                                                  join(DATA_DIR, "offers_amended.csv"),
                                                                   join(DATA_DIR, "transactions_train_compressed.csv"),
                                                                   True, X_FIELDS.keys())
 
+
     # ---- assess feature importances
-    # fields_repeater, fields_numRepeats, fields_quantiles = plot_feature_importances(X_train, Y_repeater, Y_numRepeats, Y_quantiles)
-    # fieldsToUse = list(set(fields_repeater[:5] + fields_numRepeats[:5] + fields_quantiles[:8]))
-    fieldsToUse = FIELDS_17
+    # fields_repeater, fields_numRepeats, fields_quantiles = plot_feature_importances(X_train, Y_repeater, Y_numRepeats, Y_quantiles, [0.85]*3)
+    # fieldsToUse = list(set(fields_repeater + fields_numRepeats + fields_quantiles))    # fieldsToUse = FIELDS_17
+    fieldsToUse = FIELDS_21
     print 'fields to use:', len(fieldsToUse), fieldsToUse
 
     # ---- classify and predict
@@ -189,17 +208,15 @@ if __name__ == '__main__':
     y_train = np.array(Y_quantiles)
     # y_train = np.array(Y_numRepeats)
     y_val = np.array(Y_repeater)
-    clf = classify(np.array(X_train), y_train, lossString='ls', fit=True)
+    clf = classify(np.array(X_train), y_train, lossString='ls', fit=False)
 
-    # print 'CV scores:', cv_scores(clf, np.array(X_train), y_train, y_val, n_jobs=16, numCvs=16)
+    print 'CV scores:', cv_scores(clf, np.array(X_train), y_train, y_val, n_jobs=16, numCvs=16)
 
-    print '========= predicting'
-    X_test = join_3_files(join(DATA_DIR, "testHistory_wDateFields.csv"),
-                         join(DATA_DIR, "offers.csv"),
-                         join(DATA_DIR, "transactions_test_compressed.csv"),
-                         False, fieldsToUse)[0]
-
-
-    predict(X_test, clf, '/home/jj/code/Kaggle/ValuedShoppers/submissions/17fields_quantiles_gbc_long.csv')
-
-    # compare_test_and_train_data(X_train, X_test)
+    # print '========= predicting'
+    # X_test = join_3_files(join(DATA_DIR, "testHistory_wDateFields.csv"),
+    #                      join(DATA_DIR, "offers_amended.csv"),
+    #                      join(DATA_DIR, "transactions_test_compressed.csv"),
+    #                      False, fieldsToUse)[0]
+    #
+    #
+    # predict(X_test, clf, '/home/jj/code/Kaggle/ValuedShoppers/submissions/17fields_quantiles_gbc_long.csv')

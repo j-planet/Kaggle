@@ -50,7 +50,7 @@ def add_quantiles_to_training_history(inputFpath):
     print 'read. adding quantiles.'
     data['repeatQuantiles'] = convert_to_ranks(data['repeattrips'])
 
-    data.to_csv(os.path.join(DATA_DIR, "trainHistory_wDatesQuantiles.csv"))
+    data.to_csv(os.path.join(DATA_DIR, "trainHistory_wDatesQuantiles.csv"), index=False)
 
 
 if __name__=='__main__':
