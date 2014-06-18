@@ -15,7 +15,7 @@ from sklearn.preprocessing import Imputer
 
 
 
-def join_3_files(historyFpath, offersFpath, compressedTransFpath, isTrain, xFields):
+def join_3_files(historyFpath, offersFpath, compressedTransFpath, isTrain, xFields, impute):
     """
     joins history, offers, and compressed transactions data
     handles rows with Inf values
@@ -54,6 +54,9 @@ def join_3_files(historyFpath, offersFpath, compressedTransFpath, isTrain, xFiel
             print 'imputing column', i, X.columns[i], 'with', np.mean(col[np.logical_not(infInds)])
 
         col[infInds] = np.mean(col[np.logical_not(infInds)])
+
+    if impute:
+        X = pandas.DataFrame(Imputer().fit_transform(X), columns=X.columns)
 
     return X, Y_repeater, Y_numRepeats, Y_quantiles
 
@@ -187,36 +190,68 @@ def compare_test_and_train_data(X_train, X_test):
                 print 'test range/ train range =', 1.*(maxTest-minTest)/(maxTrain-minTrain)
 
 
+def write_to_vw_file(outputFname, X_df, y_series):
+    """
+    @param X_df: pandas data frame
+    @param y_series: pandas series
+    """
+
+    with open(outputFname, 'w') as f:
+        for i in xrange(X_df.shape[0]):
+            line = str(y_series[i]) + ' | '
+            line += ' '.join([c + ':' + str(X_df[c][i]) for c in X_df.columns])
+
+            f.write(line + '\n')
+
+
+def make_submission_from_vw_pred(inputFpath, outputFpath):
+    """
+    @param inputFpath: a column of numbers. no header.
+    """
+
+    ids = pandas.read_csv(join(DATA_DIR, 'testIds'))
+    preds = pandas.read_csv(inputFpath, header=None)
+
+    pandas.DataFrame({'id': np.array(ids)[:, 0], 'repeatProbability': np.array(preds)[:, 0]}).to_csv(outputFpath, index=False)
+
+
 if __name__ == '__main__':
 
     # ---- read data
     X_train, Y_repeater, Y_numRepeats, Y_quantiles = join_3_files(join(DATA_DIR, "trainHistory_wDatesQuantiles.csv"),
                                                                   join(DATA_DIR, "offers_amended.csv"),
                                                                   join(DATA_DIR, "transactions_train_compressed.csv"),
-                                                                  True, X_FIELDS.keys())
+                                                                  True, X_FIELDS.keys(), impute=True)
 
 
     # ---- assess feature importances
     # fields_repeater, fields_numRepeats, fields_quantiles = plot_feature_importances(X_train, Y_repeater, Y_numRepeats, Y_quantiles, [0.85]*3)
     # fieldsToUse = list(set(fields_repeater + fields_numRepeats + fields_quantiles))    # fieldsToUse = FIELDS_17
-    fieldsToUse = FIELDS_21
-    print 'fields to use:', len(fieldsToUse), fieldsToUse
-
-    # ---- classify and predict
+    fieldsToUse = X_FIELDS.keys()
+    # print 'fields to use:', len(fieldsToUse), fieldsToUse
+    #
+    # # ---- classify and predict
     print '========= training'
     X_train = X_train[fieldsToUse]
-    y_train = np.array(Y_quantiles)
-    # y_train = np.array(Y_numRepeats)
-    y_val = np.array(Y_repeater)
-    clf = classify(np.array(X_train), y_train, lossString='ls', fit=False)
 
-    print 'CV scores:', cv_scores(clf, np.array(X_train), y_train, y_val, n_jobs=16, numCvs=16)
+    write_to_vw_file("/home/jj/code/Kaggle/ValuedShoppers/vwFiles/61fields_train", X_train, Y_repeater)
 
+
+    # y_train = np.array(Y_quantiles)
+    # # y_train = np.array(Y_numRepeats)
+    # y_val = np.array(Y_repeater)
+    # clf = classify(np.array(X_train), y_train, lossString='ls', fit=False)
+    #
+    # print 'CV scores:', cv_scores(clf, np.array(X_train), y_train, y_val, n_jobs=16, numCvs=16)
+    #
     # print '========= predicting'
-    # X_test = join_3_files(join(DATA_DIR, "testHistory_wDateFields.csv"),
-    #                      join(DATA_DIR, "offers_amended.csv"),
-    #                      join(DATA_DIR, "transactions_test_compressed.csv"),
-    #                      False, fieldsToUse)[0]
-    #
-    #
-    # predict(X_test, clf, '/home/jj/code/Kaggle/ValuedShoppers/submissions/17fields_quantiles_gbc_long.csv')
+    X_test = join_3_files(join(DATA_DIR, "testHistory_wDateFields.csv"),
+                         join(DATA_DIR, "offers_amended.csv"),
+                         join(DATA_DIR, "transactions_test_compressed.csv"),
+                         False, fieldsToUse, impute=True)[0]
+    write_to_vw_file("/home/jj/code/Kaggle/ValuedShoppers/vwFiles/origTest", X_test, ['']*X_test.shape[0])
+
+
+    # # predict(X_test, clf, '/home/jj/code/Kaggle/ValuedShoppers/submissions/17fields_quantiles_gbc_long.csv')
+
+    # make_submission_from_vw_pred("/home/jj/code/Kaggle/ValuedShoppers/vwFiles/pred", "/home/jj/code/Kaggle/ValuedShoppers/submissions/vw21fields")

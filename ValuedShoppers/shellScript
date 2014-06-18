@@ -1,0 +1,11 @@
+rm ./*.cache
+rm ./pred
+rm ./model
+
+sed s/True/1/g ./61fields_train | sed s/False/0/g > ./train
+sed s/True/1/g ./origTest | sed s/False/0/g > ./test
+
+vw ./train -c -k --passes 100 -l 0.1 -f model --loss_function quantile --quantile_tau 0.01 --num_children 16 --decay_learning_rate 0.9
+
+vw ./test -t -i ./model -p pred
+sort pred|uniq
