@@ -215,13 +215,74 @@ def make_submission_from_vw_pred(inputFpath, outputFpath):
     pandas.DataFrame({'id': np.array(ids)[:, 0], 'repeatProbability': np.array(preds)[:, 0]}).to_csv(outputFpath, index=False)
 
 
+def make_cvs_inds(X_train, by, groups, isDiscrete=True):
+    """
+    @param X_train: a dataframe
+    @param by: in {"category", "company", "brand"}
+    @param isDiscrete: whether the "by" field is discrete
+    @param groups: how the cvs are defined by values of "by". if isDiscrete, a set of sets; otherwise, a set of division points
+    """
+
+    if not isDiscrete:
+        raise NotImplementedError("Dividing by continuous fields has not been implemented.")
+
+    res = []
+    for group in groups:
+        ind = X_train[by].isin(group)
+        res.append((ind, np.logical_not(ind)))
+
+    return res
+
+def print_data_distribution_by_field(df, col):
+    """
+    prints out how many of each value a field has
+    @param df: pandas data frame
+    @param col: a column
+    """
+
+    res = [(c, sum(df[col] == c)) for c in df[col].unique()]
+    res.sort(key = lambda x: x[1],  reverse=True)
+
+    for k, v in res:
+        print k, ':', v, 1.*v/df.shape[0]
+
+    return res
+
+
+def validate_classifier(clf, X, Y_train, Y_validate, inds, scoreFunc=roc_auc_score):
+
+    scores = []
+    foldNum = 0
+
+    for trainInds, valInds in inds:
+
+        # train
+        cur_X_train = X[trainInds]
+        cur_Y_train = Y_train[trainInds]
+        cur_X_val = X[valInds]
+        cur_Y_val = Y_validate[valInds]
+
+        # test
+        clf.fit(cur_X_train, cur_Y_train)
+        score = scoreFunc(cur_Y_val, clf.predict(cur_X_val))
+
+        print 'Fold %d, score = %f' % (foldNum, score)
+        scores.append(score)
+
+        foldNum += 1
+
+    print ">>>>>>>> %d-fold Score (mean, cv) = (%f, %f)" % (foldNum, np.mean(scores), np.std(scores)/np.mean(scores))
+
+    return scores
+
+
 if __name__ == '__main__':
 
     # ---- read data
     X_train, Y_repeater, Y_numRepeats, Y_quantiles = join_3_files(join(DATA_DIR, "trainHistory_wDatesQuantiles.csv"),
                                                                   join(DATA_DIR, "offers_amended.csv"),
                                                                   join(DATA_DIR, "transactions_train_compressed.csv"),
-                                                                  True, X_FIELDS.keys(), impute=True)
+                                                                  True, X_FIELDS.keys() + ['offer'], impute=True)
 
 
     # ---- assess feature importances
@@ -255,3 +316,5 @@ if __name__ == '__main__':
     # # predict(X_test, clf, '/home/jj/code/Kaggle/ValuedShoppers/submissions/17fields_quantiles_gbc_long.csv')
 
     # make_submission_from_vw_pred("/home/jj/code/Kaggle/ValuedShoppers/vwFiles/pred", "/home/jj/code/Kaggle/ValuedShoppers/submissions/vw21fields")
+
+    # make cv inds
