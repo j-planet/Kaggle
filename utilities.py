@@ -873,8 +873,9 @@ def print_missing_values_info(data):
     # -------- check na -----------
     temp_col = pandas.isnull(data).sum()
     temp_row = pandas.isnull(data).sum(axis=1)
+    colsWithMissingData = list(data.columns[temp_col > 0])
 
-    print 'The data has', (temp_col > 0).sum(), 'or', round(100. * (temp_col > 0).sum() / data.shape[1], 1), '% columns with missing values.'
+    print 'The data has', (temp_col > 0).sum(), 'or', round(100. * (temp_col > 0).sum() / data.shape[1], 1), '% columns (', colsWithMissingData, ') with missing values.'
     print 'The data has', (temp_row > 0).sum(), 'or', round(100. * (temp_row > 0).sum() / data.shape[0], 1), '% rows with missing values.'
 
     print 'The data has', temp_col.sum(), 'or', round(
