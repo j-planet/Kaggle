@@ -89,8 +89,9 @@ def classify(X, y, lossString, fit=True):
     print_missing_values_info(X)
     X = Imputer().fit_transform(X)
 
-    # clf = LogisticRegression()
-    clf = GradientBoostingRegressor(learning_rate=0.01, loss=lossString, n_estimators=100, subsample=0.9)
+    clf = LogisticRegression()
+    # clf = GradientBoostingRegressor(learning_rate=0.01, loss=lossString, n_estimators=100, subsample=0.9)
+    # clf = GradientBoostingClassifier(learning_rate=0.01, loss=lossString, n_estimators=100, subsample=0.9)
 
     if fit:
         clf.fit(X, y)
@@ -109,7 +110,7 @@ def _predict(ids, X, clf, outputFpath):
     X = Imputer().fit_transform(X)
 
     # res = pandas.DataFrame({'id': ids, 'repeatProbability': clf.predict_proba(X)[:, 1]})
-    res = pandas.DataFrame({'id': ids, 'repeatProbability': clf.predict(X)})
+    res = pandas.DataFrame({'id': [int(id) for id in ids], 'repeatProbability': clf.predict(X)})
     res.to_csv(outputFpath, index=False)
 
     return res
@@ -120,7 +121,7 @@ def predict(X, clf, outputFpath):
     ids = X.id
     del X['id']
 
-    return _predict(ids, np.array(X), clf, outputFpath)
+    return _predict(ids, X, clf, outputFpath)
 
 
 def _plot_feature_importances(X, Y, labels, numTopFeatures, numEstimators = 50, title = None):
@@ -258,7 +259,7 @@ def print_data_distribution_by_field(df, cols):
     return res
 
 
-def validate_classifier(clf, X, Y_train, Y_validate, cv, scoreFunc=roc_auc_score, n_jobs=16, test_size=0.25):
+def validate_classifier(clf, X, Y_train, Y_validate, cv, use_predProb_instead, scoreFunc=roc_auc_score, n_jobs=16, test_size=0.25):
     """
     @param cv: an object (list of (trainInds, testInds)) or an integer (number of folds)
     @return: list of cv scores
@@ -266,7 +267,7 @@ def validate_classifier(clf, X, Y_train, Y_validate, cv, scoreFunc=roc_auc_score
 
     cvObj = StratifiedShuffleSplit(Y_validate, n_iter=cv, test_size=test_size) if isinstance(cv, int) else cv
 
-    scores = jjcross_val_score(clf, X, Y_train, scoreFunc, cvObj, Y_validate, n_jobs=n_jobs)
+    scores = jjcross_val_score(clf, X, Y_train, scoreFunc, cvObj, Y_validate, n_jobs=n_jobs, use_predProb_instead=use_predProb_instead)
     for i, score in enumerate(scores):
         print 'Fold %d, score = %f' % (i, score)
 
@@ -287,7 +288,7 @@ if __name__ == '__main__':
     # ---- assess feature importances
     # fields_repeater, fields_numRepeats, fields_quantiles = plot_feature_importances(X_train, Y_repeater, Y_numRepeats, Y_quantiles, [0.85]*3)
     # fieldsToUse = list(set(fields_repeater + fields_numRepeats + fields_quantiles))
-    fieldsToUse = FIELDS_23
+    fieldsToUse = FIELDS_10
     # fieldsToUse = X_train.columns
     # print 'fields to use:', len(fieldsToUse), fieldsToUse
     #
@@ -296,29 +297,26 @@ if __name__ == '__main__':
     X_train = X_train[fieldsToUse]
 
 
-    # print_data_distribution_by_field(X_train, ['company','brand','category'])
     # write_to_vw_file("/home/jj/code/Kaggle/ValuedShoppers/vwFiles/61fields_train", X_train, Y_repeater)
 
-    y_train = np.array(Y_quantiles)
+    # y_train = np.array(Y_quantiles)
     # y_train = np.array(Y_numRepeats)
+    y_train = np.array(Y_repeater)
     y_val = np.array(Y_repeater)
-    clf = classify(X_train, y_train, lossString='ls', fit=False)
+    clf = classify(X_train, y_train, lossString='quantile', fit=False)
 
+    print '========= validating'
     validate_classifier(clf, X_train, y_train, y_val,
-                        cv= make_cvs_inds(X_train, 'company', COMPANY_CV_DIVISION))
-    # print 'CV scores:', cv_scores(clf, np.array(X_train), y_train, y_val, n_jobs=16, numCvs=16)
-    #
+                        cv= make_cvs_inds(X_train, 'company', COMPANY_CV_DIVISION),
+                        use_predProb_instead=True)
+
     # print '========= predicting'
     # X_test = join_3_files(join(DATA_DIR, "testHistory_wDateFields.csv"),
     #                      join(DATA_DIR, "offers_amended.csv"),
     #                      join(DATA_DIR, "transactions_test_compressed.csv"),
     #                      False, fieldsToUse, impute=True)[0]
-    # write_to_vw_file("/home/jj/code/Kaggle/ValuedShoppers/vwFiles/origTest", X_test, ['']*X_test.shape[0])
-
-
-
-    # # predict(X_test, clf, '/home/jj/code/Kaggle/ValuedShoppers/submissions/17fields_quantiles_gbc_long.csv')
+    # # write_to_vw_file("/home/jj/code/Kaggle/ValuedShoppers/vwFiles/origTest", X_test, ['']*X_test.shape[0])
+    #
+    # predict(X_test, clf, '/home/jj/code/Kaggle/ValuedShoppers/submissions/10fields_quantiles_gbc_ls.csv')
 
     # make_submission_from_vw_pred("/home/jj/code/Kaggle/ValuedShoppers/vwFiles/pred", "/home/jj/code/Kaggle/ValuedShoppers/submissions/vw21fields")
-
-    # make cv inds

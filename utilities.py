@@ -600,18 +600,19 @@ def jjcross_val_score_inner(args):
     @return: score
     """
 
-    global X, y, clf, score_func, fit_params, y_test
+    global X, y, clf, score_func, fit_params, y_test, use_predProb_instead
     trainInds, testInds = args
 
     newClf = clone(clf)
     newClf.fit(X[trainInds], y[trainInds], **fit_params)
 
+    pred = newClf.predict_proba(X[testInds])[:, 0] if use_predProb_instead else newClf.predict(X[testInds])
 
-    return score_func((y if y_test is None else y_test)[testInds], newClf.predict(X[testInds]))
+    return score_func((y if y_test is None else y_test)[testInds], pred)
 
 def jjcross_val_score_init(*args):
-    global X, y, clf, score_func, fit_params, y_test
-    X, y, clf, score_func, fit_params, y_test = args
+    global X, y, clf, score_func, fit_params, y_test, use_predProb_instead
+    X, y, clf, score_func, fit_params, y_test, use_predProb_instead = args
 
 
 def getNumCvFolds(cv):
@@ -630,7 +631,7 @@ def getNumCvFolds(cv):
         return cv.n_folds
 
 
-def jjcross_val_score(clf, X, y, score_func, cv, y_test=None, n_jobs=1, fit_params=None):
+def jjcross_val_score(clf, X, y, score_func, cv, y_test=None, n_jobs=1, use_predProb_instead=False, fit_params=None):
     """
 
     @param clf:
@@ -653,7 +654,7 @@ def jjcross_val_score(clf, X, y, score_func, cv, y_test=None, n_jobs=1, fit_para
         # figure out the number of folds
         n_jobs = min(n_jobs, getNumCvFolds(cv))
         # print 'jjcvscore with %d proceses' % n_jobs
-        pool = MyPool(n_jobs, initializer=jjcross_val_score_init, initargs=(X, y, clf, score_func, fit_params, y_test))
+        pool = MyPool(n_jobs, initializer=jjcross_val_score_init, initargs=(X, y, clf, score_func, fit_params, y_test, use_predProb_instead))
         data = [[trainInds, testInds] for trainInds, testInds in cv]
         temp = pool.map_async(jjcross_val_score_inner, data)
         temp.wait()
@@ -677,7 +678,7 @@ def jjcross_val_score(clf, X, y, score_func, cv, y_test=None, n_jobs=1, fit_para
             else:
                 clonedClf = clone(clf)
                 clonedClf.fit(trainX, trainY, **fit_params)
-                yPred = clonedClf.predict(testX)
+                yPred =  clonedClf.predict_proba(testX)[:, 0] if use_predProb_instead else clonedClf.predict(testX)
 
             score = score_func(testY, yPred)
             scores.append(score)
