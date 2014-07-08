@@ -74,7 +74,7 @@ X_FIELDS = {'chain': True,
             'daysSinceLastPch': False,
             'avgWeeklyPchAmt': False,
             'pchAmtWiWeekOfOffer': False}
-FIELDS_21 = ['category', 'company_brand_avgReturnAmt', 'pchAmtWiWeekOfOffer', 'chain', 'category_totalQuantity', 'avgWeeklyPchAmt', 'company_avgReturnAmt', 'company_brand_avgPrice', 'company_category_avgPrice', 'category_avgReturnAmt', 'category_hasShopped', 'brand_avgReturnAmt', 'category_count', 'category_company_brand_avgReturnAmt', 'company_category_avgReturnAmt', 'brand_hasShopped', 'offervalue', 'brand_category_avgPrice', 'brand_category_avgReturnAmt', 'category_company_brand_avgPrice', 'company_hasShopped']
+FIELDS_23 = ['category', 'brand', 'company', 'company_brand_avgReturnAmt', 'pchAmtWiWeekOfOffer', 'chain', 'category_totalQuantity', 'avgWeeklyPchAmt', 'company_avgReturnAmt', 'company_brand_avgPrice', 'company_category_avgPrice', 'category_avgReturnAmt', 'category_hasShopped', 'brand_avgReturnAmt', 'category_count', 'category_company_brand_avgReturnAmt', 'company_category_avgReturnAmt', 'brand_hasShopped', 'offervalue', 'brand_category_avgPrice', 'brand_category_avgReturnAmt', 'category_company_brand_avgPrice', 'company_hasShopped']
 
 FIELDS_17 = ['category', 'pchAmtWiWeekOfOffer', 'dayOfTheWeek', 'chain_freq', 'chain', 'avgWeeklyPchAmt', 'brand', 'daysSinceLastPch', 'category_hasShopped', 'category_freq', 'brand_freq', 'brand_hasShopped', 'offervalue', 'company_freq', 'company', 'market', 'company_hasShopped']
 

@@ -286,8 +286,9 @@ if __name__ == '__main__':
 
     # ---- assess feature importances
     # fields_repeater, fields_numRepeats, fields_quantiles = plot_feature_importances(X_train, Y_repeater, Y_numRepeats, Y_quantiles, [0.85]*3)
-    # fieldsToUse = list(set(fields_repeater + fields_numRepeats + fields_quantiles))    # fieldsToUse = FIELDS_17
-    fieldsToUse = X_FIELDS.keys()
+    # fieldsToUse = list(set(fields_repeater + fields_numRepeats + fields_quantiles))
+    fieldsToUse = FIELDS_23
+    # fieldsToUse = X_train.columns
     # print 'fields to use:', len(fieldsToUse), fieldsToUse
     #
     # # ---- classify and predict
