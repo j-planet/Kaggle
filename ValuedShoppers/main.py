@@ -4,14 +4,16 @@ from os.path import join
 import pandas
 from pprint import pprint
 import numpy as np
+from itertools import product
 
-from Kaggle.utilities import RandomForester, print_missing_values_info, cvScores
+from Kaggle.utilities import RandomForester, print_missing_values_info, cvScores, jjcross_val_score
 from globalVars import *
 
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 from sklearn.preprocessing import Imputer
+from sklearn.cross_validation import StratifiedShuffleSplit
 
 
 
@@ -59,17 +61,6 @@ def join_3_files(historyFpath, offersFpath, compressedTransFpath, isTrain, xFiel
         X = pandas.DataFrame(Imputer().fit_transform(X), columns=X.columns)
 
     return X, Y_repeater, Y_numRepeats, Y_quantiles
-
-
-def cv_scores(clf, X, Y_train, Y_test, numCvs=5, n_jobs=16):
-    """
-    uses auc score as the score func
-    @param Y_train: Y_quantiles if targeting the quantiles
-    @param Y_test: Y_repeater
-    """
-
-    X = Imputer().fit_transform(X)
-    return cvScores(clf, X, Y_train, scoreFuncsToUse='auc_score', numCVs=5, n_jobs=n_jobs, test_size=0.25, y_test=Y_test)
 
 
 def test_training_results(clf, X, Y_repeater, Y_numRepeats):
@@ -218,7 +209,7 @@ def make_submission_from_vw_pred(inputFpath, outputFpath):
 def make_cvs_inds(X_train, by, groups, isDiscrete=True):
     """
     @param X_train: a dataframe
-    @param by: in {"category", "company", "brand"}
+    @param by: most likely in {"category", "company", "brand"}
     @param isDiscrete: whether the "by" field is discrete
     @param groups: how the cvs are defined by values of "by". if isDiscrete, a set of sets; otherwise, a set of division points
     """
@@ -233,14 +224,32 @@ def make_cvs_inds(X_train, by, groups, isDiscrete=True):
 
     return res
 
-def print_data_distribution_by_field(df, col):
+
+def print_data_distribution_by_field(df, cols):
     """
     prints out how many of each value a field has
     @param df: pandas data frame
-    @param col: a column
+    @param cols: a column or a list of columns
     """
 
-    res = [(c, sum(df[col] == c)) for c in df[col].unique()]
+    if isinstance(cols, list):
+        res = []
+
+        for p in product(*[df[col].unique() for col in cols]):
+            print p
+            curInd = True
+            for col, v in zip(cols, p):
+                temp = df[col] == v
+                if not np.any(temp):    # all false
+                    curInd = [False] * df.shape[0]
+                    break
+
+                curInd = np.logical_and(curInd, temp)
+
+            res.append((p, sum(curInd)))
+    else:
+        res = [(c, sum(df[cols] == c)) for c in df[cols].unique()]
+
     res.sort(key = lambda x: x[1],  reverse=True)
 
     for k, v in res:
@@ -249,29 +258,19 @@ def print_data_distribution_by_field(df, col):
     return res
 
 
-def validate_classifier(clf, X, Y_train, Y_validate, inds, scoreFunc=roc_auc_score):
+def validate_classifier(clf, X, Y_train, Y_validate, cv, scoreFunc=roc_auc_score, n_jobs=16, test_size=0.25):
+    """
+    @param cv: an object (list of (trainInds, testInds)) or an integer (number of folds)
+    @return: list of cv scores
+    """
 
-    scores = []
-    foldNum = 0
+    cvObj = StratifiedShuffleSplit(Y_validate, n_iter=cv, test_size=test_size) if isinstance(cv, int) else cv
 
-    for trainInds, valInds in inds:
+    scores = jjcross_val_score(clf, X, Y_train, scoreFunc, cvObj, Y_validate, n_jobs=n_jobs)
+    for i, score in enumerate(scores):
+        print 'Fold %d, score = %f' % (i, score)
 
-        # train
-        cur_X_train = X[trainInds]
-        cur_Y_train = Y_train[trainInds]
-        cur_X_val = X[valInds]
-        cur_Y_val = Y_validate[valInds]
-
-        # test
-        clf.fit(cur_X_train, cur_Y_train)
-        score = scoreFunc(cur_Y_val, clf.predict(cur_X_val))
-
-        print 'Fold %d, score = %f' % (foldNum, score)
-        scores.append(score)
-
-        foldNum += 1
-
-    print ">>>>>>>> %d-fold Score (mean, cv) = (%f, %f)" % (foldNum, np.mean(scores), np.std(scores)/np.mean(scores))
+    print ">>>>>>>> %d-fold Score (mean, cv) = (%f, %f)" % (len(cv), np.mean(scores), np.std(scores)/np.mean(scores))
 
     return scores
 
@@ -295,22 +294,26 @@ if __name__ == '__main__':
     print '========= training'
     X_train = X_train[fieldsToUse]
 
-    write_to_vw_file("/home/jj/code/Kaggle/ValuedShoppers/vwFiles/61fields_train", X_train, Y_repeater)
 
+    # print_data_distribution_by_field(X_train, ['company','brand','category'])
+    # write_to_vw_file("/home/jj/code/Kaggle/ValuedShoppers/vwFiles/61fields_train", X_train, Y_repeater)
 
-    # y_train = np.array(Y_quantiles)
-    # # y_train = np.array(Y_numRepeats)
-    # y_val = np.array(Y_repeater)
-    # clf = classify(np.array(X_train), y_train, lossString='ls', fit=False)
-    #
+    y_train = np.array(Y_quantiles)
+    # y_train = np.array(Y_numRepeats)
+    y_val = np.array(Y_repeater)
+    clf = classify(X_train, y_train, lossString='ls', fit=False)
+
+    validate_classifier(clf, X_train, y_train, y_val,
+                        cv= make_cvs_inds(X_train, 'company', COMPANY_CV_DIVISION))
     # print 'CV scores:', cv_scores(clf, np.array(X_train), y_train, y_val, n_jobs=16, numCvs=16)
     #
     # print '========= predicting'
-    X_test = join_3_files(join(DATA_DIR, "testHistory_wDateFields.csv"),
-                         join(DATA_DIR, "offers_amended.csv"),
-                         join(DATA_DIR, "transactions_test_compressed.csv"),
-                         False, fieldsToUse, impute=True)[0]
-    write_to_vw_file("/home/jj/code/Kaggle/ValuedShoppers/vwFiles/origTest", X_test, ['']*X_test.shape[0])
+    # X_test = join_3_files(join(DATA_DIR, "testHistory_wDateFields.csv"),
+    #                      join(DATA_DIR, "offers_amended.csv"),
+    #                      join(DATA_DIR, "transactions_test_compressed.csv"),
+    #                      False, fieldsToUse, impute=True)[0]
+    # write_to_vw_file("/home/jj/code/Kaggle/ValuedShoppers/vwFiles/origTest", X_test, ['']*X_test.shape[0])
+
 
 
     # # predict(X_test, clf, '/home/jj/code/Kaggle/ValuedShoppers/submissions/17fields_quantiles_gbc_long.csv')

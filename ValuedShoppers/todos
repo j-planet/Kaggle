@@ -1,14 +1,11 @@
 Todos:
 
-- vw
 - build auc into GBC
-
-- cv where the validation data come from a different time period to simulate realistic kaggle test scores, since the
-    kaggle test data set are for May~July whereas the training data come from March~April
 
 - calibrate classifier parameters (after getting the  test score into the ball park), including imputer
 
-- better CV: each fold contains a different offer/company/category
+- cv with VW
+
 
 
 finished todos: :)
@@ -41,7 +38,8 @@ finished todos: :)
          1213242,
          1221663])
      => could amending offers be the answer? i.e. replace company by the reputation of the company
-
+- vw
+- better CV: each fold contains a different offer/company/category
 
 -------------------------------------
 

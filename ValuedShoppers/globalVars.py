@@ -79,3 +79,8 @@ FIELDS_21 = ['category', 'company_brand_avgReturnAmt', 'pchAmtWiWeekOfOffer', 'c
 FIELDS_17 = ['category', 'pchAmtWiWeekOfOffer', 'dayOfTheWeek', 'chain_freq', 'chain', 'avgWeeklyPchAmt', 'brand', 'daysSinceLastPch', 'category_hasShopped', 'category_freq', 'brand_freq', 'brand_hasShopped', 'offervalue', 'company_freq', 'company', 'market', 'company_hasShopped']
 
 FIELDS_10 = ['category', 'pchAmtWiWeekOfOffer', 'chain_freq', 'avgWeeklyPchAmt', 'brand', 'category_hasShopped', 'brand_hasShopped', 'offervalue', 'company', 'company_hasShopped']
+
+COMPANY_CV_DIVISION = [[106414464],
+                       [108079383, 1089520383, 1087744888],
+                       [104460040, 105100050, 107717272],
+                       [104610040, 107120272, 107127979, 104460040, 103320030, 104460040]]
