@@ -1,14 +1,15 @@
 import pandas
 import numpy as np
 from pprint import pprint
+from os.path import join
 
 from globalVars import *
 from IterStreamer import IterStreamer
 
-offers = pandas.read_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/offers.csv")
-transactionsFile = open("/home/jj/code/Kaggle/ValuedShoppers/Data/transactions.csv")
+offers = pandas.read_csv(join(DATA_DIR, "offers.csv"))
+transactionsFile = open(join(DATA_DIR,"transactions.csv"))
 transHeaders = transactionsFile.readline().strip().split(',')
-trainHistoryData = pandas.read_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/trainHistory_wDatesQuantiles.csv")
+trainHistoryData = pandas.read_csv(join(DATA_DIR, "trainHistory_wDatesQuantiles.csv"))
 
 
 def _process_chunk(chunk, fieldInd, negQuantInd, posQuantInd, res):
@@ -56,8 +57,7 @@ def preprocess_triple_dict(_tripleFieldDict, chunk, posQuantInd, negQuantInd):
 def _postprocess(d):
     for fieldValue, res in d.iteritems():
         res['avgPrice'] = res['avgPrice'] / res['count'] if res['count'] > 0 else np.nan
-        res['avgReturnAmt'] = res['avgReturnAmt'] / res['returnRate'] if res[
-                                                                             'returnRate'] > 0 else np.nan    # returnRate is just a count for now. it's important to do this before the next line
+        res['avgReturnAmt'] = res['avgReturnAmt'] / res['returnRate'] if res['returnRate'] > 0 else np.nan    # returnRate is just a count for now. it's important to do this before the next line
         res['returnRate'] = res['returnRate'] / res['count'] if res['count'] > 0 else np.nan
 
 
@@ -69,9 +69,9 @@ def inner_loop(numLinesToRead, sd, dd, td):
     posQuantInd = (chunk.purchasequantity > 0)
     negQuantInd = np.logical_not(posQuantInd)
 
-    preprocess_single_dict(chunk, posQuantInd, negQuantInd)
-    preprocess_double_dict(chunk, posQuantInd, negQuantInd)
-    preprocess_triple_dict(chunk, posQuantInd, negQuantInd)
+    preprocess_single_dict(sd, chunk, posQuantInd, negQuantInd)
+    preprocess_double_dict(dd, chunk, posQuantInd, negQuantInd)
+    preprocess_triple_dict(td, chunk, posQuantInd, negQuantInd)
 
 
 def write_singleDict_to_offers(_offers, _singleFieldDict):
@@ -163,7 +163,8 @@ def _process_chunk_pass2(df, defaultRes):
     else:
         return defaultRes
 
-def pass1(pass1OutputFname = "/home/jj/code/Kaggle/ValuedShoppers/Data/offers_amended_1.csv"):
+
+def pass1(pass1OutputFname):
     baseDict = {'avgPrice': 0, 'totalQuantity': 0, 'returnRate': 0, 'count': 0, 'avgReturnAmt': 0}
     singleFieldDict = {name:
                            {v: baseDict.copy() for v in offers[name].unique()}
@@ -196,7 +197,6 @@ def pass1(pass1OutputFname = "/home/jj/code/Kaggle/ValuedShoppers/Data/offers_am
     for curDict in [singleFieldDict, doubleFieldDict]:
         for fieldName, d in curDict.iteritems():
             _postprocess(d)
-
     _postprocess(tripleFieldDict)
 
     # write dicts to the offers data frame
@@ -204,9 +204,14 @@ def pass1(pass1OutputFname = "/home/jj/code/Kaggle/ValuedShoppers/Data/offers_am
     write_doubleDict_to_offers(offers, doubleFieldDict)
     write_tripleDict_to_offers(offers, tripleFieldDict)
 
+    # add discount columns
+    for f in ['category', 'company', 'brand', 'company_brand', 'company_category', 'brand_category', 'category_company_brand']:
+        offers[f + '_pctDiscount'] = 100.*(offers[f + '_avgPrice'] / offers['offerPrice'] - 1)
+
     offers.to_csv(pass1OutputFname, index=False)
 
-def pass2(pass2OutputFname = "/home/jj/code/Kaggle/ValuedShoppers/Data/offers_amended_2.csv"):
+
+def pass2(pass2OutputFname):
     """
     conversion rate by offer. depends only on train history. independent of transaction records.
     """
@@ -261,3 +266,43 @@ def pass2(pass2OutputFname = "/home/jj/code/Kaggle/ValuedShoppers/Data/offers_am
     write_tripleDict_to_offers(newOffers, tripleFieldDict_pass2)
 
     newOffers.to_csv(pass2OutputFname, index=False)
+
+
+def pass3(pass1OutputFname, pass3OutputFname):
+    """
+    add discount columns to pass one results
+    """
+
+    pass1Res = pandas.read_csv(pass1OutputFname)
+
+    for f in ['category', 'company', 'brand', 'company_brand', 'company_category', 'brand_category', 'category_company_brand']:
+        pass1Res[f + '_pctDiscount'] = 100.*(pass1Res[f + '_avgPrice'] / pass1Res['offerPrice'] - 1)
+
+    pass1Res.to_csv(pass3OutputFname, index=False)
+
+
+def joinMultiPassResults(fname1, fname2, outputFname, keyCol='offer'):
+    """
+    @param offers1, fname2: Offers data frames
+    """
+
+    df1 = pandas.read_csv(fname1)
+    df2 = pandas.read_csv(fname2)
+
+    # do not use columns from df2 if they already exist in offers1
+    commonColumns = set(df1.columns) & set(df2.columns) - {keyCol}
+    df2Cols = list(set(df2.columns) - commonColumns)
+
+    print df2Cols
+
+    res = pandas.merge(df1, df2[df2Cols], how='left', on=keyCol)
+
+    res.to_csv(outputFname, index=False)
+
+
+if __name__ == '__main__':
+    pass1OutputFname = join(DATA_DIR, "offers_amended_1.csv")
+    pass2OutputFname = join(DATA_DIR, "offers_amended_2.csv")
+    pass3OutputFname = join(DATA_DIR, "offers_amended_3.csv")
+
+    joinMultiPassResults(pass3OutputFname, pass2OutputFname, join(DATA_DIR, "offers_amended.csv"))

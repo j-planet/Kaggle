@@ -22,12 +22,6 @@ Todos:
     Combinations of these:
         has_bought_company_brand_category: if this feature is present the shopper has bought from the company, brand, and category on offer.
         has_never_bought_company_brand: negative feature for the combination of brand and company purchase history.
-    Offer-related:
-        offer_value: The value of the coupon offer
-        offer_quantity: The number of products to redeem with the coupon
-
-- Offer features based on # repeats
-- Offer discount value
 
 
 finished todos: :)
@@ -62,7 +56,8 @@ finished todos: :)
      => could amending offers be the answer? i.e. replace company by the reputation of the company
 - vw
 - better CV: each fold contains a different offer/company/category
-
+- Offer features based on # repeats
+- Offer discount value
 -------------------------------------
 
 BUGS: :'( :'(
