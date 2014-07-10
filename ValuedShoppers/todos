@@ -6,8 +6,28 @@ Todos:
 
 - cv with VW
 
-- new and improved features
+- MLWave features:
 
+    has_bought_company: the number of times a shopper has bought from the company on offer
+    has_bought_company_a: the total amount the shopper has bought from the company on offer
+    has_bought_company_q: the quantity of items bought from the company on offer.
+    has_bought_company_30: the number of times a shopper has bought from the company on offer in the 30 days before the date the coupon was offered.
+    has_bought_company_60: the number of times a shopper has bought from the company on offer in the 60 days before the date the coupon was offered.
+    ...
+    has_bought_company_180: 180 days before
+    has_never_bought_company: a negative feature for when the shopper has never bought from the company on offer before.
+    These same features for:
+        has_bought_category: the number of times a shopper has bought from the category on offer
+        has_bought_brand: the number of times a shopper has bought from the brand on offer
+    Combinations of these:
+        has_bought_company_brand_category: if this feature is present the shopper has bought from the company, brand, and category on offer.
+        has_never_bought_company_brand: negative feature for the combination of brand and company purchase history.
+    Offer-related:
+        offer_value: The value of the coupon offer
+        offer_quantity: The number of products to redeem with the coupon
+
+- Offer features based on # repeats
+- Offer discount value
 
 
 finished todos: :)

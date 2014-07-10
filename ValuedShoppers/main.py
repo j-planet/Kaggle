@@ -280,7 +280,7 @@ if __name__ == '__main__':
 
     # ---- read data
     X_train, Y_repeater, Y_numRepeats, Y_quantiles = join_3_files(join(DATA_DIR, "trainHistory_wDatesQuantiles.csv"),
-                                                                  join(DATA_DIR, "offers_amended.csv"),
+                                                                  join(DATA_DIR, "offers_amended_1.csv"),
                                                                   join(DATA_DIR, "transactions_train_compressed.csv"),
                                                                   True, X_FIELDS.keys() + ['offer'], impute=True)
 
@@ -312,7 +312,7 @@ if __name__ == '__main__':
 
     # print '========= predicting'
     # X_test = join_3_files(join(DATA_DIR, "testHistory_wDateFields.csv"),
-    #                      join(DATA_DIR, "offers_amended.csv"),
+    #                      join(DATA_DIR, "offers_amended_1.csv"),
     #                      join(DATA_DIR, "transactions_test_compressed.csv"),
     #                      False, fieldsToUse, impute=True)[0]
     # # write_to_vw_file("/home/jj/code/Kaggle/ValuedShoppers/vwFiles/origTest", X_test, ['']*X_test.shape[0])

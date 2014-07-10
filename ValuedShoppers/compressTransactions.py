@@ -9,20 +9,6 @@ from IterStreamer import IterStreamer
 from Kaggle.pool_JJ import MyPool
 from Kaggle.utilities import runPool, printDoneTime
 
-# --------- add dates to transactions ---------------
-# dates = [parser.parse(d) for d in transactions.date]  # convert to datetime objects
-
-# dayOfTheWeek = [d.weekday() for d in dates]
-# isWeekend = (np.array(dayOfTheWeek) >= 5)                         # Saturday=5; Sunday=6
-# days = [d.day for d in dates]
-# months = [d.month for d in dates]
-#
-# transactions['dayOfTheWeek'] = dayOfTheWeek
-# transactions['isWeekend'] = isWeekend
-# transactions['days'] = days
-# transactions['months'] = months
-
-# GLOBALCOUNT = 0
 
 def read_transactions_given_id(customerId, transIndexDict, transactionsFile, headers):
     """
@@ -105,22 +91,9 @@ def innerFunc(args):
     return compChunk
 
 
-# def create_trans_index_dict(indexFpath = "/home/jj/code/Kaggle/ValuedShoppers/Data/transIndex.csv"):
-#
-#     transactionsIndexData = pandas.read_csv(indexFpath)    # id | startRowId | endRowId
-#
-#     res = {}
-#
-#     for i in range(transactionsIndexData.shape[0]):
-#         r = transactionsIndexData.irow(i)
-#         res[r['id']] = (r['startRowId'], r['endRowId'])
-#
-#     return res
-
-
 if __name__ == '__main__':
     trainHistory = pandas.read_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/trainHistory_wDateFields.csv")
-    offers = pandas.read_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/offers_amended.csv")
+    offers = pandas.read_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/offers_amended_1.csv")
     historyAndOffers = pandas.merge(trainHistory, offers, left_on='offer', right_on='offer', how='left')  # join train history and offers
     transIndexData = pandas.read_csv("/home/jj/code/Kaggle/ValuedShoppers/Data/transIndex.csv")
     compTransFname = "/home/jj/code/Kaggle/ValuedShoppers/Data/transactions_train_compressed.csv"

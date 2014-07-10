@@ -44,7 +44,7 @@ class GradientBoost_JJ(BaseEstimator, TransformerMixin):
         @type learners list
         @type learningRate float
         @type stoppingError float
-        @param subsample: portion of the samples to fit with at each stage. If <1.0 then stochastic gradient boosting. prevent overfitting.
+        @param subsample: portion of the MLWave to fit with at each stage. If <1.0 then stochastic gradient boosting. prevent overfitting.
         @param learners: a list of learners to be considered at each stage
         @param numIterations: if None iterate until stoppingError has been met
         @param lossFunction:
