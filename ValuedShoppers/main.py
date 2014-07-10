@@ -17,7 +17,7 @@ from sklearn.cross_validation import StratifiedShuffleSplit
 
 
 
-def join_3_files(historyFpath, offersFpath, compressedTransFpath, isTrain, xFields, impute):
+def join_3_files(historyFpath, offersFpath, compressedTransFpath, isTrain, impute, xFields=None):
     """
     joins history, offers, and compressed transactions data
     handles rows with Inf values
@@ -45,6 +45,9 @@ def join_3_files(historyFpath, offersFpath, compressedTransFpath, isTrain, xFiel
         Y_repeater = Y_numRepeats = Y_quantiles = None
 
     # ------------- find X
+    if xFields is None:
+        xFields = list(set(data.columns) - set(NON_X_FIELDS))
+
     X = data[xFields if isTrain else ['id'] + xFields]
 
     # impute missing data for X
@@ -89,9 +92,8 @@ def classify(X, y, lossString, fit=True):
     print_missing_values_info(X)
     X = Imputer().fit_transform(X)
 
-    clf = LogisticRegression()
-    # clf = GradientBoostingRegressor(learning_rate=0.01, loss=lossString, n_estimators=100, subsample=0.9)
-    # clf = GradientBoostingClassifier(learning_rate=0.01, loss=lossString, n_estimators=100, subsample=0.9)
+    # clf = LogisticRegression()
+    clf = GradientBoostingRegressor(learning_rate=0.1, loss=lossString, n_estimators=1000, subsample=0.9)
 
     if fit:
         clf.fit(X, y)
@@ -280,41 +282,43 @@ if __name__ == '__main__':
 
     # ---- read data
     X_train, Y_repeater, Y_numRepeats, Y_quantiles = join_3_files(join(DATA_DIR, "trainHistory_wDatesQuantiles.csv"),
-                                                                  join(DATA_DIR, "offers_amended_1.csv"),
+                                                                  join(DATA_DIR, "offers_amended.csv"),
                                                                   join(DATA_DIR, "transactions_train_compressed.csv"),
-                                                                  True, X_FIELDS.keys() + ['offer'], impute=True)
-
+                                                                  True, impute=True,
+                                                                  # xFields = None)
+                                                                  xFields=X_FIELDS)
 
     # ---- assess feature importances
-    # fields_repeater, fields_numRepeats, fields_quantiles = plot_feature_importances(X_train, Y_repeater, Y_numRepeats, Y_quantiles, [0.85]*3)
+    # fields_repeater, fields_numRepeats, fields_quantiles = plot_feature_importances(X_train, Y_repeater, Y_numRepeats, Y_quantiles, [0.95]*3)
     # fieldsToUse = list(set(fields_repeater + fields_numRepeats + fields_quantiles))
-    fieldsToUse = FIELDS_10
-    # fieldsToUse = X_train.columns
+
+
+    # fieldsToUse = FIELDS_10
+    fieldsToUse = X_train.columns
     # print 'fields to use:', len(fieldsToUse), fieldsToUse
     #
     # # ---- classify and predict
     print '========= training'
     X_train = X_train[fieldsToUse]
 
-
     # write_to_vw_file("/home/jj/code/Kaggle/ValuedShoppers/vwFiles/61fields_train", X_train, Y_repeater)
 
-    # y_train = np.array(Y_quantiles)
+    y_train = np.array(Y_quantiles)
     # y_train = np.array(Y_numRepeats)
-    y_train = np.array(Y_repeater)
+    # y_train = np.array(Y_repeater)
     y_val = np.array(Y_repeater)
-    clf = classify(X_train, y_train, lossString='quantile', fit=False)
+    clf = classify(X_train, y_train, lossString='ls', fit=False)
 
     print '========= validating'
     validate_classifier(clf, X_train, y_train, y_val,
                         cv= make_cvs_inds(X_train, 'company', COMPANY_CV_DIVISION),
-                        use_predProb_instead=True)
+                        use_predProb_instead=False)
 
     # print '========= predicting'
     # X_test = join_3_files(join(DATA_DIR, "testHistory_wDateFields.csv"),
     #                      join(DATA_DIR, "offers_amended_1.csv"),
     #                      join(DATA_DIR, "transactions_test_compressed.csv"),
-    #                      False, fieldsToUse, impute=True)[0]
+    #                      False, impute=True, fieldsToUse)[0]
     # # write_to_vw_file("/home/jj/code/Kaggle/ValuedShoppers/vwFiles/origTest", X_test, ['']*X_test.shape[0])
     #
     # predict(X_test, clf, '/home/jj/code/Kaggle/ValuedShoppers/submissions/10fields_quantiles_gbc_ls.csv')
