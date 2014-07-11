@@ -95,7 +95,7 @@ def _processField(transData, hao, fieldName, ind):
     # ----- day-specific fields
     curTransDates = np.array([parser.parse(d) for d in transData['date']])
     curOfferDate = parser.parse(hao['offerdate'].irow(0))
-    datesBeforeInd = (curTransDates < curOfferDate)
+    datesBeforeInd = (curTransDates <= curOfferDate)
 
     for daysGap in [7, 30, 60, 180]:
         ind_dates = np.logical_and(ind, datesBeforeInd,
@@ -104,6 +104,7 @@ def _processField(transData, hao, fieldName, ind):
         res.update({'_'.join([fieldName, k, str(daysGap)]): v for k, v in tempD.iteritems()})    # update with block results
 
     return res
+
 
 def innerFunc(args):
 
@@ -165,13 +166,29 @@ def flatten(lol):
 
     return list(chain.from_iterable(lol))
 
+
+def makeOutputColumnHeaders(features, daysVec):
+    """
+    make columns for the resulting compressed transactions file
+    @param features: e.g. ['numShopped', 'freq', 'hasShopped', 'neverShopped', 'amt', 'quant']
+    @param daysVec: [7, 30, 60, 180]
+    """
+
+    temp = flatten([ [ '_'.join([f, b]) for b in features] for f in freqFields_single]) \
+           + flatten([ ['_'.join([f1, f2, b]) for b in features] for f1, f2 in freqFields_double]) \
+           + flatten([ ['_'.join([f1, f2, f3, b]) for b in features] for f1, f2, f3 in freqFields_triple])
+
+    return temp + flatten([[k + '_' + str(d) for k in temp] for d in daysVec]) + ['daysSinceLastPch', 'avgWeeklyPchAmt', 'pchAmtWiWeekOfOffer']
+
+
 if __name__ == '__main__':
     trainHistory = pandas.read_csv(path.join(DATA_DIR, "trainHistory_wDateFields.csv"))
     offers = pandas.read_csv(path.join(DATA_DIR, "offers.csv"))
     historyAndOffers = pandas.merge(trainHistory, offers, left_on='offer', right_on='offer', how='left')  # join train history and offers
-    transIndexData = pandas.read_csv(path.join(DATA_DIR, "transIndex_small.csv"))
-    # compTransFname = path.join(DATA_DIR, "transactions_train_compressed.csv")
-    compTransFname = path.join(DATA_DIR, "temp.csv")
+    # transIndexData = pandas.read_csv(path.join(DATA_DIR, "transIndex_small.csv"))
+    transIndexData = pandas.read_csv(path.join(DATA_DIR, "transIndex.csv"))
+    compTransFname = path.join(DATA_DIR, "transactions_train_compressed_v2.csv")
+    # compTransFname = path.join(DATA_DIR, "temp.csv")
     chunkSize_minor = 250    # number in each process
     chunkSize_major = 4000   # dump every n number of rows
 
@@ -179,20 +196,16 @@ if __name__ == '__main__':
     freqFields_double = [('category', 'company'), ('category', 'brand'), ('company', 'brand')]
     freqFields_triple = [('category', 'company', 'brand')]
 
-    baseFields = ['numShopped', 'freq', 'hasShopped', 'neverShopped', 'amt', 'quant']
-    baseDays = [7, 30, 60, 180]
-    cols = flatten([flatten([ [ '_'.join([f, b, str(d)]) for b in baseFields] for f in freqFields_single]) \
-                    + flatten([ ['_'.join([f1, f2, b, str(d)]) for b in baseFields] for f1, f2 in freqFields_double]) \
-                    + flatten([ ['_'.join([f1, f2, f3, b, str(d)]) for b in baseFields] for f1, f2, f3 in freqFields_triple])
-                    for d in baseDays]) \
-           + ['daysSinceLastPch', 'avgWeeklyPchAmt', 'pchAmtWiWeekOfOffer']
+    cols = makeOutputColumnHeaders(features= ['numShopped', 'freq', 'hasShopped', 'neverShopped', 'amt', 'quant'],
+                                   daysVec=[7, 30, 60, 180])
 
 
     compEmptyDf = pandas.DataFrame(columns = ['id'] + cols)
     compEmptyDf.to_csv(compTransFname, index=False)     # create new file and write columns to compressed file
     compressedTransFile = open(compTransFname, 'a')     # re-open the outputfile in append mode
 
-    transactionsFile = open(path.join(DATA_DIR, "transactions_small.csv"))
+    # transactionsFile = open(path.join(DATA_DIR, "transactions_small.csv"))
+    transactionsFile = open(path.join(DATA_DIR, "transactions.csv"))
     transHeaders = transactionsFile.readline().strip().split(',')
     blockTransDict = {}
     print '======= NEW MAJOR BLOCK ========'
@@ -200,6 +213,7 @@ if __name__ == '__main__':
     t_dict = time()
 
     for rowNum in range(transIndexData.shape[0]):
+        # print '>>>>> %d out of %d rows in transIndexData:', rowNum, transIndexData.shape[0]
 
         # ----- keep building transactions data for this major block
         customerId, startRowId, endRowId = transIndexData.irow(rowNum)
