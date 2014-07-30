@@ -7,6 +7,7 @@ import numpy as np
 import random
 from time import time
 from pprint import pprint
+from multiprocessing import cpu_count
 from numpy.core.fromnumeric import mean, var
 from numpy.lib.scimath import sqrt
 from itertools import product
@@ -19,7 +20,7 @@ from sklearn.metrics import *
 from sklearn.pipeline import Pipeline
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.cross_validation import StratifiedShuffleSplit, check_cv, LeavePOut
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, Imputer
 from sklearn.grid_search import GridSearchCV
 from sklearn.ensemble import ExtraTreesRegressor
 
@@ -892,6 +893,7 @@ def print_missing_values_info(data):
         except:
             print i, data.columns[i], 'skippped due to an error.'
 
+
 def impute_field(inputTable, fieldName):
     """
     fieldName is the field to be imputed
@@ -908,3 +910,26 @@ def impute_field(inputTable, fieldName):
     del X_missing[fieldName]
 
     return X_present, y_present, X_missing, ind_missing
+
+
+def plot_feature_importances(X, Y, labels, numTopFeatures, numEstimators = 50, title = None, num_jobs = cpu_count()):
+    """
+    imputes and selects and plots the top features using random forest
+    @param X: np.array
+    """
+
+    # impute missing data
+    imp = Imputer()
+    X = imp.fit_transform(X)
+
+    rf = RandomForester(num_features = X.shape[1], n_estimators = numEstimators, n_jobs=num_jobs)
+    rf.fit(X, Y)
+
+    topFeatureInd, topFeatureLabels, topFeatureImportances = rf.top_indices(labels=labels, num_features=numTopFeatures)
+
+    print 'Top features:'
+    pprint(np.transpose([topFeatureLabels, topFeatureImportances]))
+
+    rf.plot(num_features=numTopFeatures, labels=labels, title=title)
+
+    return topFeatureInd, topFeatureLabels, topFeatureImportances

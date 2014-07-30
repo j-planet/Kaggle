@@ -6,7 +6,7 @@ from pprint import pprint
 import numpy as np
 from itertools import product
 
-from Kaggle.utilities import RandomForester, print_missing_values_info, cvScores, jjcross_val_score
+from Kaggle.utilities import print_missing_values_info, cvScores, jjcross_val_score, plot_feature_importances
 from globalVars import *
 
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
@@ -126,36 +126,14 @@ def predict(X, clf, outputFpath):
     return _predict(ids, X, clf, outputFpath)
 
 
-def _plot_feature_importances(X, Y, labels, numTopFeatures, numEstimators = 50, title = None):
-    """
-    @param X: np.array
-    """
-
-    # impute missing data
-    imp = Imputer()
-    X = imp.fit_transform(X)
-
-    rf = RandomForester(num_features = X.shape[1], n_estimators = numEstimators)
-    rf.fit(X, Y)
-
-    topFeatureInd, topFeatureLabels, topFeatureImportances = rf.top_indices(labels=labels, num_features=numTopFeatures)
-
-    print 'Top features:'
-    pprint(np.transpose([topFeatureLabels, topFeatureImportances]))
-
-    rf.plot(num_features=numTopFeatures, labels=labels, title=title)
-
-    return topFeatureInd, topFeatureLabels, topFeatureImportances
-
-
-def plot_feature_importances(X_train, Y_repeater, Y_numRepeats, Y_quantiles, num_features):
+def plot_feature_importances_this(X_train, Y_repeater, Y_numRepeats, Y_quantiles, num_features):
     """
     @param num_features: number of features for [repeater, numrepeats, quantiles]
     """
 
-    fields_repeater = _plot_feature_importances(np.array(X_train), Y_repeater, labels=X_train.columns, numTopFeatures=num_features[0], title='Repeater')[1]
-    fields_numRepeats = _plot_feature_importances(np.array(X_train), Y_numRepeats, labels=X_train.columns, numTopFeatures=num_features[1], title='Number of Repeats')[1]
-    fields_quantiles = _plot_feature_importances(np.array(X_train), Y_quantiles, labels=X_train.columns, numTopFeatures=num_features[2], title='Quantiles of Number of Repeats')[1]
+    fields_repeater = plot_feature_importances(np.array(X_train), Y_repeater, labels=X_train.columns, numTopFeatures=num_features[0], title='Repeater')[1]
+    fields_numRepeats = plot_feature_importances(np.array(X_train), Y_numRepeats, labels=X_train.columns, numTopFeatures=num_features[1], title='Number of Repeats')[1]
+    fields_quantiles = plot_feature_importances(np.array(X_train), Y_quantiles, labels=X_train.columns, numTopFeatures=num_features[2], title='Quantiles of Number of Repeats')[1]
 
     return fields_repeater, fields_numRepeats, fields_quantiles
 
