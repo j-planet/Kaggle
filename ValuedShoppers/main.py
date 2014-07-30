@@ -315,7 +315,7 @@ if __name__ == '__main__':
                         use_predProb_instead=False)
 
     # print '========= predicting'
-    # X_test = join_3_files(join(DATA_DIR, "testHistory_wDateFields.csv"),
+    # X_test = join_3_files(join(DATA_DIR, "testpythonHistory_wDateFields.csv"),
     #                      join(DATA_DIR, "offers_amended_1.csv"),
     #                      join(DATA_DIR, "transactions_test_compressed.csv"),
     #                      False, impute=True, fieldsToUse)[0]
