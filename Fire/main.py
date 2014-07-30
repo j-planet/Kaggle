@@ -75,4 +75,4 @@ print '================== predict =================='
 x_test, _, ids_pred, _ = process_data('/home/jj/code/Kaggle/Fire/Data/test.csv', impute=True, fieldsToUse=columns_train)
 pred = clf.predict(x_test)
 pandas.DataFrame({'id': ids_pred, 'target': pred}).\
-    to_csv('/home/jj/code/Kaggle/Fire/Submissions/fullTrainAllFieldsInitSubmission.csv', index=False)
+    to_csv('/home/jj/code/Kaggle/Fire/submissions/fullTrainAllFieldsInitSubmission.csv', index=False)
