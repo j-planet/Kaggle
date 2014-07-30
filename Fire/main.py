@@ -58,7 +58,7 @@ def process_data(dataFpath, impute, fieldsToUse=None):
     return np.array(x_data), np.array(y_data), np.array(ids), columns
 
 
-x_train, y_train, _, columns_train = process_data('/home/jj/code/Kaggle/Fire/Data/train.csv', impute=True, fieldsToUse=FIELDS_51)
+x_train, y_train, _, columns_train = process_data('/home/jj/code/Kaggle/Fire/Data/train.csv', impute=True)
 
 
 # print 'about to plot feature importances'
@@ -75,4 +75,4 @@ print '================== predict =================='
 x_test, _, ids_pred, _ = process_data('/home/jj/code/Kaggle/Fire/Data/test.csv', impute=True, fieldsToUse=columns_train)
 pred = clf.predict(x_test)
 pandas.DataFrame({'id': ids_pred, 'target': pred}).\
-    to_csv('/home/jj/code/Kaggle/Fire/Submissions/fullTrain51FieldsInitSubmission.csv', index=False)
+    to_csv('/home/jj/code/Kaggle/Fire/Submissions/fullTrainAllFieldsInitSubmission.csv', index=False)
