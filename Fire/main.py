@@ -10,46 +10,69 @@ from sklearn.preprocessing import Imputer
 from Kaggle.utilities import plot_histogram, plot_feature_importances
 from globalVars import *
 
-trainData = pandas.read_csv('/home/jj/code/Kaggle/Fire/Data/train.csv')
-y_train = trainData['target']
-x_train = trainData
 
-# delete unused columns
-for col in ['target', 'id', 'dummy']:
-    del x_train[col]
+def process_data(dataFpath, impute, fieldsToUse=None):
+    """
+    reads data, processes discrete columns, imputes
+    :param dataFpath: path to the data file
+    :param impute: whether to impute the data
+    :param fieldsToUse: if None use all the fields
+    :return: x_data, y_data (None if not training data), ids (all np.arrays), columns
+    """
+    data = pandas.read_csv(dataFpath)
 
-# handle ordinal continuous columns
-x_train[ORDINAL_CONT_COLS + DISCRETE_COLS] = x_train[ORDINAL_CONT_COLS + DISCRETE_COLS].replace(to_replace='Z', value=np.nan)
+    ids = data['id']
+    x_data = data
 
-# code discrete columns
-for col in DISCRETE_COLS:
-    for oldVal, newVal in DISCRETE_COLS_LOOKUP[col].iteritems():
-        x_train[col] = x_train[col].replace(to_replace=oldVal, value=newVal)
+    # check if it's training data
+    if 'target' in data.columns:
+        y_data = data['target']
+        del x_data['target']
+    else:
+        y_data = None
 
-# plot_histogram(np.array(y_train[y_train > 0]), 25)
+    # delete unused columns
+    for col in ['id', 'dummy']:
+        del x_data[col]
 
-# ================== feature selection ==================
-print '================== feature selection =================='
+    # record columns
+    columns = x_data.columns
+
+    # handle ordinal continuous columns
+    x_data[ORDINAL_CONT_COLS + DISCRETE_COLS] = x_data[ORDINAL_CONT_COLS + DISCRETE_COLS].replace(to_replace='Z', value=np.nan)
+
+    # code discrete columns
+    for col in DISCRETE_COLS:
+        for oldVal, newVal in DISCRETE_COLS_LOOKUP[col].iteritems():
+            x_data[col] = x_data[col].replace(to_replace=oldVal, value=newVal)
+
+    if fieldsToUse is not None:
+        x_data = x_data[fieldsToUse]
+        columns = fieldsToUse
+
+    if impute:
+        print 'imputing x data'
+        imp = Imputer()
+        x_data = imp.fit_transform(np.array(x_data))
+
+    return np.array(x_data), np.array(y_data), np.array(ids), columns
+
+
+x_train, y_train, _, columns_train = process_data('/home/jj/code/Kaggle/Fire/Data/train.csv', impute=True, fieldsToUse=FIELDS_51)
+
+
 # print 'about to plot feature importances'
 # plot_feature_importances(x_train, np.array(y_train), x_train.columns, numTopFeatures=0.85, numEstimators=50)
-x_train = x_train[FIELDS_51]
+
 
 # ================== train ==================
 print '================== train =================='
-imp = Imputer()
-x_train = imp.fit_transform(np.array(x_train))
-
 clf = GradientBoostingRegressor(loss='quantile', learning_rate=0.05, n_estimators=100, subsample=1)
 clf.fit(np.array(x_train), np.array(y_train))
 
 # ================== predict ==================
 print '================== predict =================='
-testData = pandas.read_csv('/home/jj/code/Kaggle/Fire/Data/test.csv')
-ids_pred = testData['id']
-
-for col in ['id'] + DISCRETE_COLS:
-    if col in testData.columns:
-        del testData[col]
-pred = clf.predict(imp.transform(np.array(testData)))
+x_test, _, ids_pred, _ = process_data('/home/jj/code/Kaggle/Fire/Data/test.csv', impute=True, fieldsToUse=columns_train)
+pred = clf.predict(x_test)
 pandas.DataFrame({'id': ids_pred, 'target': pred}).\
     to_csv('/home/jj/code/Kaggle/Fire/Submissions/fullTrain51FieldsInitSubmission.csv', index=False)
