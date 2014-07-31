@@ -1,11 +1,12 @@
-# import sys
-# sys.path.extend('/home/jj/code/Kaggle/Fire')
+import sys
+sys.path.extend('/home/jj/code/Kaggle/Fire')
 
 import pandas
 import numpy as np
 
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.preprocessing import Imputer
+from sklearn.linear_model import LogisticRegression, Ridge
 
 from Kaggle.utilities import plot_histogram, plot_feature_importances
 from globalVars import *
@@ -58,21 +59,26 @@ def process_data(dataFpath, impute, fieldsToUse=None):
     return np.array(x_data), np.array(y_data), np.array(ids), columns
 
 
-x_train, y_train, _, columns_train = process_data('/home/jj/code/Kaggle/Fire/Data/train.csv', impute=True)
+if __name__ == '__main__':
+
+    # print 'about to plot feature importances'
+    # plot_feature_importances(x_train, np.array(y_train), x_train.columns, numTopFeatures=0.85, numEstimators=50)
 
 
-# print 'about to plot feature importances'
-# plot_feature_importances(x_train, np.array(y_train), x_train.columns, numTopFeatures=0.85, numEstimators=50)
+    # ================== train ==================
+    print '================== train =================='
+    x_train, y_train, _, columns_train = process_data('/home/jj/code/Kaggle/Fire/Data/train.csv', impute=True, fieldsToUse=FIELDS_20)
 
+    # clf = GradientBoostingRegressor(loss='quantile', learning_rate=0.02, n_estimators=100, subsample=0.9)
+    # clf = LogisticRegression()
+    clf = Ridge(alpha=0.1)
 
-# ================== train ==================
-print '================== train =================='
-clf = GradientBoostingRegressor(loss='quantile', learning_rate=0.05, n_estimators=100, subsample=1)
-clf.fit(np.array(x_train), np.array(y_train))
+    clf.fit(np.array(x_train), np.array(y_train))
 
-# ================== predict ==================
-print '================== predict =================='
-x_test, _, ids_pred, _ = process_data('/home/jj/code/Kaggle/Fire/Data/test.csv', impute=True, fieldsToUse=columns_train)
-pred = clf.predict(x_test)
-pandas.DataFrame({'id': ids_pred, 'target': pred}).\
-    to_csv('/home/jj/code/Kaggle/Fire/submissions/fullTrainAllFieldsInitSubmission.csv', index=False)
+    # ================== predict ==================
+    print '================== predict =================='
+    x_test, _, ids_pred, _ = process_data('/home/jj/code/Kaggle/Fire/Data/test.csv', impute=True, fieldsToUse=columns_train)
+    pred = clf.predict(x_test)
+    pandas.DataFrame({'id': ids_pred, 'target': pred}).\
+        to_csv('/home/jj/code/Kaggle/Fire/submissions/20fieldsRidge.csv', index=False)
+
