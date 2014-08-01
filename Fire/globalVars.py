@@ -70,3 +70,7 @@ FIELDS_51 = [c[0] for c in [['crimeVar5', 0.08090102112971892],
                            ['weatherVar68', 0.005080393733933021]]]
 
 FIELDS_20 = FIELDS_51[:20]
+
+FIELDS_10 = FIELDS_51[:10]
+
+FIELDS_5 = FIELDS_51[:5]

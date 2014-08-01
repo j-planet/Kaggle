@@ -6,7 +6,8 @@ import numpy as np
 
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.preprocessing import Imputer
-from sklearn.linear_model import LogisticRegression, Ridge
+from sklearn.linear_model import LogisticRegression, Ridge, ElasticNet
+from sklearn.svm import SVR
 
 from Kaggle.utilities import plot_histogram, plot_feature_importances
 from globalVars import *
@@ -71,7 +72,9 @@ if __name__ == '__main__':
 
     # clf = GradientBoostingRegressor(loss='quantile', learning_rate=0.02, n_estimators=100, subsample=0.9)
     # clf = LogisticRegression()
-    clf = Ridge(alpha=0.1)
+    # clf = Ridge(alpha=0.1)
+    # clf = SVR(C=10)
+    clf = ElasticNet(alpha=1)
 
     clf.fit(np.array(x_train), np.array(y_train))
 
@@ -80,5 +83,5 @@ if __name__ == '__main__':
     x_test, _, ids_pred, _ = process_data('/home/jj/code/Kaggle/Fire/Data/test.csv', impute=True, fieldsToUse=columns_train)
     pred = clf.predict(x_test)
     pandas.DataFrame({'id': ids_pred, 'target': pred}).\
-        to_csv('/home/jj/code/Kaggle/Fire/submissions/20fieldsRidge.csv', index=False)
+        to_csv('/home/jj/code/Kaggle/Fire/submissions/20fieldsEN.csv', index=False)
 
