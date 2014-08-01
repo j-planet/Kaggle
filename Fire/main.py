@@ -18,11 +18,12 @@ def process_data(dataFpath, impute, fieldsToUse=None):
     :param dataFpath: path to the data file
     :param impute: whether to impute the data
     :param fieldsToUse: if None use all the fields
-    :return: x_data, y_data (None if not training data), ids (all np.arrays), columns
+    :return: x_data, y_data (None if not training data), ids (all np.arrays), columns, weights
     """
     data = pandas.read_csv(dataFpath)
 
     ids = data['id']
+    weights = data['var11']
     x_data = data
 
     # check if it's training data
@@ -33,7 +34,7 @@ def process_data(dataFpath, impute, fieldsToUse=None):
         y_data = None
 
     # delete unused columns
-    for col in ['id', 'dummy']:
+    for col in ['id', 'dummy', 'var11']:
         del x_data[col]
 
     # record columns
@@ -56,7 +57,7 @@ def process_data(dataFpath, impute, fieldsToUse=None):
         imp = Imputer()
         x_data = imp.fit_transform(np.array(x_data))
 
-    return np.array(x_data), np.array(y_data), np.array(ids), columns
+    return np.array(x_data), np.array(y_data), np.array(ids), columns, np.array(weights)
 
 
 if __name__ == '__main__':
@@ -67,17 +68,17 @@ if __name__ == '__main__':
 
     # ================== train ==================
     print '================== train =================='
-    x_train, y_train, _, columns_train = process_data('/home/jj/code/Kaggle/Fire/Data/train.csv', impute=True, fieldsToUse=FIELDS_20)
+    x_train, y_train, _, columns_train, weights = process_data('/home/jj/code/Kaggle/Fire/Data/train.csv', impute=True, fieldsToUse=FIELDS_20)
 
     # clf = GradientBoostingRegressor(loss='quantile', learning_rate=0.02, n_estimators=100, subsample=0.9)
     # clf = LogisticRegression()
-    clf = Ridge(alpha=0.1)
+    clf = Ridge(alpha=1)
 
     clf.fit(np.array(x_train), np.array(y_train))
 
     # ================== predict ==================
     print '================== predict =================='
-    x_test, _, ids_pred, _ = process_data('/home/jj/code/Kaggle/Fire/Data/test.csv', impute=True, fieldsToUse=columns_train)
+    x_test, _, ids_pred, _, _ = process_data('/home/jj/code/Kaggle/Fire/Data/test.csv', impute=True, fieldsToUse=columns_train)
     pred = clf.predict(x_test)
     pandas.DataFrame({'id': ids_pred, 'target': pred}).\
         to_csv('/home/jj/code/Kaggle/Fire/submissions/20fieldsRidge.csv', index=False)

@@ -3,9 +3,9 @@
 import pandas as pd
 
 
-def weighted_gini(act,pred,weight):
-    df = pd.DataFrame({"act":act,"pred":pred,"weight":weight})
-    df = df.sort('pred',ascending=False)
+def weighted_gini(act, pred, weight):
+    df = pd.DataFrame({"act":act,"pred":pred, "weight":weight})
+    df = df.sort('pred', ascending=False)
     df["random"] = (df.weight / df.weight.sum()).cumsum()
     total_pos = (df.act * df.weight).sum()
     df["cum_pos_found"] = (df.act * df.weight).cumsum()
