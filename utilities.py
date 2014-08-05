@@ -601,19 +601,28 @@ def jjcross_val_score_inner(args):
     @return: score
     """
 
-    global X, y, clf, score_func, fit_params, y_test, use_predProb_instead
+    global X, y, clf, score_func, fit_params, weights, y_test, use_predProb_instead
     trainInds, testInds = args
 
     newClf = clone(clf)
-    newClf.fit(X[trainInds], y[trainInds], **fit_params)
+
+    if weights is not None and 'sample_weight' in newClf.fit.func_code.co_varnames:
+        newClf.fit(X[trainInds], y[trainInds], sample_weight=weights[trainInds], **fit_params)
+    else:
+        newClf.fit(X[trainInds], y[trainInds], **fit_params)
 
     pred = newClf.predict_proba(X[testInds])[:, 0] if use_predProb_instead else newClf.predict(X[testInds])
 
-    return score_func((y if y_test is None else y_test)[testInds], pred)
+
+    score = score_func((y if y_test is None else y_test)[testInds], pred) if weights is None \
+        else score_func((y if y_test is None else y_test)[testInds], pred, sample_weight=weights[testInds])
+
+    return score
+
 
 def jjcross_val_score_init(*args):
-    global X, y, clf, score_func, fit_params, y_test, use_predProb_instead
-    X, y, clf, score_func, fit_params, y_test, use_predProb_instead = args
+    global X, y, clf, score_func, fit_params, weights, y_test, use_predProb_instead
+    X, y, clf, score_func, fit_params, weights, y_test, use_predProb_instead = args
 
 
 def getNumCvFolds(cv):
@@ -632,7 +641,8 @@ def getNumCvFolds(cv):
         return cv.n_folds
 
 
-def jjcross_val_score(clf, X, y, score_func, cv, y_test=None, n_jobs=1, use_predProb_instead=False, fit_params=None):
+def jjcross_val_score(clf, X, y, score_func, cv, y_test=None, n_jobs=cpu_count(), use_predProb_instead=False,
+                      fit_params=None, weights=None, verbose=True):
     """
 
     @param clf:
@@ -643,19 +653,22 @@ def jjcross_val_score(clf, X, y, score_func, cv, y_test=None, n_jobs=1, use_pred
     @param cv: either an integer indicating the number of StratifiedKFold folds, or an iterable
     @param n_jobs:
     @param fit_params: parameters to pass to the estimator's fit method
-    @return:
+    @param socre_params: parameters to pass to score_func
+    @return: array of scores
     """
 
     cv = check_cv(cv, X, y, classifier=is_classifier(clf))
 
     # print 'cv:', cv
     fit_params = fit_params if fit_params is not None else {}
+    # weights = weights if weights is not None else {}
 
     if n_jobs > 1:
         # figure out the number of folds
         n_jobs = min(n_jobs, getNumCvFolds(cv))
         # print 'jjcvscore with %d proceses' % n_jobs
-        pool = MyPool(n_jobs, initializer=jjcross_val_score_init, initargs=(X, y, clf, score_func, fit_params, y_test, use_predProb_instead))
+        pool = MyPool(n_jobs, initializer=jjcross_val_score_init,
+                      initargs=(X, y, clf, score_func, fit_params, weights, y_test, use_predProb_instead))
         data = [[trainInds, testInds] for trainInds, testInds in cv]
         temp = pool.map_async(jjcross_val_score_inner, data)
         temp.wait()
@@ -674,16 +687,36 @@ def jjcross_val_score(clf, X, y, score_func, cv, y_test=None, n_jobs=1, use_pred
             testX = X[testInds]
             testY = (y if y_test is None else y_test)[testInds]
 
+            if weights is not None:
+                trainWeights = weights[trainInds]
+                testWeights = weights[testInds]
+
             if len(np.unique(trainY))==1:
                 yPred = np.repeat(trainY[0], len(testY))
             else:
                 clonedClf = clone(clf)
-                clonedClf.fit(trainX, trainY, **fit_params)
+
+                if weights is not None and 'sample_weight' in clonedClf.fit.func_code.co_varnames:
+                    clonedClf.fit(trainX, trainY, sample_weight=trainWeights, **fit_params)
+                else:
+                    clonedClf.fit(trainX, trainY, **fit_params)
+
                 yPred =  clonedClf.predict_proba(testX)[:, 0] if use_predProb_instead else clonedClf.predict(testX)
 
-            score = score_func(testY, yPred)
+            if weights is None:
+                score = score_func(testY, yPred)
+            else:
+                score = score_func(testY, yPred, sample_weight=testWeights)
+
             scores.append(score)
             fold += 1
+
+
+    if verbose:
+        for i, score in enumerate(scores):
+            print 'Fold %d, score = %f' % (i, score)
+
+        print ">>>>>>>> %d-fold Score (mean, cv) = (%f, %f)" % (len(cv), np.mean(scores), np.std(scores)/np.mean(scores))
 
     return np.array(scores)
 

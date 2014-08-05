@@ -3,13 +3,16 @@ sys.path.extend('/home/jj/code/Kaggle/Fire')
 
 import pandas
 import numpy as np
+from pprint import pprint
 
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.preprocessing import Imputer
 from sklearn.linear_model import LogisticRegression, Ridge
+from sklearn.cross_validation import KFold
 
-from Kaggle.utilities import plot_histogram, plot_feature_importances
+from Kaggle.utilities import plot_histogram, plot_feature_importances, jjcross_val_score
 from globalVars import *
+from evaluation import normalized_weighted_gini
 
 
 def process_data(dataFpath, impute, fieldsToUse=None):
@@ -66,20 +69,51 @@ if __name__ == '__main__':
     # plot_feature_importances(x_train, np.array(y_train), x_train.columns, numTopFeatures=0.85, numEstimators=50)
 
 
-    # ================== train ==================
-    print '================== train =================='
-    x_train, y_train, _, columns_train, weights = process_data('/home/jj/code/Kaggle/Fire/Data/train.csv', impute=True, fieldsToUse=FIELDS_20)
+    x_train, y_train, _, columns_train, weights = process_data('/home/jj/code/Kaggle/Fire/Data/train.csv', impute=True, fieldsToUse=FIELDS_10)
 
     # clf = GradientBoostingRegressor(loss='quantile', learning_rate=0.02, n_estimators=100, subsample=0.9)
     # clf = LogisticRegression()
-    clf = Ridge(alpha=1)
+    clf = Ridge(alpha=0.1)
 
-    clf.fit(np.array(x_train), np.array(y_train))
+    # ================== CV ==================
+    print '================== CV =================='
+
+    # scores = jjcross_val_score(clf, x_train, y_train, normalized_weighted_gini,
+    #                            KFold(len(y_train), n_folds=5, shuffle=True), weights=weights)
+
+    # ================== Grid Search for the Best Parameter ==================
+    print '================== Grid Search for the Best Parameter  =================='
+
+    cvOutputFile = open('/home/jj/code/Kaggle/Fire/cvRes/Ridge.txt', 'w')
+    num_folds = 10
+    res = {}
+    cvObj = KFold(len(y_train), n_folds=num_folds, shuffle=True, random_state=0)
+
+    for tolerance in [0.00001, 0.0001, 0.001, 0.01, 0.1, 0.2, 0.5]:
+        for alpha in np.arange(0.01, 5, 0.025):
+            print '>>>> alpha=', alpha, ', tolerance =', tolerance
+            clf.set_params(alpha=alpha, tol=tolerance)
+            scores = jjcross_val_score(clf, x_train, y_train, normalized_weighted_gini, cvObj, weights=weights, verbose=False)
+            meanScore = np.mean(scores)
+            stdScore = np.std(scores)
+            s = 'alpha = %f, tolerance = %f, mean = %f, std = %f\n' % (alpha, tolerance, meanScore, stdScore)
+            print s
+            res[(alpha, tolerance)] = (meanScore, stdScore)
+            cvOutputFile.write(s)
+
+    print '>>>>>> Result sorted by mean score:'
+    pprint(sorted(res.items(), key=lambda x:-x[1][0]))
+    cvOutputFile.close()
+
+    # ================== train ==================
+    # print '================== train =================='
+
+    # clf.fit(np.array(x_train), np.array(y_train), weights)
 
     # ================== predict ==================
-    print '================== predict =================='
-    x_test, _, ids_pred, _, _ = process_data('/home/jj/code/Kaggle/Fire/Data/test.csv', impute=True, fieldsToUse=columns_train)
-    pred = clf.predict(x_test)
-    pandas.DataFrame({'id': ids_pred, 'target': pred}).\
-        to_csv('/home/jj/code/Kaggle/Fire/submissions/20fieldsRidge.csv', index=False)
-
+    # print '================== predict =================='
+    # x_test, _, ids_pred, _, _ = process_data('/home/jj/code/Kaggle/Fire/Data/test.csv', impute=True, fieldsToUse=columns_train)
+    # pred = clf.predict(x_test)
+    # pandas.DataFrame({'id': ids_pred, 'target': pred}).\
+    #     to_csv('/home/jj/code/Kaggle/Fire/submissions/10fieldsRidgewWeights.csv', index=False)
+    #

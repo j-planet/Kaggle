@@ -1,0 +1,3 @@
+TODOs:
+- impute using both training and testing data. but the same values for training and testing
+- try imputing using median instead of mean

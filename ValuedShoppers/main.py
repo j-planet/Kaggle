@@ -248,10 +248,6 @@ def validate_classifier(clf, X, Y_train, Y_validate, cv, use_predProb_instead, s
     cvObj = StratifiedShuffleSplit(Y_validate, n_iter=cv, test_size=test_size) if isinstance(cv, int) else cv
 
     scores = jjcross_val_score(clf, X, Y_train, scoreFunc, cvObj, Y_validate, n_jobs=n_jobs, use_predProb_instead=use_predProb_instead)
-    for i, score in enumerate(scores):
-        print 'Fold %d, score = %f' % (i, score)
-
-    print ">>>>>>>> %d-fold Score (mean, cv) = (%f, %f)" % (len(cv), np.mean(scores), np.std(scores)/np.mean(scores))
 
     return scores
 

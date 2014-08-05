@@ -1,10 +1,10 @@
 # copied from https://www.kaggle.com/c/liberty-mutual-fire-peril/forums/t/9880/update-on-the-evaluation-metric/51352#post51352
 
-import pandas as pd
+import pandas
 
 
 def weighted_gini(act,pred,weight):
-    df = pd.DataFrame({"act":act,"pred":pred,"weight":weight})
+    df = pandas.DataFrame({"act":act,"pred":pred,"weight":weight})
     df = df.sort('pred',ascending=False)
     df["random"] = (df.weight / df.weight.sum()).cumsum()
     total_pos = (df.act * df.weight).sum()
@@ -16,5 +16,5 @@ def weighted_gini(act,pred,weight):
     return gini
 
 
-def normalized_weighted_gini(act,pred,weight):
-    return weighted_gini(act,pred,weight) / weighted_gini(act,act,weight)
+def normalized_weighted_gini(act,pred, sample_weight):
+    return weighted_gini(act,pred,sample_weight) / weighted_gini(act,act,sample_weight)
