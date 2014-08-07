@@ -6,61 +6,39 @@ import numpy as np
 from pprint import pprint
 
 from sklearn.ensemble import GradientBoostingRegressor
-from sklearn.preprocessing import Imputer
 from sklearn.linear_model import LogisticRegression, Ridge
 from sklearn.cross_validation import KFold
 
 from Kaggle.utilities import plot_histogram, plot_feature_importances, jjcross_val_score
 from globalVars import *
 from evaluation import normalized_weighted_gini
+from utilities import process_data
 
 
-def process_data(dataFpath, impute, fieldsToUse=None):
-    """
-    reads data, processes discrete columns, imputes
-    :param dataFpath: path to the data file
-    :param impute: whether to impute the data
-    :param fieldsToUse: if None use all the fields
-    :return: x_data, y_data (None if not training data), ids (all np.arrays), columns, weights
-    """
-    data = pandas.read_csv(dataFpath)
+def gridSearch(cvOutputFname, num_folds = 10):
+    print '================== Grid Search for the Best Parameter  =================='
 
-    ids = data['id']
-    weights = data['var11']
-    x_data = data
+    cvOutputFile = open(cvOutputFname, 'w')
+    res = {}
+    cvObj = KFold(len(y_train), n_folds=num_folds, shuffle=True, random_state=0)
 
-    # check if it's training data
-    if 'target' in data.columns:
-        y_data = data['target']
-        del x_data['target']
-    else:
-        y_data = None
+    for tolerance in [0.00001, 0.0001, 0.001, 0.01, 0.1, 0.2, 0.5]:
+        for alpha in np.arange(0.01, 5, 0.025):
+            print '>>>> alpha=', alpha, ', tolerance =', tolerance
+            clf.set_params(alpha=alpha, tol=tolerance)
+            scores = jjcross_val_score(clf, x_train, y_train, normalized_weighted_gini, cvObj, weights=weights,
+                                       verbose=False)
+            meanScore = np.mean(scores)
+            stdScore = np.std(scores)
+            s = 'alpha = %f, tolerance = %f, mean = %f, std = %f\n' % (alpha, tolerance, meanScore, stdScore)
+            print s
+            res[(alpha, tolerance)] = (meanScore, stdScore)
+            cvOutputFile.write(s)
+    print '>>>>>> Result sorted by mean score:'
+    pprint(sorted(res.items(), key=lambda x: -x[1][0]))
+    cvOutputFile.close()
 
-    # delete unused columns
-    for col in ['id', 'dummy', 'var11']:
-        del x_data[col]
-
-    # record columns
-    columns = x_data.columns
-
-    # handle ordinal continuous columns
-    x_data[ORDINAL_CONT_COLS + DISCRETE_COLS] = x_data[ORDINAL_CONT_COLS + DISCRETE_COLS].replace(to_replace='Z', value=np.nan)
-
-    # code discrete columns
-    for col in DISCRETE_COLS:
-        for oldVal, newVal in DISCRETE_COLS_LOOKUP[col].iteritems():
-            x_data[col] = x_data[col].replace(to_replace=oldVal, value=newVal)
-
-    if fieldsToUse is not None:
-        x_data = x_data[fieldsToUse]
-        columns = fieldsToUse
-
-    if impute:
-        print 'imputing x data'
-        imp = Imputer()
-        x_data = imp.fit_transform(np.array(x_data))
-
-    return np.array(x_data), np.array(y_data), np.array(ids), columns, np.array(weights)
+    return res
 
 
 if __name__ == '__main__':
@@ -68,8 +46,10 @@ if __name__ == '__main__':
     # print 'about to plot feature importances'
     # plot_feature_importances(x_train, np.array(y_train), x_train.columns, numTopFeatures=0.85, numEstimators=50)
 
-
-    x_train, y_train, _, columns_train, weights = process_data('/home/jj/code/Kaggle/Fire/Data/train.csv', impute=True, fieldsToUse=FIELDS_10)
+    x_train, y_train, _, columns_train, weights = \
+        process_data('/home/jj/code/Kaggle/Fire/Data/train.csv',
+                     impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire', imputeStrategy='median',
+                     fieldsToUse=FIELDS_10)
 
     # clf = GradientBoostingRegressor(loss='quantile', learning_rate=0.02, n_estimators=100, subsample=0.9)
     # clf = LogisticRegression()
@@ -78,32 +58,11 @@ if __name__ == '__main__':
     # ================== CV ==================
     print '================== CV =================='
 
-    # scores = jjcross_val_score(clf, x_train, y_train, normalized_weighted_gini,
-    #                            KFold(len(y_train), n_folds=5, shuffle=True), weights=weights)
+    scores = jjcross_val_score(clf, x_train, y_train, normalized_weighted_gini,
+                               KFold(len(y_train), n_folds=5, shuffle=True), weights=weights, n_jobs=1)
 
     # ================== Grid Search for the Best Parameter ==================
-    print '================== Grid Search for the Best Parameter  =================='
-
-    cvOutputFile = open('/home/jj/code/Kaggle/Fire/cvRes/Ridge.txt', 'w')
-    num_folds = 10
-    res = {}
-    cvObj = KFold(len(y_train), n_folds=num_folds, shuffle=True, random_state=0)
-
-    for tolerance in [0.00001, 0.0001, 0.001, 0.01, 0.1, 0.2, 0.5]:
-        for alpha in np.arange(0.01, 5, 0.025):
-            print '>>>> alpha=', alpha, ', tolerance =', tolerance
-            clf.set_params(alpha=alpha, tol=tolerance)
-            scores = jjcross_val_score(clf, x_train, y_train, normalized_weighted_gini, cvObj, weights=weights, verbose=False)
-            meanScore = np.mean(scores)
-            stdScore = np.std(scores)
-            s = 'alpha = %f, tolerance = %f, mean = %f, std = %f\n' % (alpha, tolerance, meanScore, stdScore)
-            print s
-            res[(alpha, tolerance)] = (meanScore, stdScore)
-            cvOutputFile.write(s)
-
-    print '>>>>>> Result sorted by mean score:'
-    pprint(sorted(res.items(), key=lambda x:-x[1][0]))
-    cvOutputFile.close()
+    # gridSearch(cvOutputFname='/home/jj/code/Kaggle/Fire/cvRes/Ridge.txt')
 
     # ================== train ==================
     # print '================== train =================='

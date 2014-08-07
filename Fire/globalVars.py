@@ -1,3 +1,4 @@
+NON_PREDICTOR_COLS = ['id', 'dummy', 'var11']
 ORDINAL_CONT_COLS = ['var1', 'var3', 'var7', 'var8']
 DISCRETE_COLS = ['var2', 'var4', 'var5', 'var6', 'var9']
 
