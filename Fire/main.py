@@ -1,5 +1,5 @@
 import sys
-sys.path.extend('/home/jj/code/Kaggle/Fire')
+sys.path.extend(['/home/jj/code/Kaggle/Fire'])
 
 import pandas
 import numpy as np
@@ -15,7 +15,7 @@ from evaluation import normalized_weighted_gini
 from utilities import process_data
 
 
-def gridSearch(cvOutputFname, num_folds = 10):
+def gridSearch(cvOutputFname, x_train, y_train, weights, num_folds = 10):
     print '================== Grid Search for the Best Parameter  =================='
 
     cvOutputFile = open(cvOutputFname, 'w')
@@ -56,13 +56,13 @@ if __name__ == '__main__':
     clf = Ridge(alpha=0.1)
 
     # ================== CV ==================
-    print '================== CV =================='
-
-    scores = jjcross_val_score(clf, x_train, y_train, normalized_weighted_gini,
-                               KFold(len(y_train), n_folds=5, shuffle=True), weights=weights, n_jobs=1)
+    # print '================== CV =================='
+    #
+    # scores = jjcross_val_score(clf, x_train, y_train, normalized_weighted_gini,
+    #                            KFold(len(y_train), n_folds=5, shuffle=True), weights=weights, n_jobs=1)
 
     # ================== Grid Search for the Best Parameter ==================
-    # gridSearch(cvOutputFname='/home/jj/code/Kaggle/Fire/cvRes/Ridge.txt')
+    gridSearch('/home/jj/code/Kaggle/Fire/cvRes/Ridge.txt', x_train, y_train, weights)
 
     # ================== train ==================
     # print '================== train =================='
@@ -71,8 +71,9 @@ if __name__ == '__main__':
 
     # ================== predict ==================
     # print '================== predict =================='
-    # x_test, _, ids_pred, _, _ = process_data('/home/jj/code/Kaggle/Fire/Data/test.csv', impute=True, fieldsToUse=columns_train)
+    # x_test, _, ids_pred, _, _ = process_data('/home/jj/code/Kaggle/Fire/Data/test.csv',
+    #                                          impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire', imputeStrategy='median',
+    #                                          fieldsToUse=columns_train)
     # pred = clf.predict(x_test)
     # pandas.DataFrame({'id': ids_pred, 'target': pred}).\
-    #     to_csv('/home/jj/code/Kaggle/Fire/submissions/10fieldsRidgewWeights.csv', index=False)
-    #
+    #     to_csv('/home/jj/code/Kaggle/Fire/submissions/10fieldsRidgewWeightsMedian.csv', index=False)

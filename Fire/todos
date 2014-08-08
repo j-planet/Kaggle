@@ -1,3 +1,7 @@
 TODOs:
-- impute using both training and testing data. but the same values for training and testing
-- try imputing using median instead of mean
+- better feature selection
+- feature extraction??
+
+Finished TODOs:
+- impute using both training and testing data. but the same values for training and testing => no improvement :(
+- try imputing using median instead of mean => no improvement :(

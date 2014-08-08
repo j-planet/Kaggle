@@ -1,0 +1,15 @@
+ordering of fields_51 rfe using small train:
+
+array(['weatherVar116', 'var6', 'var4', 'weatherVar112', 'geodemVar12',
+       'var13', 'crimeVar6', 'weatherVar36', 'weatherVar99', 'var9',
+       'weatherVar216', 'weatherVar70', 'weatherVar221', 'weatherVar170',
+       'weatherVar230', 'weatherVar222', 'geodemVar7', 'weatherVar213',
+       'weatherVar59', 'weatherVar209', 'weatherVar16', 'weatherVar10',
+       'weatherVar63', 'weatherVar27', 'weatherVar166', 'weatherVar122',
+       'weatherVar121', 'weatherVar201', 'weatherVar33', 'weatherVar182',
+       'var7', 'weatherVar225', 'crimeVar8', 'weatherVar164',
+       'weatherVar6', 'weatherVar198', 'var8', 'crimeVar2',
+       'weatherVar153', 'weatherVar68', 'crimeVar9', 'geodemVar5',
+       'crimeVar5', 'weatherVar118', 'var10', 'geodemVar2', 'var15',
+       'geodemVar20', 'weatherVar139', 'weatherVar140', 'weatherVar190'],
+      dtype='|S13')
