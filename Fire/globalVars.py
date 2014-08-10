@@ -75,3 +75,8 @@ FIELDS_20 = FIELDS_51[:20]
 FIELDS_10 = FIELDS_51[:10]
 
 FIELDS_5 = FIELDS_51[:5]
+
+FIELDS_RFE = ['crimeVar5', 'crimeVar6', 'crimeVar7', 'crimeVar9', 'geodemVar1', 'geodemVar10',
+              'geodemVar11', 'geodemVar12', 'geodemVar13', 'geodemVar15', 'geodemVar16',
+              'geodemVar17', 'geodemVar2', 'geodemVar3', 'geodemVar4', 'geodemVar5',
+              'geodemVar7', 'geodemVar8', 'geodemVar9']

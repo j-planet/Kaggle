@@ -39,7 +39,7 @@ def scorer(clf, X, y_true):
     return normalized_weighted_gini(y_true, y_pred, sample_weight=np.repeat(1, len(y_true)))
 
 
-def rank_features(clf, x_train, y_train, columns):
+def rank_features(clf, x_train, y_train, columns,step=1, numFeatures=1):
     """
     rank features with rfe
     :param clf: estimator
@@ -49,7 +49,7 @@ def rank_features(clf, x_train, y_train, columns):
     """
 
     print '========== rank_features ==========='
-    rfe = RFE(estimator=clf, n_features_to_select=1, verbose=2)
+    rfe = RFE(estimator=clf, n_features_to_select=numFeatures, verbose=2, step=step)
     rfe.fit(x_train, y_train)
 
     pprint(np.array(columns)[rfe.ranking_-1])
@@ -57,7 +57,7 @@ def rank_features(clf, x_train, y_train, columns):
     return rfe
 
 
-def select_features(clf, x_train, y_train, columns, num_folds, step=1, random_state=0):
+def select_features(clf, x_train, y_train, columns, num_folds, step=19, random_state=0):
     """
     automatic tuning of the number of features selected with cross-validation.
     :param clf: estimator
@@ -94,11 +94,11 @@ def select_features(clf, x_train, y_train, columns, num_folds, step=1, random_st
 
 if __name__=='__main__':
     x_train, y_train, _, columns_train, weights = \
-        process_data('/home/jj/code/Kaggle/Fire/Data/train.csv',
+        process_data('/home/jj/code/Kaggle/Fire/Data/smallTrain.csv',
                      impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire', imputeStrategy='median',
                      fieldsToUse=None)
 
     clf = Ridge(alpha = 0.1)
 
-    rank_features(clf, x_train, y_train, columns_train)
+    rank_features(clf, x_train, y_train, columns_train, numFeatures=19, step=0.075)
     # select_features(clf, x_train, y_train, columns_train, num_folds=5, step=0.075)

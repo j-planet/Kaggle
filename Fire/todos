@@ -1,6 +1,7 @@
 TODOs:
 - better feature selection
 - feature extraction??
+- impute the important features better
 
 Finished TODOs:
 - impute using both training and testing data. but the same values for training and testing => no improvement :(

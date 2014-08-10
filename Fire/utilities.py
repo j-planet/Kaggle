@@ -53,7 +53,7 @@ def process_data(dataFpath, impute, fieldsToUse=None, imputeDataDir=None, impute
 
         imputeData = pandas.read_csv(os.path.join(imputeDataDir, 'impute_' + imputeStrategy + '.csv'))
 
-        for col in x_data:
+        for col in x_data.columns:
             # x_data[col] = x_data[col].replace(to_replace=np.nan, value=imputeData[col])
             x_data[col][np.isnan(np.array(x_data[col], dtype=np.float))] = imputeData[col][0]
 

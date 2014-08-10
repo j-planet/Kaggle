@@ -5,8 +5,8 @@ import pandas
 import numpy as np
 from pprint import pprint
 
-from sklearn.ensemble import GradientBoostingRegressor
-from sklearn.linear_model import LogisticRegression, Ridge
+from sklearn.linear_model import Ridge
+from sklearn.svm import SVR
 from sklearn.cross_validation import KFold
 
 from Kaggle.utilities import plot_histogram, plot_feature_importances, jjcross_val_score
@@ -49,11 +49,12 @@ if __name__ == '__main__':
     x_train, y_train, _, columns_train, weights = \
         process_data('/home/jj/code/Kaggle/Fire/Data/train.csv',
                      impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire', imputeStrategy='median',
-                     fieldsToUse=FIELDS_10)
+                     fieldsToUse=FIELDS_RFE)
 
     # clf = GradientBoostingRegressor(loss='quantile', learning_rate=0.02, n_estimators=100, subsample=0.9)
     # clf = LogisticRegression()
     clf = Ridge(alpha=0.1)
+    # clf = SVR()
 
     # ================== CV ==================
     # print '================== CV =================='
@@ -62,18 +63,18 @@ if __name__ == '__main__':
     #                            KFold(len(y_train), n_folds=5, shuffle=True), weights=weights, n_jobs=1)
 
     # ================== Grid Search for the Best Parameter ==================
-    gridSearch('/home/jj/code/Kaggle/Fire/cvRes/Ridge.txt', x_train, y_train, weights)
+    # gridSearch('/home/jj/code/Kaggle/Fire/cvRes/Ridge.txt', x_train, y_train, weights)
 
     # ================== train ==================
-    # print '================== train =================='
+    print '================== train =================='
 
-    # clf.fit(np.array(x_train), np.array(y_train), weights)
+    clf.fit(np.array(x_train), np.array(y_train), weights)
 
     # ================== predict ==================
-    # print '================== predict =================='
-    # x_test, _, ids_pred, _, _ = process_data('/home/jj/code/Kaggle/Fire/Data/test.csv',
-    #                                          impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire', imputeStrategy='median',
-    #                                          fieldsToUse=columns_train)
-    # pred = clf.predict(x_test)
-    # pandas.DataFrame({'id': ids_pred, 'target': pred}).\
-    #     to_csv('/home/jj/code/Kaggle/Fire/submissions/10fieldsRidgewWeightsMedian.csv', index=False)
+    print '================== predict =================='
+    x_test, _, ids_pred, _, _ = process_data('/home/jj/code/Kaggle/Fire/Data/test.csv',
+                                             impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire', imputeStrategy='median',
+                                             fieldsToUse=columns_train)
+    pred = clf.predict(x_test)
+    pandas.DataFrame({'id': ids_pred, 'target': pred}).\
+        to_csv('/home/jj/code/Kaggle/Fire/submissions/rfefieldsRidge.csv', index=False)
