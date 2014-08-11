@@ -68,3 +68,13 @@ def mode(l):
     """
 
     return stats.mstats.mode(l)[0][0]
+
+
+def make_column_2D(l):
+    """
+    make a column/row vector 2D. i.e. shape (n,) to shape (n,1)
+    :param l: a np.array of shape (n,)
+    :return:
+    """
+
+    return l.reshape(len(l), 1)

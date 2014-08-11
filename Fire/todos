@@ -1,8 +1,9 @@
 TODOs:
-- better feature selection
+- transform y values into their corresponding quantiles?
 - feature extraction??
 - impute the important features better
 
 Finished TODOs:
 - impute using both training and testing data. but the same values for training and testing => no improvement :(
 - try imputing using median instead of mean => no improvement :(
+- better feature selection (kinda. not really :( )
