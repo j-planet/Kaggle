@@ -14,7 +14,7 @@ from Kaggle.utilities import plot_histogram, plot_feature_importances, jjcross_v
 from globalVars import *
 from evaluation import normalized_weighted_gini
 from utilities import process_data
-
+from correlations import calculate_y_corrs, create_new_features
 
 def gridSearch(cvOutputFname, x_train, y_train, weights, num_folds = 10):
     print '================== Grid Search for the Best Parameter  =================='
@@ -50,16 +50,25 @@ if __name__ == '__main__':
     x_train, y_train, _, columns_train, weights = \
         process_data('/home/jj/code/Kaggle/Fire/Data/train.csv',
                      impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire', imputeStrategy='median',
-                     fieldsToUse=FIELDS_CORR_ORDERED[:5])
+                     fieldsToUse=FIELDS_CORR_ORDERED[:50])
 
     # clf = GradientBoostingRegressor(loss='quantile', learning_rate=0.02, n_estimators=100, subsample=0.9)
     # clf = LogisticRegression()
     clf = Ridge(alpha=0.1)
     # clf = SVR()
 
+    # ================== CORRELATION ==================
+    print '================== CORRELATION =================='
+    print x_train.shape
+    numFields = 30
+    x_train, newCols = create_new_features(x_train, columns=columns_train)
+    corrs = calculate_y_corrs(x_train, y_train)[0]
+    ord = corrs.argsort()[::-1][:numFields]
+    x_train = x_train[:, ord]
+
     # ================== CV ==================
     print '================== CV =================='
-
+    print x_train.shape
     scores = jjcross_val_score(clf, x_train, y_train, normalized_weighted_gini,
                                KFold(len(y_train), n_folds=5, shuffle=True), weights=weights)
 

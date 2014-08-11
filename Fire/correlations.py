@@ -1,3 +1,5 @@
+import sys
+sys.path.extend(['/home/jj/code/Kaggle/Fire'])
 import pandas
 import numpy as np
 
@@ -56,10 +58,38 @@ def plot_correlations(data, title):
     plt.show()
 
 
+def create_new_features(xs, columns=None):
+    """
+    create new features
+    :param xs: 2d numpy array
+    :param columns: column names. None by default.
+    :return: new 2d numpy array, column names (None if None was passed in)
+    """
+
+    res = xs
+    res_columns = None if columns is None else columns
+    temp = []
+
+    numFeatures = xs.shape[1]
+    numRows = xs.shape[0]
+
+    for i in range(numFeatures):
+        for j in range(i):
+            print i, j
+            # res = np.hstack((res, (xs[:,i] + xs[:,j]).reshape(numRows, 1)))
+            temp.append(xs[:,i] * xs[:,j])
+            if columns is not None:
+                res_columns.append(columns[i] + '_' + columns[j])
+
+    res = np.hstack((res, np.array(temp).transpose()))
+    return res, res_columns
+
+
 if __name__ == '__main__':
     x_train, y_train, _, columns, weights = \
         process_data('/home/jj/code/Kaggle/Fire/Data/train.csv',
-                     impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire', imputeStrategy='median')
+                     impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire', imputeStrategy='median',
+                     fieldsToUse=FIELDS_CORR_ORDERED[:50])
 
     # ----------------- correlations between variables
     # res_corrs, res_pVals = calculate_feature_corrs(x_train, y_train)
@@ -67,15 +97,20 @@ if __name__ == '__main__':
     # plot_correlations(res_pVals, 'P-Values')
     #
     # # ---------- correlations between top x variables and y
-    y_corrs, y_pVals = calculate_y_corrs(x_train, y_train)
+    biggerX, newColumns = create_new_features(x_train, columns=columns)
+    y_corrs, y_pVals = calculate_y_corrs(biggerX, y_train)
 
     ord = y_corrs.argsort()[::-1]
-    plot_correlations(make_column_2D(y_corrs[ord][:30]), 'Correlation of Top Original X Features with Y')
+    plot_correlations(make_column_2D(y_corrs[ord][:50]), 'Correlation of Top Original X Features with Y')
+
+    oldcorrs = calculate_y_corrs(x_train, y_train)[0]
+    ord_old = oldcorrs.argsort()[::-1]
+    plot_correlations(make_column_2D(oldcorrs[ord_old][:30]),'')
 
     # --------------- PCA
-    pca = PCA(n_components=19)
-    newx = pca.fit_transform(x_train, y_train)
-    y_corrs, y_pVals = calculate_y_corrs(newx, y_train)
-    ord = y_corrs.argsort()[::-1]
-    plot_correlations(make_column_2D(y_corrs[ord]), 'Correlation of PCA Vectors with Y')
-    plot_correlations(make_column_2D(y_pVals[ord]), 'P-Values of PCA Vectors')
+    # pca = PCA(n_components=19)
+    # newx = pca.fit_transform(x_train, y_train)
+    # y_corrs, y_pVals = calculate_y_corrs(newx, y_train)
+    # ord = y_corrs.argsort()[::-1]
+    # plot_correlations(make_column_2D(y_corrs[ord]), 'Correlation of PCA Vectors with Y')
+    # plot_correlations(make_column_2D(y_pVals[ord]), 'P-Values of PCA Vectors')

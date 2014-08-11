@@ -2,8 +2,11 @@ TODOs:
 - transform y values into their corresponding quantiles?
 - feature extraction??
 - impute the important features better
+- split classification (0 vs non 0s) and regression?
+
 
 Finished TODOs:
 - impute using both training and testing data. but the same values for training and testing => no improvement :(
 - try imputing using median instead of mean => no improvement :(
 - better feature selection (kinda. not really :( )
+- try random combinations of features. see if the corration with y improves => tried sum and product. didn't work :(
