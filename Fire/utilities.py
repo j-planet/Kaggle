@@ -15,6 +15,7 @@ def process_data(dataFpath, impute, fieldsToUse=None, imputeDataDir=None, impute
     :param imputeStrategy: can only be one of {'mean', 'median', 'mode'}
     :return: x_data, y_data (None if not training data), ids (all np.arrays), columns, weights
     """
+
     data = pandas.read_csv(dataFpath)
 
     ids = data['id']
@@ -78,3 +79,14 @@ def make_column_2D(l):
     """
 
     return l.reshape(len(l), 1)
+
+
+def convert_to_cdfs(y):
+    """
+    convert each value in y to its corresponding empirical cdf
+    :param y: numpy array or list
+    :return: a numpy array
+    """
+
+    y = np.array(y)
+    return np.array([(y<=v).sum() for v in y])*1./len(y)

@@ -50,41 +50,43 @@ if __name__ == '__main__':
     x_train, y_train, _, columns_train, weights = \
         process_data('/home/jj/code/Kaggle/Fire/Data/train.csv',
                      impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire', imputeStrategy='median',
-                     fieldsToUse=FIELDS_CORR_ORDERED[:50])
-
+                     fieldsToUse=FIELDS_CDF_CORR_TOP99[:19])
+    # y_cdfs = np.array(pandas.read_csv('/home/jj/code/Kaggle/Fire/Data/y_pcdfs.csv')).reshape(NUM_TRAIN_SAMPLES,)[:len(y_train)]  # in case smallTrain is used
     # clf = GradientBoostingRegressor(loss='quantile', learning_rate=0.02, n_estimators=100, subsample=0.9)
     # clf = LogisticRegression()
     clf = Ridge(alpha=0.1)
     # clf = SVR()
 
     # ================== CORRELATION ==================
-    print '================== CORRELATION =================='
-    print x_train.shape
-    numFields = 30
-    x_train, newCols = create_new_features(x_train, columns=columns_train)
-    corrs = calculate_y_corrs(x_train, y_train)[0]
-    ord = corrs.argsort()[::-1][:numFields]
-    x_train = x_train[:, ord]
+    # print '================== CORRELATION =================='
+    # print x_train.shape
+    # numFields = 30
+    # x_train, newCols = create_new_features(x_train, columns=columns_train)
+    # corrs = calculate_y_corrs(x_train, y_train)[0]
+    # ord = corrs.argsort()[::-1][:numFields]
+    # x_train = x_train[:, ord]
 
     # ================== CV ==================
-    print '================== CV =================='
-    print x_train.shape
-    scores = jjcross_val_score(clf, x_train, y_train, normalized_weighted_gini,
-                               KFold(len(y_train), n_folds=5, shuffle=True), weights=weights)
+    # print '================== CV =================='
+    # print x_train.shape
+    # # scores = jjcross_val_score(clf, x_train, y_train, normalized_weighted_gini,
+    # #                            KFold(len(y_train), n_folds=5, shuffle=True), weights=weights)
+    # scores = jjcross_val_score(clf, x_train, y_cdfs, normalized_weighted_gini,
+    #                            KFold(len(y_train), n_folds=5, shuffle=True), weights=weights, y_test=y_train)
 
     # ================== Grid Search for the Best Parameter ==================
     # gridSearch('/home/jj/code/Kaggle/Fire/cvRes/Ridge.txt', x_train, y_train, weights)
 
     # ================== train ==================
-    # print '================== train =================='
-    #
-    # clf.fit(np.array(x_train), np.array(y_train), weights)
-    #
-    # # ================== predict ==================
-    # print '================== predict =================='
-    # x_test, _, ids_pred, _, _ = process_data('/home/jj/code/Kaggle/Fire/Data/test.csv',
-    #                                          impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire', imputeStrategy='median',
-    #                                          fieldsToUse=columns_train)
-    # pred = clf.predict(x_test)
-    # pandas.DataFrame({'id': ids_pred, 'target': pred}).\
-    #     to_csv('/home/jj/code/Kaggle/Fire/submissions/corrfieldsRidge.csv', index=False)
+    print '================== train =================='
+
+    clf.fit(np.array(x_train), np.array(y_train), weights)
+
+    # ================== predict ==================
+    print '================== predict =================='
+    x_test, _, ids_pred, _, _ = process_data('/home/jj/code/Kaggle/Fire/Data/test.csv',
+                                             impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire', imputeStrategy='median',
+                                             fieldsToUse=columns_train)
+    pred = clf.predict(x_test)
+    pandas.DataFrame({'id': ids_pred, 'target': pred}).\
+        to_csv('/home/jj/code/Kaggle/Fire/submissions/corrfieldsRidge_cdfFields.csv', index=False)
