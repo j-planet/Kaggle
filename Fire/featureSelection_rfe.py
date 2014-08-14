@@ -4,6 +4,7 @@ from pprint import pprint
 from sklearn.cross_validation import KFold
 from sklearn.feature_selection import RFE, RFECV
 from sklearn.linear_model import Ridge
+from sklearn.ensemble import GradientBoostingClassifier
 
 from utilities import process_data
 from globalVars import *
@@ -93,12 +94,11 @@ def select_features(clf, x_train, y_train, columns, num_folds, step=19, random_s
 
 
 if __name__=='__main__':
-    x_train, y_train, _, columns_train, weights = \
+    x_train, y_regress, _, columns_train, weights, y_class = \
         process_data('/home/jj/code/Kaggle/Fire/Data/smallTrain.csv',
-                     impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire', imputeStrategy='median',
-                     fieldsToUse=None)
+                     impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire/intermediateOutput', imputeStrategy='median')
 
-    clf = Ridge(alpha = 0.1)
-
-    rank_features(clf, x_train, y_train, columns_train, numFeatures=19, step=0.075)
-    # select_features(clf, x_train, y_train, columns_train, num_folds=5, step=0.075)
+    # clf = Ridge(alpha = 0.1)
+    clf = GradientBoostingClassifier(learning_rate=0.1, loss='deviance')
+    # rank_features(clf, x_train, y_class, columns_train, numFeatures=20, step=0.1)
+    select_features(clf, x_train, y_class, columns_train, num_folds=5, step=0.075)

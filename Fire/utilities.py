@@ -2,7 +2,14 @@ import os
 import pandas
 import numpy as np
 from scipy import stats
+from pprint import pprint
+from copy import copy
 
+from sklearn.cross_validation import KFold
+
+from Kaggle.utilities import jjcross_val_score
+
+from evaluation import normalized_weighted_gini
 from globalVars import *
 
 
@@ -13,7 +20,7 @@ def process_data(dataFpath, impute, fieldsToUse=None, imputeDataDir=None, impute
     :param impute: whether to impute the data
     :param fieldsToUse: if None use all the fields
     :param imputeStrategy: can only be one of {'mean', 'median', 'mode'}
-    :return: x_data, y_data (None if not training data), ids (all np.arrays), columns, weights
+    :return: x_data, y_data (None if not training data), ids (all np.arrays), columns, weights, y_class
     """
 
     data = pandas.read_csv(dataFpath)
@@ -28,6 +35,12 @@ def process_data(dataFpath, impute, fieldsToUse=None, imputeDataDir=None, impute
         del x_data['target']
     else:
         y_data = None
+    y_data = np.array(y_data, dtype=np.float)
+
+    # make classification y
+    y_class = copy(y_data)
+    y_class[y_class > 0] = 1
+    y_class = np.array(y_class, dtype=np.int)
 
     # delete unused columns
     for col in NON_PREDICTOR_COLS:
@@ -58,7 +71,7 @@ def process_data(dataFpath, impute, fieldsToUse=None, imputeDataDir=None, impute
             # x_data[col] = x_data[col].replace(to_replace=np.nan, value=imputeData[col])
             x_data[col][np.isnan(np.array(x_data[col], dtype=np.float))] = imputeData[col][0]
 
-    return np.array(x_data, dtype=np.float), np.array(y_data, dtype=np.float), np.array(ids), columns, np.array(weights)
+    return np.array(x_data, dtype=np.float), y_data, np.array(ids), columns, np.array(weights), y_class
 
 
 def mode(l):
@@ -90,3 +103,29 @@ def convert_to_cdfs(y):
 
     y = np.array(y)
     return np.array([(y<=v).sum() for v in y])*1./len(y)
+
+
+def gridSearch(clf, cvOutputFname, x_train, y_train, weights, num_folds = 10):
+    print '================== Grid Search for the Best Parameter  =================='
+
+    cvOutputFile = open(cvOutputFname, 'w')
+    res = {}
+    cvObj = KFold(len(y_train), n_folds=num_folds, shuffle=True, random_state=0)
+
+    for tolerance in [0.00001, 0.0001, 0.001, 0.01, 0.1, 0.2, 0.5]:
+        for alpha in np.arange(0.01, 5, 0.025):
+            print '>>>> alpha=', alpha, ', tolerance =', tolerance
+            clf.set_params(alpha=alpha, tol=tolerance)
+            scores = jjcross_val_score(clf, x_train, y_train, normalized_weighted_gini, cvObj, weights=weights,
+                                       verbose=False)
+            meanScore = np.mean(scores)
+            stdScore = np.std(scores)
+            s = 'alpha = %f, tolerance = %f, mean = %f, std = %f\n' % (alpha, tolerance, meanScore, stdScore)
+            print s
+            res[(alpha, tolerance)] = (meanScore, stdScore)
+            cvOutputFile.write(s)
+    print '>>>>>> Result sorted by mean score:'
+    pprint(sorted(res.items(), key=lambda x: -x[1][0]))
+    cvOutputFile.close()
+
+    return res

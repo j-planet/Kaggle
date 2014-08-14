@@ -1,7 +1,11 @@
 TODOs:
+- Which features affect classification (i.e. 0 vs non 0 loss)
+- split classification (0 vs non 0s) and regression?
+
+
 - feature extraction??
 - impute the important features better
-- split classification (0 vs non 0s) and regression?
+
 
 
 Finished TODOs:

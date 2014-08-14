@@ -88,28 +88,34 @@ def create_new_features(xs, columns=None):
 
 
 if __name__ == '__main__':
-    x_train, y_train, _, columns, weights = \
+    x_train, y_train, _, columns, weights, y_class = \
         process_data('/home/jj/code/Kaggle/Fire/Data/train.csv',
-                     impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire', imputeStrategy='median')
+                     impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire/intermediateOutput', imputeStrategy='median')
                      # fieldsToUse=FIELDS_CORR_ORDERED[:25])
-    y_cdfs = np.array(pandas.read_csv('/home/jj/code/Kaggle/Fire/Data/y_pcdfs.csv')).reshape(len(y_train),)
+    # y_cdfs = np.array(pandas.read_csv('/home/jj/code/Kaggle/Fire/Data/y_pcdfs.csv')).reshape(len(y_train),)
 
     # ---------- correlations between top x variables and y
-    oldcorrs = calculate_y_corrs(x_train, y_cdfs)[0]
-    ord = oldcorrs.argsort()[::-1]
-    plot_correlations(make_column_2D(oldcorrs[ord][:50]), '')
+    class_corrs = calculate_y_corrs(x_train, y_class)[0]
+    ord = class_corrs.argsort()[::-1]
+    topInd = ord[:25]
+    plot_correlations(make_column_2D(class_corrs[topInd]), '')
 
-    # ----------------- correlations between variables
-    res_corrs, res_pVals = calculate_feature_corrs(x_train)
-    plot_correlations(res_corrs, 'Correlations Between All X Variables')
-    plot_correlations(res_pVals, 'P-Values')
+    # # ----------------- correlations between variables
+    #
+    # plot correlations between ALL variables
+    all_corrs = pandas.read_csv('/home/jj/code/Kaggle/Fire/corrs.csv')
+    plot_correlations(all_corrs, 'Correlations Between All X Variables')
 
+    # plot correlations between TOP x variables
+
+    top_corrs, _ = calculate_feature_corrs(x_train[:, topInd])
+    plot_correlations(top_corrs, 'Correlations Between TOP' + str(len(topInd)) + 'Variables')
 
 
     # --------------- PCA
-    # pca = PCA(n_components=19)
-    # newx = pca.fit_transform(x_train, y_train)
-    # y_corrs, y_pVals = calculate_y_corrs(newx, y_train)
-    # ord = y_corrs.argsort()[::-1]
-    # plot_correlations(make_column_2D(y_corrs[ord]), 'Correlation of PCA Vectors with Y')
-    # plot_correlations(make_column_2D(y_pVals[ord]), 'P-Values of PCA Vectors')
+    pca = PCA(n_components=19)
+    newx = pca.fit_transform(x_train[:,topInd], y_train)
+    y_corrs, y_pVals = calculate_y_corrs(newx, y_train)
+    plot_correlations(make_column_2D(y_corrs), 'Correlation of PCA Vectors with Y')
+    plot_correlations(make_column_2D(y_pVals), 'P-Values of PCA Vectors')
+    plot_correlations(calculate_feature_corrs(newx)[0], 'Correlations Bewteen TOP %d PCA Variables' % newx.shape[1])
