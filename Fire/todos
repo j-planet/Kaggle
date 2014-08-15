@@ -1,7 +1,8 @@
 TODOs:
-- Which features affect classification (i.e. 0 vs non 0 loss)
-- split classification (0 vs non 0s) and regression?
 
+
+
+- vulnerability study -- different categories have different sensitivity of other variables (e.g. Ridge with diff coefficients)
 
 - feature extraction??
 - impute the important features better
@@ -14,3 +15,5 @@ Finished TODOs:
 - better feature selection (kinda. not really :( )
 - try random combinations of features. see if the corration with y improves => tried sum and product. didn't work :(
 - transform y values into their corresponding cdfs? => doesn't make a difference :(
+- Which features affect classification (i.e. 0 vs non 0 loss)
+- split classification (0 vs non 0s) and regression? => didn't work!!!! :''''(

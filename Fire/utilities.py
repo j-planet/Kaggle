@@ -30,17 +30,19 @@ def process_data(dataFpath, impute, fieldsToUse=None, imputeDataDir=None, impute
     x_data = data
 
     # check if it's training data
-    if 'target' in data.columns:
-        y_data = data['target']
+    if 'target' in data.columns:    # train
+        y_data = np.array(data['target'], dtype=np.float)
         del x_data['target']
-    else:
-        y_data = None
-    y_data = np.array(y_data, dtype=np.float)
 
-    # make classification y
-    y_class = copy(y_data)
-    y_class[y_class > 0] = 1
-    y_class = np.array(y_class, dtype=np.int)
+        # make classification y
+        y_class = copy(y_data)
+        y_class[y_class > 0] = 1
+        y_class = np.array(y_class, dtype=np.int)
+    else:                           # test
+        y_data = None
+        y_class = None
+
+
 
     # delete unused columns
     for col in NON_PREDICTOR_COLS:

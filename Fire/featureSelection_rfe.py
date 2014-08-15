@@ -1,5 +1,6 @@
 import numpy as np
 from pprint import pprint
+import matplotlib.pyplot as plt
 
 from sklearn.cross_validation import KFold
 from sklearn.feature_selection import RFE, RFECV
@@ -83,7 +84,6 @@ def select_features(clf, x_train, y_train, columns, num_folds, step=19, random_s
 
 
     # Plot number of features VS. cross-validation scores
-    import matplotlib.pyplot as plt
     plt.figure()
     plt.xlabel("Number of features selected")
     plt.ylabel("Cross validation score (nb of correct classifications)")

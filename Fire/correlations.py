@@ -89,9 +89,9 @@ def create_new_features(xs, columns=None):
 
 if __name__ == '__main__':
     x_train, y_train, _, columns, weights, y_class = \
-        process_data('/home/jj/code/Kaggle/Fire/Data/train.csv',
+        process_data('/home/jj/code/Kaggle/Fire/Data/tinyTrain.csv',
                      impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire/intermediateOutput', imputeStrategy='median')
-                     # fieldsToUse=FIELDS_CORR_ORDERED[:25])
+                     # fieldsToUse=FIELDS_CLASS_GBC_TOP100[:15])
     # y_cdfs = np.array(pandas.read_csv('/home/jj/code/Kaggle/Fire/Data/y_pcdfs.csv')).reshape(len(y_train),)
 
     # ---------- correlations between top x variables and y
@@ -103,7 +103,7 @@ if __name__ == '__main__':
     # # ----------------- correlations between variables
     #
     # plot correlations between ALL variables
-    all_corrs = pandas.read_csv('/home/jj/code/Kaggle/Fire/corrs.csv')
+    all_corrs = pandas.read_csv('/home/jj/code/Kaggle/Fire/intermediateOutput/corrs.csv')
     plot_correlations(all_corrs, 'Correlations Between All X Variables')
 
     # plot correlations between TOP x variables
@@ -114,7 +114,7 @@ if __name__ == '__main__':
 
     # --------------- PCA
     pca = PCA(n_components=19)
-    newx = pca.fit_transform(x_train[:,topInd], y_train)
+    newx = pca.fit_transform(x_train[:, topInd], y_train)
     y_corrs, y_pVals = calculate_y_corrs(newx, y_train)
     plot_correlations(make_column_2D(y_corrs), 'Correlation of PCA Vectors with Y')
     plot_correlations(make_column_2D(y_pVals), 'P-Values of PCA Vectors')
