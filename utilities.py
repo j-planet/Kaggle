@@ -697,7 +697,10 @@ def jjcross_val_score(clf, X, y, score_func, cv, y_test=None, n_jobs=cpu_count()
                 clonedClf = clone(clf)
 
                 if weights is not None and 'sample_weight' in clonedClf.fit.func_code.co_varnames:
-                    clonedClf.fit(trainX, trainY, sample_weight=trainWeights, **fit_params)
+                    try:
+                        clonedClf.fit(trainX, trainY, sample_weight=trainWeights, **fit_params)
+                    except:
+                        clonedClf.fit(trainX, trainY, **fit_params)
                 else:
                     clonedClf.fit(trainX, trainY, **fit_params)
 

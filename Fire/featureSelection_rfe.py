@@ -95,10 +95,18 @@ def select_features(clf, x_train, y_train, columns, num_folds, step=19, random_s
 
 if __name__=='__main__':
     x_train, y_regress, _, columns_train, weights, y_class = \
-        process_data('/home/jj/code/Kaggle/Fire/Data/smallTrain.csv',
-                     impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire/intermediateOutput', imputeStrategy='median')
+        process_data('/home/jj/code/Kaggle/Fire/Data/train.csv',
+                     impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire/intermediateOutput', imputeStrategy='median',
+                     # fieldsToUse=FIELDS_CORR_ORDERED_TOP99[:20])
+                    fieldsToUse=FIELDS_CLASS_GBC_TOP100[:20])
 
-    # clf = Ridge(alpha = 0.1)
+    print 'CLASSIFICATION RFE'
     clf = GradientBoostingClassifier(learning_rate=0.1, loss='deviance')
     # rank_features(clf, x_train, y_class, columns_train, numFeatures=20, step=0.1)
-    select_features(clf, x_train, y_class, columns_train, num_folds=5, step=0.075)
+    select_features(clf, x_train, y_class, columns_train, num_folds=5, step=1, random_state=0)
+
+
+    # print 'REGRESSION RFE'
+    # clf = Ridge(alpha = 0.1)
+    # posYInd = y_regress > 0
+    # select_features(clf, x_train[posYInd, :], y_regress[posYInd], columns_train, num_folds=5, step=1, random_state=0)

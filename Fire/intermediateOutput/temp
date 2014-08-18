@@ -1,134 +1,86 @@
-/usr/bin/python2.7 /home/jj/code/Kaggle/Fire/featureSelection.py
-smalltrain!!!!!
-imputing x data
-================= select_features ================
------------- Results: ----------------
->>>> Optimal number of features : 19
->>>> grid scores:
-array([-0.18584212, -0.22434832, -0.28143671, -0.31932882, -0.27674395,
-       -0.27236526, -0.21225942, -0.21341772, -0.16620582, -0.22725422,
-       -0.23983804, -0.16276695, -0.16618019, -0.11587622, -0.15035799,
-       -0.05306769,  0.03338174,  0.13011507,  0.18463353,  0.10621221,
-        0.09273358,  0.07755346,  0.07112525,  0.07424509,  0.05956642,
-        0.03267703,  0.07785875,  0.04339435,  0.00811433,  0.07570155,
-        0.07078669,  0.03328377,  0.02371879,  0.01720307,  0.0217793 ,
-       -0.004933  ,  0.02696554, -0.07131545, -0.02967709, -0.03665085,
-       -0.05240069, -0.03830119, -0.02277681, -0.03062214, -0.01911441,
-       -0.06832008, -0.03111762, -0.06074406, -0.08382711, -0.02989389,
-       -0.07995073, -0.04884804, -0.05605107, -0.00729326,  0.02175532,
-        0.02267116, -0.01744258, -0.03385317, -0.02217422, -0.01300226,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-        0.        ,  0.        ,  0.        ])
->>>> ranking of columns:
-array(['geodemVar12', 'geodemVar5', 'geodemVar13', 'geodemVar16',
-       'geodemVar11', 'geodemVar1', 'geodemVar16', 'geodemVar11',
-       'geodemVar13', 'geodemVar12', 'geodemVar9', 'geodemVar8',
-       'geodemVar5', 'geodemVar16', 'geodemVar17', 'geodemVar17',
-       'geodemVar4', 'geodemVar7', 'geodemVar5', 'geodemVar15',
-       'geodemVar5', 'geodemVar11', 'geodemVar6', 'geodemVar15',
-       'geodemVar3', 'geodemVar12', 'crimeVar9', 'crimeVar9', 'geodemVar4',
-       'geodemVar7', 'geodemVar13', 'geodemVar7', 'geodemVar7',
-       'geodemVar8', 'geodemVar9', 'crimeVar8', 'geodemVar13',
-       'geodemVar14', 'geodemVar10', 'geodemVar2', 'geodemVar4',
-       'geodemVar2', 'geodemVar14', 'geodemVar11', 'geodemVar1',
-       'geodemVar6', 'geodemVar2', 'geodemVar1', 'crimeVar9',
-       'geodemVar13', 'crimeVar7', 'geodemVar9', 'geodemVar2',
-       'geodemVar17', 'geodemVar5', 'geodemVar9', 'geodemVar4',
-       'crimeVar7', 'geodemVar9', 'geodemVar14', 'geodemVar3',
-       'geodemVar4', 'geodemVar3', 'geodemVar16', 'var1', 'geodemVar14',
-       'var1', 'geodemVar13', 'crimeVar2', 'geodemVar15', 'geodemVar14',
-       'crimeVar1', 'geodemVar3', 'crimeVar9', 'geodemVar11', 'var1',
-       'var1', 'var12', 'geodemVar13', 'var1', 'geodemVar7', 'var10',
-       'var10', 'geodemVar10', 'crimeVar6', 'geodemVar11', 'var17',
-       'geodemVar11', 'var1', 'geodemVar8', 'geodemVar7', 'geodemVar7',
-       'geodemVar4', 'var2', 'geodemVar10', 'var12', 'geodemVar8',
-       'crimeVar9', 'crimeVar2', 'geodemVar8', 'geodemVar16', 'geodemVar6',
-       'geodemVar15', 'crimeVar5', 'geodemVar15', 'var3', 'geodemVar15',
-       'geodemVar17', 'crimeVar3', 'geodemVar8', 'geodemVar12',
-       'geodemVar15', 'var16', 'geodemVar11', 'crimeVar6', 'geodemVar16',
-       'geodemVar13', 'geodemVar12', 'var15', 'var16', 'geodemVar15',
-       'var14', 'geodemVar12', 'crimeVar2', 'geodemVar12', 'var14',
-       'var15', 'geodemVar17', 'geodemVar17', 'geodemVar5', 'var1', 'var6',
-       'var13', 'geodemVar5', 'crimeVar5', 'crimeVar3', 'geodemVar14',
-       'var1', 'geodemVar10', 'crimeVar5', 'geodemVar12', 'var4',
-       'geodemVar14', 'geodemVar17', 'crimeVar4', 'geodemVar14',
-       'crimeVar8', 'geodemVar10', 'var1', 'var1', 'geodemVar2',
-       'geodemVar13', 'geodemVar3', 'geodemVar6', 'geodemVar13',
-       'crimeVar4', 'geodemVar11', 'geodemVar6', 'geodemVar14', 'var16',
-       'geodemVar8', 'var9', 'geodemVar6', 'geodemVar17', 'geodemVar17',
-       'geodemVar4', 'var1', 'var17', 'geodemVar2', 'geodemVar9', 'var13',
-       'crimeVar8', 'geodemVar10', 'var1', 'geodemVar11', 'crimeVar3',
-       'geodemVar17', 'crimeVar1', 'geodemVar15', 'geodemVar15',
-       'crimeVar3', 'geodemVar15', 'geodemVar17', 'geodemVar3', 'var1',
-       'crimeVar8', 'geodemVar11', 'crimeVar4', 'crimeVar1', 'var17',
-       'geodemVar17', 'var1', 'geodemVar15', 'geodemVar15', 'geodemVar12',
-       'var1', 'var1', 'geodemVar16', 'geodemVar16', 'geodemVar17',
-       'geodemVar8', 'geodemVar8', 'crimeVar9', 'geodemVar12',
-       'geodemVar7', 'geodemVar8', 'geodemVar17', 'crimeVar4',
-       'geodemVar16', 'var1', 'geodemVar15', 'var7', 'geodemVar16',
-       'geodemVar17', 'crimeVar5', 'geodemVar11', 'geodemVar1',
-       'geodemVar12', 'crimeVar6', 'var1', 'crimeVar7', 'geodemVar17',
-       'var1', 'geodemVar15', 'crimeVar6', 'geodemVar10', 'geodemVar14',
-       'geodemVar6', 'geodemVar9', 'geodemVar12', 'geodemVar14', 'var5',
-       'crimeVar7', 'geodemVar17', 'geodemVar17', 'geodemVar14', 'var9',
-       'var8', 'crimeVar8', 'geodemVar6', 'crimeVar6', 'geodemVar10',
-       'geodemVar6', 'geodemVar12', 'geodemVar3', 'geodemVar16',
-       'geodemVar1', 'geodemVar14', 'geodemVar14', 'geodemVar7',
-       'geodemVar13', 'geodemVar9', 'geodemVar5', 'geodemVar5',
-       'geodemVar15', 'geodemVar4', 'geodemVar10', 'geodemVar2',
-       'geodemVar12', 'geodemVar7', 'geodemVar9', 'geodemVar9',
-       'geodemVar16', 'geodemVar17', 'geodemVar14', 'geodemVar1',
-       'geodemVar13', 'geodemVar13', 'geodemVar13', 'geodemVar15',
-       'geodemVar15', 'geodemVar17', 'geodemVar16', 'geodemVar17',
-       'geodemVar16', 'geodemVar14', 'geodemVar8', 'geodemVar10',
-       'geodemVar11', 'geodemVar9', 'geodemVar10', 'geodemVar16',
-       'geodemVar9', 'geodemVar13', 'geodemVar11', 'geodemVar16',
-       'geodemVar10', 'geodemVar15', 'geodemVar13', 'geodemVar17',
-       'geodemVar16', 'geodemVar14', 'geodemVar16', 'crimeVar7',
-       'geodemVar12', 'geodemVar16', 'geodemVar10', 'geodemVar16'], dtype=object)
+================== CV ==================
+FOR CLASSIFICATION:::::::::: <class 'sklearn.linear_model.bayes.ARDRegression'> rbf
+Some error happened: 
+FOR CLASSIFICATION:::::::::: <class 'sklearn.linear_model.bayes.BayesianRidge'> rbf
+/home/jj/code/Kaggle/Fire/main.py:82: DeprecationWarning: BaseException.message has been deprecated as of Python 2.6
+  print 'Some error happened:', err.message
+Fold 0, score = 0.137484
+Fold 1, score = 0.351784
+Fold 2, score = 0.170466
+Fold 3, score = 0.232074
+Fold 4, score = 0.273395
+>>>>>>>> 5-fold Score (mean, cv) = (0.233041, 0.325537)
+FOR CLASSIFICATION:::::::::: <class 'sklearn.linear_model.coordinate_descent.ElasticNet'> rbf
+Fold 0, score = 0.255762
+Fold 1, score = 0.231282
+Fold 2, score = 0.252904
+Fold 3, score = 0.190760
+Fold 4, score = 0.313182
+>>>>>>>> 5-fold Score (mean, cv) = (0.248778, 0.159636)
+FOR CLASSIFICATION:::::::::: <class 'sklearn.linear_model.least_angle.Lars'> rbf
+Fold 0, score = 0.179658
+Fold 1, score = 0.223655
+Fold 2, score = 0.259149
+Fold 3, score = 0.308932
+Fold 4, score = 0.246315
+>>>>>>>> 5-fold Score (mean, cv) = (0.243542, 0.174241)
+FOR CLASSIFICATION:::::::::: <class 'sklearn.linear_model.coordinate_descent.Lasso'> rbf
+Fold 0, score = 0.222063
+Fold 1, score = 0.347045
+Fold 2, score = 0.095697
+Fold 3, score = 0.242444
+Fold 4, score = 0.290530
+>>>>>>>> 5-fold Score (mean, cv) = (0.239555, 0.350063)
+FOR CLASSIFICATION:::::::::: <class 'sklearn.linear_model.least_angle.LassoLars'> rbf
+Fold 0, score = 0.211573
+Fold 1, score = 0.334534
+Fold 2, score = 0.117284
+Fold 3, score = 0.306633
+Fold 4, score = 0.232473
+>>>>>>>> 5-fold Score (mean, cv) = (0.240499, 0.318296)
+FOR CLASSIFICATION:::::::::: <class 'sklearn.linear_model.base.LinearRegression'> rbf
+Fold 0, score = 0.295354
+Fold 1, score = 0.201360
+Fold 2, score = 0.154065
+Fold 3, score = 0.287531
+Fold 4, score = 0.241541
+>>>>>>>> 5-fold Score (mean, cv) = (0.235970, 0.225222)
+FOR CLASSIFICATION:::::::::: <class 'sklearn.linear_model.logistic.LogisticRegression'> rbf
+Fold 0, score = -0.089109
+Fold 1, score = 0.043469
+Fold 2, score = -0.040679
+Fold 3, score = -0.006029
+Fold 4, score = 0.012512
+>>>>>>>> 5-fold Score (mean, cv) = (-0.015967, -2.856697)
+FOR CLASSIFICATION:::::::::: <class 'sklearn.linear_model.omp.OrthogonalMatchingPursuit'> rbf
+Fold 0, score = 0.276621
+Fold 1, score = 0.245888
+Fold 2, score = 0.261913
+Fold 3, score = 0.223237
+Fold 4, score = 0.201581
+>>>>>>>> 5-fold Score (mean, cv) = (0.241848, 0.110886)
+FOR CLASSIFICATION:::::::::: <class 'sklearn.linear_model.passive_aggressive.PassiveAggressiveClassifier'> rbf
+Fold 0, score = -0.050700
+Fold 1, score = -0.013312
+Fold 2, score = 0.068892
+Fold 3, score = 0.021822
+Fold 4, score = -0.114216
+>>>>>>>> 5-fold Score (mean, cv) = (-0.017503, -3.566500)
+FOR CLASSIFICATION:::::::::: <class 'sklearn.linear_model.passive_aggressive.PassiveAggressiveRegressor'> rbf
+Fold 0, score = 0.188883
+Fold 1, score = 0.145043
+Fold 2, score = 0.183000
+Fold 3, score = 0.203326
+Fold 4, score = 0.339728
+>>>>>>>> 5-fold Score (mean, cv) = (0.211996, 0.314656)
+FOR CLASSIFICATION:::::::::: <class 'sklearn.linear_model.perceptron.Perceptron'> rbf
+Fold 0, score = 0.011832
+Fold 1, score = 0.088838
+Fold 2, score = -0.007180
+Fold 3, score = -0.053898
+Fold 4, score = -0.104637
+>>>>>>>> 5-fold Score (mean, cv) = (-0.013009, -4.992509)
+
+
+================== RIDGE FIELDS ===================
+['weatherVar70', 'var10', 'geodemVar24', 'weatherVar195', 'var12', 'var2', 'var13', 'weatherVar140', 'weatherVar27', 'var14', 'weatherVar170', 'weatherVar186', 'weatherVar134', 'geodemVar37', 'weatherVar47', 'weatherVar51', 'weatherVar64', 'weatherVar10', 'weatherVar190', 'var8', 'geodemVar19', 'weatherVar192', 'geodemVar2', 'geodemVar9', 'geodemVar16', 'weatherVar36', 'crimeVar4', 'weatherVar153', 'weatherVar83', 'weatherVar176', 'weatherVar100', 'crimeVar5', 'geodemVar4', 'geodemVar30', 'weatherVar187', 'weatherVar157', 'weatherVar196', 'geodemVar34', 'weatherVar198', 'weatherVar143', 'weatherVar183', 'weatherVar33', 'crimeVar3', 'weatherVar14', 'weatherVar123', 'weatherVar106', 'weatherVar185', 'weatherVar107', 'weatherVar159', 'weatherVar21', 'weatherVar119', 'weatherVar40', 'weatherVar128', 'var5', 'weatherVar104', 'weatherVar227', 'crimeVar7', 'weatherVar175', 'weatherVar127', 'weatherVar58', 'geodemVar3', 'weatherVar161', 'var1', 'weatherVar188', 'geodemVar22', 'weatherVar109', 'weatherVar148', 'weatherVar179', 'weatherVar16', 'var3', 'weatherVar146', 'weatherVar199', 'weatherVar99', 'weatherVar164', 'weatherVar194', 'weatherVar139', 'var6', 'weatherVar18', 'weatherVar182', 'var9', 'weatherVar69', 'weatherVar5', 'weatherVar31', 'weatherVar112', 'geodemVar23', 'weatherVar150', 'weatherVar133', 'weatherVar15', 'weatherVar232', 'weatherVar216', 'weatherVar89', 'weatherVar42', 'weatherVar124', 'weatherVar55', 'weatherVar189', 'weatherVar193', 'weatherVar204', 'geodemVar7', 'weatherVar73', 'weatherVar135']
