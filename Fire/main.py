@@ -42,7 +42,7 @@ if __name__ == '__main__':
     x_train, y_train, _, columns_train, weights, y_class = \
         process_data('/home/jj/code/Kaggle/Fire/Data/train.csv',
                      impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire/intermediateOutput', imputeStrategy='median',
-                     fieldsToUse=['var10','var13','var14','var8', 'var15'])
+                     fieldsToUse=['geodemVar24', 'var13', 'var8', 'var15'])
                      # fieldsToUse=FIELDS_CLASS_GBC_TOP100[:30])
                      # fieldsToUse=FIELDS_CDF_CORR_TOP99[:19])
     # y_cdfs = np.array(pandas.read_csv('/home/jj/code/Kaggle/Fire/Data/y_pcdfs.csv')).reshape(NUM_TRAIN_SAMPLES,)[:len(y_train)]  # in case smallTrain is used
@@ -67,21 +67,20 @@ if __name__ == '__main__':
 
     # ================== CV ==================
     # print '================== CV =================='
-    # # for classifier in [RandomForestClassifier(n_estimators=50), GradientBoostingClassifier(learning_rate=0.05)]:
-    # #     clf = ClassifyThenRegress(classifier, regressor, classFields=classFields, regFields=regFields)
-    #
+    # # # # for classifier in [RandomForestClassifier(n_estimators=50), GradientBoostingClassifier(learning_rate=0.05)]:
+    # # # #     clf = ClassifyThenRegress(classifier, regressor, classFields=classFields, regFields=regFields)
+    # # #
     clf = Ridge(alpha=1, normalize=True)
-    # # print 'FOR CLASSIFICATION::::::::::', classifier.__class__
-    #
+    # print columns_train
+    # # # print 'FOR CLASSIFICATION::::::::::', classifier.__class__
+    # #
     # try:
     #     # scores = jjcross_val_score(classifier, x_train, y_class, normalized_weighted_gini,
     #     #                            KFold(len(y_train), n_folds=5, shuffle=True), weights=weights) #, n_jobs=1)
     #     scores = jjcross_val_score(clf, x_train, y_train, normalized_weighted_gini,
-    #                                KFold(len(y_train), n_folds=5, shuffle=True), weights=weights)
+    #                                KFold(len(y_train), n_folds=5, shuffle=True, random_state=0), weights=weights)
     # except Exception as err:
     #     print 'Some error happened:', err.message
-    # scores = jjcross_val_score(clf, x_train, y_train, normalized_weighted_gini,
-    #                            KFold(len(y_train), n_folds=5, shuffle=True), weights=weights)
 
     # ================== Grid Search for the Best Parameter ==================
     # gridSearch(clf, '/home/jj/code/Kaggle/Fire/cvRes/Ridge.txt', x_train, y_train, weights)
@@ -97,5 +96,5 @@ if __name__ == '__main__':
                                              fieldsToUse=columns_train)
     pred = clf.predict(x_test)
     pandas.DataFrame({'id': ids_pred, 'target': pred}).\
-        to_csv('/home/jj/code/Kaggle/Fire/submissions/intersect5Fields.csv', index=False)
+        to_csv('/home/jj/code/Kaggle/Fire/submissions/4Fields.csv', index=False)
 

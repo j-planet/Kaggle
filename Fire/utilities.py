@@ -46,18 +46,22 @@ def process_data(dataFpath, impute, fieldsToUse=None, imputeDataDir=None, impute
 
     # delete unused columns
     for col in NON_PREDICTOR_COLS:
-        del x_data[col]
+        if col in x_data.columns:
+            del x_data[col]
 
     # record columns
     columns = x_data.columns
 
     # handle ordinal continuous columns
-    x_data[ORDINAL_CONT_COLS + DISCRETE_COLS] = x_data[ORDINAL_CONT_COLS + DISCRETE_COLS].replace(to_replace='Z', value=np.nan)
+    for col in ORDINAL_CONT_COLS + DISCRETE_COLS:
+        if col in x_data.columns:
+            x_data[col] = x_data[col].replace(to_replace='Z', value=np.nan)
 
     # code discrete columns
     for col in DISCRETE_COLS:
-        for oldVal, newVal in DISCRETE_COLS_LOOKUP[col].iteritems():
-            x_data[col] = x_data[col].replace(to_replace=oldVal, value=newVal)
+        if col in x_data.columns:
+            for oldVal, newVal in DISCRETE_COLS_LOOKUP[col].iteritems():
+                x_data[col] = x_data[col].replace(to_replace=oldVal, value=newVal)
 
     if fieldsToUse is not None:
         x_data = x_data[fieldsToUse]
