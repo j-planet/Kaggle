@@ -48,6 +48,20 @@ for col in df.columns:
 x_train, y_train, _, columns_train, weights, y_class = \
     process_data(fname, impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire/intermediateOutput', imputeStrategy='median')
 
-clf = Ridge(alpha=1, normalize=True)
+clf = Ridge(alpha=1, normalize=False)
 clf.fit(x_train, y_train, sample_weight=weights)
-pprint(dict(zip(columns_train, np.abs(clf.coef_)*1e5)))
+pprint(dict(zip(columns_train, clf.coef_*1e5)))
+
+colInd = list(columns_train).index('geodemVar24')
+for val in np.unique(x_train[:, colInd]):
+    curInd = x_train[:,colInd]==val
+    curX = x_train[curInd, :]
+    curY = y_train[curInd]
+    curWeights = weights[curInd]
+    print '\n-----', val, curX.shape, len(curY)
+
+    clf = Ridge(alpha=1, normalize=False)
+    clf.fit(curX, curY, sample_weight=curWeights)
+
+    print 'intercept =', clf.intercept_
+    pprint(dict(zip(columns_train, clf.coef_*1e5)))
