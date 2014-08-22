@@ -22,6 +22,7 @@ from evaluation import normalized_weighted_gini
 from utilities import process_data, gridSearch
 from correlations import *
 from ClassifyThenRegress import ClassifyThenRegress
+from GroupThenRegress import GroupThenRegress
 
 
 def fieldNamesToInd(allColumnNames, selectNames):
@@ -36,23 +37,28 @@ def fieldNamesToInd(allColumnNames, selectNames):
 
 if __name__ == '__main__':
 
-    # print 'about to plot feature importances'
-    # plot_feature_importances(x_train, np.array(y_train), x_train.columns, numTopFeatures=0.85, numEstimators=50)
+
 
     x_train, y_train, _, columns_train, weights, y_class = \
         process_data('/home/jj/code/Kaggle/Fire/Data/train.csv',
                      impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire/intermediateOutput', imputeStrategy='median',
-                     fieldsToUse=['geodemVar24', 'var13', 'var8', 'var15'])
+                     fieldsToUse=['var11', 'var8', 'var13'])
                      # fieldsToUse=FIELDS_CLASS_GBC_TOP100[:30])
                      # fieldsToUse=FIELDS_CDF_CORR_TOP99[:19])
     # y_cdfs = np.array(pandas.read_csv('/home/jj/code/Kaggle/Fire/Data/y_pcdfs.csv')).reshape(NUM_TRAIN_SAMPLES,)[:len(y_train)]  # in case smallTrain is used
     # clf = GradientBoostingRegressor(loss='quantile', learning_rate=0.02, n_estimators=100, subsample=0.9)
     # clf = LogisticRegression()
+
+    plot_feature_importances(x_train, np.array(y_train), columns_train, numTopFeatures=3, numEstimators=50)
+
     classifier = SVR(kernel='rbf')
     regressor = Ridge(alpha=1)
     classFields = fieldNamesToInd(columns_train, FIELDS_CLASS_GBC_TOP100[:20])
     regFields = fieldNamesToInd(columns_train, FIELDS_CORR_ORDERED_TOP99[:20])
 
+    # clf = GroupThenRegress(list(columns_train).index('var8'),
+    #                        Ridge(alpha=1, normalize=False),
+    #                        verbose=1)
 
     # clf = SVR()
 
@@ -66,35 +72,22 @@ if __name__ == '__main__':
     # x_train = x_train[:, ord]
 
     # ================== CV ==================
-    # print '================== CV =================='
-    # # # # for classifier in [RandomForestClassifier(n_estimators=50), GradientBoostingClassifier(learning_rate=0.05)]:
-    # # # #     clf = ClassifyThenRegress(classifier, regressor, classFields=classFields, regFields=regFields)
-    # # #
-    clf = Ridge(alpha=1, normalize=True)
-    # print columns_train
-    # # # print 'FOR CLASSIFICATION::::::::::', classifier.__class__
-    # #
-    # try:
-    #     # scores = jjcross_val_score(classifier, x_train, y_class, normalized_weighted_gini,
-    #     #                            KFold(len(y_train), n_folds=5, shuffle=True), weights=weights) #, n_jobs=1)
-    #     scores = jjcross_val_score(clf, x_train, y_train, normalized_weighted_gini,
-    #                                KFold(len(y_train), n_folds=5, shuffle=True, random_state=0), weights=weights)
-    # except Exception as err:
-    #     print 'Some error happened:', err.message
+    print '================== CV =================='
+    scores = jjcross_val_score(regressor, x_train, y_train, normalized_weighted_gini,
+                               KFold(len(y_train), n_folds=5, shuffle=True, random_state=0), weights=weights)#, n_jobs=1)
 
     # ================== Grid Search for the Best Parameter ==================
-    # gridSearch(clf, '/home/jj/code/Kaggle/Fire/cvRes/Ridge.txt', x_train, y_train, weights)
+    # gridSearch(clf, '/home/jj/code/Kaggle/Fire/cvRes/RidgeGroupThenRegress.txt', x_train, y_train, weights, innerclf=True)
 
     # ================== train ==================
-    print '================== train =================='
-    clf.fit(x_train, y_train, sample_weight=weights)
-    #
-    # # ================== predict ==================
-    print '================== predict =================='
-    x_test, _, ids_pred, _, _, _ = process_data('/home/jj/code/Kaggle/Fire/Data/test.csv',
-                                             impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire/intermediateOutput', imputeStrategy='median',
-                                             fieldsToUse=columns_train)
-    pred = clf.predict(x_test)
-    pandas.DataFrame({'id': ids_pred, 'target': pred}).\
-        to_csv('/home/jj/code/Kaggle/Fire/submissions/4Fields.csv', index=False)
-
+    # print '================== train =================='
+    # clf.fit(x_train, y_train, sample_weight=weights)
+    # #
+    # # # ================== predict ==================
+    # print '================== predict =================='
+    # x_test, _, ids_pred, _, _, _ = process_data('/home/jj/code/Kaggle/Fire/Data/test.csv',
+    #                                          impute=True, imputeDataDir='/home/jj/code/Kaggle/Fire/intermediateOutput', imputeStrategy='median',
+    #                                          fieldsToUse=columns_train)
+    # pred = clf.predict(x_test)
+    # pandas.DataFrame({'id': ids_pred, 'target': pred}).\
+    #     to_csv('/home/jj/code/Kaggle/Fire/submissions/6FieldsGroupThenRegress_var8.csv', index=False)

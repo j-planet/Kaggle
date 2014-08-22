@@ -1,9 +1,9 @@
 TODOs:
 
-
+- v11 is def a leak
 
 - vulnerability study -- different categories have different sensitivity of other variables (e.g. Ridge with diff coefficients)
-
+- try fitting non-linear stuff (e.g. quadratic, beta)
 - feature extraction??
 - impute the important features better
 

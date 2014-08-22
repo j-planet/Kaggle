@@ -1,7 +1,7 @@
 NUM_TRAIN_SAMPLES = 452061
 
 # ----------- column stuff -------------
-NON_PREDICTOR_COLS = ['id', 'dummy', 'var11']
+NON_PREDICTOR_COLS = ['id', 'dummy']
 ORDINAL_CONT_COLS = ['var1', 'var3', 'var7', 'var8']
 DISCRETE_COLS = ['var2', 'var4', 'var5', 'var6', 'var9']
 

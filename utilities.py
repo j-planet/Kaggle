@@ -964,7 +964,7 @@ def plot_feature_importances(X, Y, labels, numTopFeatures, numEstimators = 50, t
     topFeatureInd, topFeatureLabels, topFeatureImportances = rf.top_indices(labels=labels, num_features=numTopFeatures)
 
     print 'Top features:'
-    pprint(np.transpose([topFeatureLabels, topFeatureImportances]))
+    pprint(dict(zip(np.array(topFeatureLabels), np.array(topFeatureImportances))))
 
     rf.plot(num_features=numTopFeatures, labels=labels, title=title)
 

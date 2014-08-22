@@ -111,7 +111,19 @@ def convert_to_cdfs(y):
     return np.array([(y<=v).sum() for v in y])*1./len(y)
 
 
-def gridSearch(clf, cvOutputFname, x_train, y_train, weights, num_folds = 10):
+def gridSearch(clf, cvOutputFname, x_train, y_train, weights, innerclf=False, num_folds = 10):
+    """
+
+    :param clf:
+    :param cvOutputFname:
+    :param x_train:
+    :param y_train:
+    :param weights:
+    :param innerclf: if true, the clf parameter is an "outter" object that wraps a "regressor" attribute of type Ridge;
+                    if false, clf is the Ridge itself
+    :param num_folds:
+    :return:
+    """
     print '================== Grid Search for the Best Parameter  =================='
 
     cvOutputFile = open(cvOutputFname, 'w')
@@ -119,9 +131,14 @@ def gridSearch(clf, cvOutputFname, x_train, y_train, weights, num_folds = 10):
     cvObj = KFold(len(y_train), n_folds=num_folds, shuffle=True, random_state=0)
 
     for tolerance in [0.00001, 0.0001, 0.001, 0.01, 0.1, 0.2, 0.5]:
-        for alpha in np.arange(0.01, 5, 0.025):
+        for alpha in np.arange(0.01, 5, 0.1):
             print '>>>> alpha=', alpha, ', tolerance =', tolerance
-            clf.set_params(alpha=alpha, tol=tolerance)
+
+            if innerclf:
+                clf.regressor.set_params(alpha=alpha, tol=tolerance)
+            else:
+                clf.set_params(alpha=alpha, tol=tolerance)
+
             scores = jjcross_val_score(clf, x_train, y_train, normalized_weighted_gini, cvObj, weights=weights,
                                        verbose=False)
             meanScore = np.mean(scores)
