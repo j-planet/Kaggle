@@ -913,21 +913,30 @@ def print_missing_values_info(data):
     temp_row = pandas.isnull(data).sum(axis=1)
     colsWithMissingData = list(data.columns[temp_col > 0])
 
+    print '\n-------- OVERALL null -----------'
     print 'The data has', (temp_col > 0).sum(), 'or', round(100. * (temp_col > 0).sum() / data.shape[1], 1), '% columns (', colsWithMissingData, ') with missing values.'
     print 'The data has', (temp_row > 0).sum(), 'or', round(100. * (temp_row > 0).sum() / data.shape[0], 1), '% rows with missing values.'
-
     print 'The data has', temp_col.sum(), 'or', round(
         100. * temp_col.sum() / (data.shape[0] * data.shape[1]), 1), '% missing values.'
 
+    print '\n-------- column-wise null -----------'
+    print pandas.DataFrame({'count': list(temp_col), 'percentage': np.array(temp_col)*100./data.shape[0]}, index=temp_col.index)
+
     # -------- check inf -----------
+    print '\n-------- column-wise inf -----------'
     for i in range(data.shape[1]):
+
+        if data.icol(i).dtype=='object':
+            print i, data.columns[i], 'skippped because it is of OBJECT type.'
+            continue
+
         try:
             temp = np.isinf(list(np.array(data)[:, i])).sum()
 
             if temp > 0:
                 print data.columns[i], 'has', temp, 'or', round(100.*temp/data.shape[0], 2), '% inf values.'
-        except:
-            print i, data.columns[i], 'skippped due to an error.'
+        except Exception as e:
+            print i, data.columns[i], 'skippped due to an error:', e.message
 
 
 def impute_field(inputTable, fieldName):
@@ -948,7 +957,7 @@ def impute_field(inputTable, fieldName):
     return X_present, y_present, X_missing, ind_missing
 
 
-def plot_feature_importances(X, Y, labels, numTopFeatures, numEstimators = 50, title = None, num_jobs = cpu_count()):
+def plot_feature_importances(X, Y, labels, numTopFeatures, numEstimators = 50, title = None, num_jobs = cpu_count()-1):
     """
     imputes and selects and plots the top features using random forest
     @param X: np.array
