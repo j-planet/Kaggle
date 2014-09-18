@@ -843,7 +843,7 @@ class RandomForester(BaseEstimator, TransformerMixin):
         importances = self._forest.feature_importances_
 
         ind = np.argsort(importances)[::-1][:n]
-        indLabels = None if labels is None else labels[ind]
+        indLabels = None if labels is None else np.array(labels)[ind]
 
         return ind, indLabels, importances[ind]
 
