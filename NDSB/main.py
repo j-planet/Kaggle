@@ -63,40 +63,42 @@ def get_minor_major_ratio(_im, plot=False):
 
     # First we threshold the image by only taking values below (i.e. darker than) the mean to reduce noise in the image
     # to use later as a mask
+    try:
+        imthr = np.where(_im > np.mean(_im), 0., 1.0)
+        imdilated = morphology.dilation(imthr, np.ones((4, 4)))
+        labels = (imthr * measure.label(imdilated)).astype(int)
 
-    imthr = np.where(_im > np.mean(_im), 0., 1.0)
-    imdilated = morphology.dilation(imthr, np.ones((4, 4)))
-    labels = (imthr * measure.label(imdilated)).astype(int)
+        # calculate common region properties for each region within the segmentation
+        regionmax = get_largest_region(props=measure.regionprops(labels), labelmap=labels, imagethres=imthr)
 
-    # calculate common region properties for each region within the segmentation
-    regionmax = get_largest_region(props=measure.regionprops(labels), labelmap=labels, imagethres=imthr)
+        # get a sense of elongatedness
+        ratio = -1 if regionmax is None or regionmax.major_axis_length == 0 \
+            else regionmax.minor_axis_length * 1.0 / regionmax.major_axis_length
 
-    # get a sense of elongatedness
-    ratio = -1 if regionmax is None or regionmax.major_axis_length == 0 \
-        else regionmax.minor_axis_length * 1.0 / regionmax.major_axis_length
+        if plot:
+            plt.figure(figsize=(8, 8))
+            sub1 = plt.subplot(2, 2, 1)
+            plt.imshow(_im, cmap=cm.gray)
+            sub1.set_title("Original Image")
 
-    if plot:
-        plt.figure(figsize=(8, 8))
-        sub1 = plt.subplot(2, 2, 1)
-        plt.imshow(_im, cmap=cm.gray)
-        sub1.set_title("Original Image")
+            sub2 = plt.subplot(2, 2, 2)
+            plt.imshow(imthr, cmap=cm.gray_r)
+            sub2.set_title("Thresholded Image")
 
-        sub2 = plt.subplot(2, 2, 2)
-        plt.imshow(imthr, cmap=cm.gray_r)
-        sub2.set_title("Thresholded Image")
+            sub3 = plt.subplot(2, 2, 3)
+            plt.imshow(imdilated, cmap=cm.gray_r)
+            sub3.set_title("Dilated Image")
 
-        sub3 = plt.subplot(2, 2, 3)
-        plt.imshow(imdilated, cmap=cm.gray_r)
-        sub3.set_title("Dilated Image")
+            sub4 = plt.subplot(2, 2, 4)
+            sub4.set_title("Labeled Image")
+            plt.imshow(labels)
 
-        sub4 = plt.subplot(2, 2, 4)
-        sub4.set_title("Labeled Image")
-        plt.imshow(labels)
+            plt.figure(figsize=(5, 5))
+            plt.imshow(np.where(labels == regionmax.label, 1.0, 0.0))
 
-        plt.figure(figsize=(5, 5))
-        plt.imshow(np.where(labels == regionmax.label, 1.0, 0.0))
-
-        plt.show()
+            plt.show()
+    except:
+        return -1
 
     return ratio
 
@@ -292,14 +294,20 @@ def multiclass_log_loss(y_true, y_pred, eps=1e-15):
 
 if __name__ == '__main__':
 
-    X_train, y, namesClasses, files = read_training_data(os.path.join(DATA_DIR, 'train'), 25, 25, [(get_minor_major_ratio, 1)])
-    X_test, testFnames = read_test_data(os.path.join(DATA_DIR, 'test'), 25, 25, [(get_minor_major_ratio, 1)])
+    maxWidth = 40
+    maxLength = 40
+    X_train, y, namesClasses, files = read_training_data(os.path.join(DATA_DIR, 'train'),
+                                                         maxWidth, maxLength, [(get_minor_major_ratio, 1)])
+    X_test, testFnames = read_test_data(os.path.join(DATA_DIR, 'test'),
+                                        maxWidth, maxLength, [(get_minor_major_ratio, 1)])
 
-    np.savetxt(os.path.join(DATA_DIR, 'XwithRatios.csv'), X_train, delimiter=',')
+    np.savetxt(os.path.join(DATA_DIR, 'XwithRatios_%i_%i.csv' % (maxWidth, maxLength)),
+               X_train, delimiter=',')
     np.savetxt(os.path.join(DATA_DIR, 'y.csv'), y, delimiter=',')
-    np.savetxt(os.path.join(DATA_DIR, 'XwithRatios_test.csv'), X_test, delimiter=',')
+    pandas.DataFrame(X_test, index=testFnames).\
+        to_csv(os.path.join(DATA_DIR, 'XwithRatios_test_%i_%i.csv' % (maxWidth, maxLength)), header=False)
 
-    print "Training"
+    print "CV-ing"
     clf = RandomForestClassifier(n_estimators=100, n_jobs=7)
     scores = cross_validation.cross_val_score(clf, X_train, y, cv=5, n_jobs=7)
 
