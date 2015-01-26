@@ -3,3 +3,6 @@ data/
 Data/
 submissions/
 *.pyc
+*.csv
+.DS_Store
+visualizations/
