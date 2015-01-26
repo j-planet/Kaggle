@@ -294,8 +294,8 @@ def multiclass_log_loss(y_true, y_pred, eps=1e-15):
 
 if __name__ == '__main__':
 
-    maxWidth = 40
-    maxLength = 40
+    maxWidth = 25
+    maxLength = 25
     X_train, y, namesClasses, files = read_training_data(os.path.join(DATA_DIR, 'train'),
                                                          maxWidth, maxLength, [(get_minor_major_ratio, 1)])
     X_test, testFnames = read_test_data(os.path.join(DATA_DIR, 'test'),
@@ -304,7 +304,7 @@ if __name__ == '__main__':
     np.savetxt(os.path.join(DATA_DIR, 'XwithRatios_%i_%i.csv' % (maxWidth, maxLength)),
                X_train, delimiter=',')
     np.savetxt(os.path.join(DATA_DIR, 'y.csv'), y, delimiter=',')
-    pandas.DataFrame(X_test, index=testFnames).\
+    pandas.DataFrame(X_test, index=testFnames). \
         to_csv(os.path.join(DATA_DIR, 'XwithRatios_test_%i_%i.csv' % (maxWidth, maxLength)), header=False)
 
     print "CV-ing"
@@ -335,5 +335,5 @@ if __name__ == '__main__':
     clf = RandomForestClassifier(n_estimators=100, n_jobs=7)
     clf.fit(X_train, y)
     y_test_pred = clf.predict_proba(X_test)
-    pandas.DataFrame(y_test_pred, index=testFnames).to_csv(os.path.join(DATA_DIR, 'submissions', 'base.csv'),
-                                                           header=False)
+    pandas.DataFrame(y_test_pred, columns=namesClasses, index=testFnames) \
+        .to_csv(os.path.join(DATA_DIR, 'submissions', 'base.csv'))
