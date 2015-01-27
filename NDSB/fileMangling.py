@@ -134,7 +134,7 @@ def write_data_to_files(sizes,
             to_csv(os.path.join(outputDir, 'X_test_%i_%i_rf.csv' % (width, height)), header=False)
 
 
-def read_data(width, height, inputDir = DATA_DIR, isTiny = False):
+def read_train_data(width, height, inputDir = DATA_DIR, isTiny = False):
     """
     :param width:
     :param height:
@@ -149,18 +149,37 @@ def read_data(width, height, inputDir = DATA_DIR, isTiny = False):
     X_train = np.array(pandas.read_csv(os.path.join(
         inputDir, '%sX_train_%i_%i.csv' % ('tiny' if isTiny else '', width, height)),
                                        header=None))
-
-    X_test = np.array(pandas.read_csv(
-        os.path.join(inputDir, '%sX_test_%i_%i.csv' % ('tiny' if isTiny else '', width, height)),
-        header=None))
-
     # ----- read y -----
     y = np.array(pandas.read_csv(os.path.join(inputDir, '%sy.csv' % ('tiny' if isTiny else '')),
                                  header=None)).flatten()
 
     print 'DONE reading data. :)'
 
-    return X_train, y.astype(int), X_test[:, 1:], X_test[:, 0]
+    return X_train, y.astype(int)
+
+
+def read_test_data(width, height, inputDir = DATA_DIR, isTiny = False):
+    """
+    :param width:
+    :param height:
+    :param inputDir:
+    :param isTiny:
+    :return: x train, y train, x test, xtest filenames
+    """
+
+    # ----- read x -----
+    return read_test_data_given_path(os.path.join(inputDir, '%sX_test_%i_%i.csv' % ('tiny' if isTiny else '', width, height)))
+
+
+def read_test_data_given_path(fpath):
+    print '======= Reading Data ======='
+
+    # ----- read x -----
+    X_test = np.array(pandas.read_csv(fpath, header=None))
+
+    print 'DONE reading data. :)'
+
+    return X_test[:, 1:], X_test[:, 0]
 
 
 if __name__ == '__main__':

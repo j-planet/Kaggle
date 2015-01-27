@@ -34,7 +34,7 @@ import scipy.stats as stats
 import seaborn as sns
 from skimage.feature import peak_local_max
 
-from fileMangling import read_data, write_data_to_files
+from fileMangling import read_train_data, read_test_data_given_path
 from features import FEATURE_NAMES
 plt.ioff()
 
@@ -128,11 +128,29 @@ def multiclass_log_loss(y_true, y_pred, eps=1e-15):
     return loss
 
 
+def predict_and_submit(X_train, y_train, testFpath, clfKlass,
+                       outputFpath = os.path.join(DATA_DIR, 'submissions',
+                                                  'base_%s.csv' % datetime.date.today().strftime('%b%d%Y')),
+                       **clfArgs):
+
+    X_test, testFnames = read_test_data_given_path(testFpath)
+
+    clf = clfKlass(**clfArgs)
+    clf.fit(X_train, y_train)
+
+    pred = np.zeros((X_test.shape[0], len(CLASS_NAMES)))
+    pred[:, np.sort(list(set(y_train)))] = clf.predict_proba(X_test)
+
+    res = pandas.DataFrame(pred, index=testFnames).reset_index()
+    res.columns = ['image'] + CLASS_NAMES
+    res.to_csv(outputFpath, index=False)
+
+
 if __name__ == '__main__':
 
     width, height = 25, 25
 
-    X_train, y, X_test, testFnames = read_data(width, height)
+    X_train, y = read_train_data(width, height)
 
     x_fieldnames = np.array(['p_%i' % i for i in range(width*height)] + FEATURE_NAMES)
 
@@ -161,14 +179,6 @@ if __name__ == '__main__':
 
     print '\n>>>>>>>Multi-class Log Loss =', multiclass_log_loss(y, y_pred_mat)
 
-    # make predictions and write to file
-    clf = RandomForestClassifier(n_estimators=100, n_jobs=cpu_count()-1)
-    clf.fit(X_train, y)
-
-
-
-    y_test_pred = np.zeros((X_test.shape[0], len(CLASS_NAMES)))
-    y_test_pred[:, np.sort(list(set(y)))] = clf.predict_proba(X_test)
-    pandas.DataFrame(y_test_pred, index=testFnames).reset_index() \
-        .to_csv(os.path.join(DATA_DIR, 'submissions', 'base_%s.csv' % datetime.date.today().strftime('%b%d%Y')),
-                header = ['image'] + CLASS_NAMES, index=False)
+    # predict_and_submit(X_train, y,
+    #                    os.path.join(DATA_DIR, 'X_test_%i_%i.csv' % (width, height)),
+    #                    RandomForestClassifier, n_estimators=100, n_jobs=cpu_count()-1)
