@@ -1,5 +1,10 @@
 __author__ = 'jennyyuejin'
 
+import sys
+sys.path.append('/Users/JennyYueJin/K/NDSB')
+
+from global_vars import DATA_DIR, CLASS_MAPPING, CLASS_NAMES
+
 import datetime
 import itertools
 import glob
@@ -25,8 +30,8 @@ import numpy as np
 import pandas
 from scipy import ndimage
 from skimage.feature import peak_local_max
+plt.ioff()
 
-from global_vars import DATA_DIR, CLASS_MAPPING, CLASS_NAMES
 
 
 def list_dirs(path):
@@ -98,7 +103,7 @@ def get_minor_major_ratio(_im, plot=False):
             plt.figure(figsize=(5, 5))
             plt.imshow(np.where(labels == regionmax.label, 1.0, 0.0))
 
-            plt.show()
+            plt.show(block=True)
     except:
         return [-1]
 
@@ -146,7 +151,7 @@ def append_features(X, imgWidth, imgHeight, featureFuncsNnum):
     return np.concatenate([X, featureMat], axis=1)
 
 
-def create_training_data_table(trainDatadir, maxWidth, maxHeight):
+def create_training_data_table(maxWidth, maxHeight, trainDatadir = os.path.join(DATA_DIR, 'train')):
 
     """
     :param trainDatadir:
@@ -340,8 +345,11 @@ def read_data(width, height, featureFuncsNnum, inputDir = DATA_DIR, isTiny = Fal
     return X_train, y.astype(int), X_test, X_test_woFeatures[:, 0]
 
 if __name__ == '__main__':
+
+    # create_training_data_table(25, 25)
+
     width, height = 25, 25
-    X_train, y, X_test, testFnames = read_data(width, height, [(get_minor_major_ratio, 1)], isTiny=False)
+    X_train, y, X_test, testFnames = read_data(width, height, [(get_minor_major_ratio, 1)], isTiny=True)
 
     # print "CV-ing"
     # scores = cross_validation.cross_val_score(RandomForestClassifier(n_estimators=100, n_jobs=cpu_count()-1),
@@ -374,3 +382,38 @@ if __name__ == '__main__':
     pandas.DataFrame(y_test_pred, index=testFnames).reset_index() \
         .to_csv(os.path.join(DATA_DIR, 'submissions', 'base_%s.csv' % datetime.date.today().strftime('%b%d%Y')),
                 header = ['image'] + CLASS_NAMES, index=False)
+
+
+res1 = pandas.read_csv('/Users/JennyYueJin/K/NDSB/Data/submissions/base_Jan262015.csv')
+res2 = pandas.read_csv('/Users/JennyYueJin/K/NDSB/Data/submissions/base.csv')
+res2.columns = res1.columns     # rearrange columns
+
+# compare column-wise averages
+res1ColMeans = np.mean(res1, axis=0)
+res2ColMeans = np.mean(res2, axis=0)
+
+x_before = np.array(pandas.read_csv('/Users/JennyYueJin/K/NDSB/Data/XwithRatios_25_tiny.csv', header=None))
+x_after = np.array(pandas.read_csv('/Users/JennyYueJin/K/NDSB/Data/tinyX_train_25_25.csv', header=None))
+
+print x_before[:,-1].mean()
+print append_features(x_after, 25, 25,  [(get_minor_major_ratio, 1)])[:,-1].mean()
+
+print x_before.shape
+print x_after.shape
+
+
+x_before.mean(axis=0)
+x_after.mean(axis=0)
+
+x_before[:3, :3]
+x_after[:3, :3]
+
+plt.ioff()
+line='train/acantharia_protist/23652.jpg'
+className = line.split(os.sep)[-2]
+classLabel = CLASS_MAPPING[className]
+imData = imread(os.path.join(DATA_DIR, line))
+print get_minor_major_ratio(imData, True)
+
+imData2 = resize(imData, (25, 25))
+print get_minor_major_ratio(imData2, True)
