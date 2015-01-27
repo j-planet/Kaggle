@@ -146,6 +146,15 @@ def predict_and_submit(X_train, y_train, testFpath, clfKlass,
     res.to_csv(outputFpath, index=False)
 
 
+def set_array_vals(target, rowInds, colInds, source):
+
+    assert len(rowInds), len(colInds) == source.shape
+
+    for rSource, rTarget in enumerate(rowInds):
+        for cSource, cTarget in enumerate(colInds):
+            target[rTarget, cTarget] = source[rSource, cSource]
+
+
 if __name__ == '__main__':
 
     width, height = 25, 25
@@ -172,7 +181,9 @@ if __name__ == '__main__':
         clf.fit(X_train[trainInd, :], y[trainInd])
 
         y_pred[testInd] = clf.predict(X_train[testInd, :])
-        y_pred_mat[testInd, :][:, np.sort(list(set(y)))] = clf.predict_proba(X_train[testInd, :])
+
+        set_array_vals(y_pred_mat, testInd, np.sort(list(set(y))), clf.predict_proba(X_train[testInd, :]))
+
 
     print '>>>>>> Classification Report'
     print classification_report(y, y_pred, target_names=CLASS_NAMES)
