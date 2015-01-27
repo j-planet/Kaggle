@@ -6,3 +6,4 @@ submissions/
 *.csv
 .DS_Store
 visualizations/
+.com.apple.timemachine.supported
