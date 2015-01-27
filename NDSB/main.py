@@ -146,6 +146,49 @@ def predict_and_submit(X_train, y_train, testFpath, clfKlass,
     res.to_csv(outputFpath, index=False)
 
 
+def evaluate(X, y, clfKlass, **clfArgs):
+    """
+    produces CV accuracy score, classification report by class and MCLL (multi-class log loss)
+    :param X:
+    :param y:
+    :param clfKlass:
+    :param clfArgs:
+    :return: MCLL
+    """
+
+    print '======= Evaluationg ======='
+
+    # # print "CV-ing"
+    # scores = cross_validation.cross_val_score(RandomForestClassifier(n_estimators=100, n_jobs=cpu_count()-1),
+    #                                           X_train, y, cv=5, n_jobs=cpu_count()-1)
+    #
+    # print "Accuracy of all classes:", np.mean(scores)
+
+
+    # Get the probability predictions for computing the log-loss function
+    # prediction probabilities number of samples, by number of classes
+    y_pred = y * 0
+    y_pred_mat = np.zeros((len(y), len(CLASS_NAMES)))   # forcing all class names, for testing with partial data
+
+
+    for trainInd, testInd in KFold(y, n_folds=5):
+        clf = clfKlass(**clfArgs)
+        clf.fit(X[trainInd, :], y[trainInd])
+
+        y_pred[testInd] = clf.predict(X[testInd, :])
+
+        set_array_vals(y_pred_mat, testInd, np.sort(list(set(y))), clf.predict_proba(X[testInd, :]))
+
+
+    print '>>>>>> Classification Report'
+    print classification_report(y, y_pred, target_names=CLASS_NAMES)
+
+    MCLL = multiclass_log_loss(y, y_pred_mat)
+    print '\n>>>>>>>Multi-class Log Loss =', MCLL
+
+    return MCLL
+
+
 def set_array_vals(target, rowInds, colInds, source):
 
     assert len(rowInds), len(colInds) == source.shape
@@ -163,33 +206,14 @@ if __name__ == '__main__':
 
     x_fieldnames = np.array(['p_%i' % i for i in range(width*height)] + FEATURE_NAMES)
 
-    # plot_feature_importances(X_train, y, x_fieldnames, 25)
-
-    # # print "CV-ing"
-    # scores = cross_validation.cross_val_score(RandomForestClassifier(n_estimators=100, n_jobs=cpu_count()-1),
-    #                                           X_train, y, cv=5, n_jobs=cpu_count()-1)
-    #
-    # print "Accuracy of all classes:", np.mean(scores)
-
-    # Get the probability predictions for computing the log-loss function
-    # prediction probabilities number of samples, by number of classes
-    y_pred = y * 0
-    y_pred_mat = np.zeros((len(y), len(CLASS_NAMES)))   # forcing all class names, for testing with partial data
-
-    for trainInd, testInd in KFold(y, n_folds=5):
-        clf = RandomForestClassifier(n_estimators=100, n_jobs=cpu_count()-1)
-        clf.fit(X_train[trainInd, :], y[trainInd])
-
-        y_pred[testInd] = clf.predict(X_train[testInd, :])
-
-        set_array_vals(y_pred_mat, testInd, np.sort(list(set(y))), clf.predict_proba(X_train[testInd, :]))
+    # plot_feature_importances(X_train, y, x_fieldnames, 0.5, numEstimators=100, min_samples_split=15)
 
 
-    print '>>>>>> Classification Report'
-    print classification_report(y, y_pred, target_names=CLASS_NAMES)
+    # for minSampleSplit in [2, 10, 15, 30, 100]:
+    #     print minSampleSplit
+    #     print evaluate(X_train, y, RandomForestClassifier,
+    #                    n_estimators=100, n_jobs=cpu_count()-1, min_samples_split=minSampleSplit)
 
-    print '\n>>>>>>>Multi-class Log Loss =', multiclass_log_loss(y, y_pred_mat)
-
-    # predict_and_submit(X_train, y,
-    #                    os.path.join(DATA_DIR, 'X_test_%i_%i.csv' % (width, height)),
-    #                    RandomForestClassifier, n_estimators=100, n_jobs=cpu_count()-1)
+    predict_and_submit(X_train, y,
+                       os.path.join(DATA_DIR, 'X_test_%i_%i.csv' % (width, height)),
+                       RandomForestClassifier, n_estimators=100, n_jobs=cpu_count()-1, min_samples_split=15)
