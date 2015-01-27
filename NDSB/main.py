@@ -5,6 +5,7 @@ sys.path.append('/Users/JennyYueJin/K/NDSB')
 
 from global_vars import DATA_DIR, CLASS_MAPPING, CLASS_NAMES
 
+import subprocess
 import datetime
 import itertools
 import glob
@@ -28,10 +29,38 @@ from skimage import measure
 from skimage import morphology
 import numpy as np
 import pandas
-from scipy import ndimage
+import scipy.stats as stats
+import seaborn as sns
 from skimage.feature import peak_local_max
 plt.ioff()
 
+
+def trim_image(imData, bgValue=255):
+
+    numRows, numCols = imData.shape
+
+    tempCols = [np.all(imData[:, col] == np.repeat(bgValue, numRows)) for col in range(numCols)]
+    tempRows = [np.all(imData[row, :] == np.repeat(bgValue, numCols)) for row in range(numRows)]
+
+    firstCol = tempCols.index(False)
+    firstRow = tempRows.index(False)
+    lastCol = -(1 + tempCols[::-1].index(False))
+    lastRow = -(1 + tempRows[::-1].index(False))
+
+    if lastRow == -1:
+        if lastCol == -1:
+            return imData[firstRow:, firstCol:]
+        else:
+            return imData[firstRow:, firstCol:(lastCol+1)]
+    else:
+        if lastCol == -1:
+            return imData[firstRow:(lastRow+1), firstCol:]
+        else:
+            return imData[firstRow:(lastRow+1), firstCol:(lastCol+1)]
+
+
+def num_lines_in_file(fpath):
+    return int(subprocess.check_output('wc -l %s' % fpath, shell=True).strip().split()[0])
 
 
 def list_dirs(path):
@@ -59,75 +88,144 @@ def get_largest_region(props, labelmap, imagethres):
 
     return props[np.argmax(areas)] if len(areas) > 0 else None
 
+PERCENTILES = [0.1, 1, 5, 10, 20, 30, 50, 75]
 
-def get_minor_major_ratio(_im, plot=False):
+
+# names:
+names = ['axisRatio',                  # minor to major axis ratio,
+         'fracBelowMean',         # fraction of below-mean pixels
+         'fracNonEmpty',  # frations of non-empty (i.e. < 255) pixels
+         'meanNonEmpty',           # mean non-empty pixel value
+         'numRegions',               # number of regions
+         'totalArea',
+         'maxArea',                 # area covered by the largest region
+         'fracMaxAreaToTotal',
+         'avgArea',             # average area covered
+         'maxToMinAreaRatio',    # largest to small region area ratio
+         'maxToMeanAreaRatio'] \
+        + ['nonEmptyPctl_%s' % str(p) for p in PERCENTILES] \
+        + ['belowMeanPctl_%s' % str(p) for p in PERCENTILES]
+
+
+def get_minor_major_ratio(imData, width, height, plot=False):
     """
     segment and return the minor-major axis ratio of the largest dark (above-average darkness) region
-    :param _im:
+    :param imData:
     :param plot:
     :return:
     """
 
-    # First we threshold the image by only taking values below (i.e. darker than) the mean to reduce noise in the image
-    # to use later as a mask
-    try:
-        imthr = np.where(_im > np.mean(_im), 0., 1.0)
-        imdilated = morphology.dilation(imthr, np.ones((4, 4)))
-        labels = (imthr * measure.label(imdilated)).astype(int)
+    totalArea = (np.where(imData < 255, 1, 0)).sum()
+    belowMeanFilter = np.where(imData > np.mean(imData), 0., 1.0)
+    imdilated = morphology.dilation(belowMeanFilter, np.ones((3, 3)))
+    labels = (belowMeanFilter * measure.label(imdilated)).astype(int)
 
-        # calculate common region properties for each region within the segmentation
-        regionmax = get_largest_region(props=measure.regionprops(labels), labelmap=labels, imagethres=imthr)
+    # calculate common region properties for each region within the segmentation
+    regions = measure.regionprops(labels)
 
-        # get a sense of elongatedness
-        ratio = -1 if regionmax is None or regionmax.major_axis_length == 0 \
-            else regionmax.minor_axis_length * 1.0 / regionmax.major_axis_length
+    areas = [(None
+              if sum(belowMeanFilter[labels == region.label])*1.0/region.area < 0.50
+              else region.filled_area)
+             for region in regions]
+    hasAreas = len(areas) > 0
+
+    pixelData = None
+
+    if hasAreas:
+        regionmax = regions[np.argmax(areas)]
+
+        # trim image to the max region
+        mask = np.where(labels == regionmax.label, 1, 255)
+        im_lr = np.minimum(imData*mask, 255)    # largest-region image
+        trimmedMax = trim_image(im_lr)
+        pixelData = resize(trimmedMax.astype('uint8'), (width, height))
 
         if plot:
-            plt.figure(figsize=(8, 8))
-            sub1 = plt.subplot(2, 2, 1)
-            plt.imshow(_im, cmap=cm.gray)
-            sub1.set_title("Original Image")
+            plt.figure()
+            plt.imshow(im_lr, cmap=cm.gray)
+            plt.title('Largest Region')
 
-            sub2 = plt.subplot(2, 2, 2)
-            plt.imshow(imthr, cmap=cm.gray_r)
-            sub2.set_title("Thresholded Image")
+            plt.figure()
+            plt.imshow(trimmedMax, cmap=cm.gray)
+            plt.title('Trimmed Largest Region')
+    else:
+        pixelData = resize(imData, (width, height))
 
-            sub3 = plt.subplot(2, 2, 3)
-            plt.imshow(imdilated, cmap=cm.gray_r)
-            sub3.set_title("Dilated Image")
+    pixelData = pixelData.reshape((width * height, ))
 
-            sub4 = plt.subplot(2, 2, 4)
-            sub4.set_title("Labeled Image")
-            plt.imshow(labels)
+    # get a sense of elongatedness
+    ratio = -1 if not hasAreas or regionmax.major_axis_length == 0 \
+        else regionmax.minor_axis_length * 1.0 / regionmax.major_axis_length
 
-            plt.figure(figsize=(5, 5))
-            plt.imshow(np.where(labels == regionmax.label, 1.0, 0.0))
+    nonEmpty = imData[imData < 255]
+    belowMean = imData[imData < imData.mean()]
 
-            plt.show(block=True)
-    except:
-        return [-1]
+    if plot:
+        plt.figure(figsize=(8, 8))
+        sub1 = plt.subplot(2, 2, 1)
+        plt.imshow(imData, cmap=cm.gray)
+        sub1.set_title("Original Image")
 
-    return [ratio]
+        sub2 = plt.subplot(2, 2, 2)
+        plt.imshow(belowMeanFilter, cmap=cm.gray_r)
+        sub2.set_title("Thresholded Image")
+
+        sub3 = plt.subplot(2, 2, 3)
+        plt.imshow(imdilated, cmap=cm.gray_r)
+        sub3.set_title("Dilated Image")
+
+        sub4 = plt.subplot(2, 2, 4)
+        sub4.set_title("Labeled Image")
+        plt.imshow(labels)
+
+        plt.figure(figsize=(5, 5))
+        plt.imshow(np.where(labels == regionmax.label, 1.0, 0.0))
+
+        plt.figure()
+        sns.kdeplot(belowMean, label='Below-Mean')
+        sns.kdeplot(nonEmpty, label='Non-Empty')
+        sns.kdeplot(imData.flatten(), label='Everything')
+
+        plt.show(block=True)
+
+    featureData = [ratio,                  # minor to major axis ratio,
+                   belowMeanFilter.sum()*1./imData.size,         # fraction of below-mean pixels
+                   nonEmpty.size * 1. / imData.size,  # frations of non-empty (i.e. < 255) pixels
+                   nonEmpty.mean(),           # mean non-empty pixel value
+                   len(regions),               # number of regions
+                   totalArea,
+                   max(areas) if hasAreas else -1,                 # area covered by the largest region
+                   max(areas)*1./totalArea if hasAreas else -1,
+                   np.mean(areas) if hasAreas else -1,             # average area covered
+                   max(areas) / min(areas) if hasAreas else -1,    # largest to small region area ratio
+                   max(areas) / np.mean(areas) if hasAreas else -1] \
+                  + stats.scoreatpercentile(nonEmpty, PERCENTILES) \
+                  + stats.scoreatpercentile(belowMean, PERCENTILES)    # percentiles of below-mean pixel values
+
+    return np.append(pixelData, featureData)
 
 
-def create_test_data_table(testDataDir, maxWidth, maxHeight):
+def create_test_data_table(testFListFpath, width, height):
 
-    imageSize = maxWidth * maxHeight
-    num_features = imageSize
-    imgNames = [name for name in os.walk(testDataDir).next()[2] if name[-4:].lower()=='.jpg']
+    numSamples = num_lines_in_file(testFListFpath)
+    X = np.zeros((numSamples, width * height + len(names)))
+    imgNames = [None]*numSamples
 
-    report = [int((j+1)*len(imgNames)/100.) for j in range(100)]
-    X = np.zeros((len(imgNames), num_features), dtype=float)
+    printIs = [int(i/100.*numSamples) for i in np.arange(100)]
+    i = 0
 
-    for i, imgFname in enumerate(imgNames):
+    for fpath in open(testFListFpath):
+        fpath = fpath.strip()
 
-        image = imread("{0}{1}{2}".format(testDataDir, os.sep, imgFname), as_grey=True)
+        imData = imread(os.path.join(DATA_DIR, fpath))
+        X[i, :] = get_minor_major_ratio(imData, width, height)
 
-        X[i, :] = resize(image, (maxWidth, maxHeight)).reshape((imageSize, ))
+        imgNames[i] = fpath.split(os.sep)[-1]
 
-        # report progress for each 5% done
-        if i in report:
-            print np.ceil(i *100.0 / len(imgNames)), "% done"
+        i += 1
+
+        if i in printIs:
+            print '%i%% done...' % (100. * i/numSamples)
 
     return X, imgNames
 
@@ -151,75 +249,37 @@ def append_features(X, imgWidth, imgHeight, featureFuncsNnum):
     return np.concatenate([X, featureMat], axis=1)
 
 
-def create_training_data_table(maxWidth, maxHeight, trainDatadir = os.path.join(DATA_DIR, 'train')):
+def create_training_data_table(trainFListFpath, width, height):
 
     """
     :param trainDatadir:
-    :param maxWidth:
-    :param maxHeight:
+    :param width:
+    :param height:
     :return:    X (numpy array of size numImgs x (maxWidth x maxHeight),
                 y (numpy array of size (numImgs,))
     """
 
-    directory_names = list(set(list_dirs(trainDatadir)).difference([trainDatadir]))
+    numSamples = num_lines_in_file(trainFListFpath)
+    X = np.zeros((numSamples, width * height + len(names)))
+    y = np.zeros((numSamples, ))
 
-    #get the total training images
-    numberofImages = 0
-
-    for classFolder in directory_names:
-        for imgFname in os.walk(classFolder).next()[2]:
-            # Only read in the images
-            if imgFname[-4:] != ".jpg":
-                continue
-            numberofImages += 1
-
-
-    imageSize = maxWidth * maxHeight
-    num_rows = numberofImages # one row for each image in the training dataset
-    num_cols = imageSize
-
-    # X is the feature vector with one row of features per image
-    # consisting of the pixel values and our metric
-    X = np.zeros((num_rows, num_cols), dtype=float)
-    y = np.zeros(num_rows)      # y is the numeric class label
-
+    printIs = [int(i/100.*numSamples) for i in np.arange(100)]
     i = 0
-    report = [int((j+1)*num_rows/100.) for j in range(100)]
 
-    print "Reading images"
+    for fpath in open(trainFListFpath):
+        fpath = fpath.strip()
 
-    # Navigate through the list of directories
-    for classFolder in directory_names:
+        className = fpath.split(os.sep)[-2]
+        classLabel = CLASS_MAPPING[className]
 
-        # Append the string class name for each class
-        curClass = classFolder.split(os.sep)[-1].strip()
-        curLabel = CLASS_MAPPING[curClass]
+        imData = imread(os.path.join(DATA_DIR, fpath))
+        X[i, :] = get_minor_major_ratio(imData, width, height)
+        y[i] = classLabel
 
-        print 'Class:', curClass, curLabel
+        i += 1
 
-        for imgFname in os.walk(classFolder).next()[2]:
-
-            if imgFname[-4:] != ".jpg":
-                continue
-
-            # Read in the images and create the features
-            nameFileImage = "{0}{1}{2}".format(classFolder, os.sep, imgFname)
-            image = imread(nameFileImage, as_grey=True)
-
-            # print 'Resizing from %ix%i to %ix%i' % (image.shape[0], image.shape[1], maxPixel, maxPixel)
-            # Store the rescaled image pixels and the axis ratio
-            X[i, :] = np.reshape(resize(image, (maxWidth, maxHeight)), (1, imageSize))
-
-            # Store the classlabel
-            y[i] = curLabel
-
-
-            # report progress for each 5% done
-            if i in report:
-                print np.ceil(i * 100.0 / num_rows), "% done"
-
-            i += 1
-
+        if i in printIs:
+            print '%i%% done...' % (100. * i/numSamples)
 
     return X, y.astype(int)
 
@@ -289,7 +349,7 @@ def multiclass_log_loss(y_true, y_pred, eps=1e-15):
     return loss
 
 
-def write_data_to_files(sizes, outputDir = DATA_DIR):
+def write_data_to_files(sizes, trainFListFpath, testFListFpath, outputDir = DATA_DIR):
     """
     most likely to be called once only
     :param sizes: list of sizes. [(width_0, height_0), ..., (width_n, height_n)]
@@ -298,9 +358,7 @@ def write_data_to_files(sizes, outputDir = DATA_DIR):
 
     for width, height in sizes:
 
-        X_train, y = create_training_data_table(os.path.join(DATA_DIR, 'train'), width, height)
-        X_test, testFnames = create_test_data_table(os.path.join(DATA_DIR, 'test'), width, height)
-
+        X_train, y = create_training_data_table(trainFListFpath, width, height)
         # train X
         np.savetxt(os.path.join(outputDir, 'X_train_%i_%i.csv' % (width, height)),
                    X_train, delimiter=',')
@@ -308,112 +366,54 @@ def write_data_to_files(sizes, outputDir = DATA_DIR):
         # train y
         np.savetxt(os.path.join(outputDir, 'y.csv'), y, delimiter=',')
 
+
+        X_test, testFnames = create_test_data_table(testFListFpath, width, height)
         # test X
         pandas.DataFrame(X_test, index=testFnames). \
             to_csv(os.path.join(outputDir, 'X_test_%i_%i.csv' % (width, height)), header=False)
 
 
-def read_data(width, height, featureFuncsNnum, inputDir = DATA_DIR, isTiny = False):
-    """
-    :param width:
-    :param height:
-    :param featureFuncsNnum:
-    :param inputDir:
-    :param isTiny:
-    :return: x train, y train, x test, xtest filenames
-    """
-
-    print '======= Reading Data ======='
-
-    # ----- read x -----
-    X_train_woFeatures = np.array(pandas.read_csv(os.path.join(
-        inputDir, '%sX_train_%i_%i.csv' % ('tiny' if isTiny else '', width, height)),
-                                                  header=None))
-    X_train = append_features(X_train_woFeatures, width, height, featureFuncsNnum)
-
-    X_test_woFeatures = np.array(pandas.read_csv(
-        os.path.join(inputDir, '%sX_test_%i_%i.csv' % ('tiny' if isTiny else '', width, height)),
-        header=None))
-    X_test = append_features(X_test_woFeatures[:, 1:], width, height, featureFuncsNnum)
-
-    # ----- read y -----
-    y = np.array(pandas.read_csv(os.path.join(inputDir, '%sy.csv' % ('tiny' if isTiny else '')),
-                                 header=None)).flatten()
-
-    print 'DONE reading data. :)'
-
-    return X_train, y.astype(int), X_test, X_test_woFeatures[:, 0]
-
 if __name__ == '__main__':
 
-    # create_training_data_table(25, 25)
 
     width, height = 25, 25
-    X_train, y, X_test, testFnames = read_data(width, height, [(get_minor_major_ratio, 1)], isTiny=True)
+    write_data_to_files([(25, 25), (35, 35)],
+                        os.path.join(DATA_DIR, 'trainFnames.txt'),
+                        os.path.join(DATA_DIR, 'testFnames.txt'))
 
-    # print "CV-ing"
+    # X_train, y = create_training_data_table('/Users/jennyyuejin/K/NDSB/Data/trainFnames.txt', 25, 25)
+    # X_test, testFnames = create_test_data_table('/Users/jennyyuejin/K/NDSB/Data/testFnames.txt', 25, 25)
+    #
+    # # print "CV-ing"
     # scores = cross_validation.cross_val_score(RandomForestClassifier(n_estimators=100, n_jobs=cpu_count()-1),
     #                                           X_train, y, cv=5, n_jobs=cpu_count()-1)
     #
     # print "Accuracy of all classes:", np.mean(scores)
+    #
+    # # Get the probability predictions for computing the log-loss function
+    # # prediction probabilities number of samples, by number of classes
+    # y_pred = y * 0
+    # y_pred_mat = np.zeros((len(y), len(CLASS_NAMES)))   # forcing all class names, for testing with partial data
+    #
+    # for trainInd, testInd in KFold(y, n_folds=5):
+    #     clf = RandomForestClassifier(n_estimators=100, n_jobs=cpu_count()-1)
+    #     clf.fit(X_train[trainInd, :], y[trainInd])
+    #
+    #     y_pred[testInd] = clf.predict(X_train[testInd, :])
+    #     y_pred_mat[testInd, :][:, np.sort(list(set(y)))] = clf.predict_proba(X_train[testInd, :])
+    #
+    # print '>>>>>> Classification Report'
+    # print classification_report(y, y_pred, target_names=CLASS_NAMES)
+    #
+    # print '\n>>>>>>>Multi-class Log Loss =', multiclass_log_loss(y, y_pred_mat)
+    #
+    # # make predictions and write to file
+    # clf = RandomForestClassifier(n_estimators=100, n_jobs=cpu_count()-1)
+    # clf.fit(X_train, y)
+    # y_test_pred = np.zeros((X_test.shape[0], len(CLASS_NAMES)))
+    # y_test_pred[:, np.sort(list(set(y)))] = clf.predict_proba(X_test)
+    # pandas.DataFrame(y_test_pred, index=testFnames).reset_index() \
+    #     .to_csv(os.path.join(DATA_DIR, 'submissions', 'base_%s.csv' % datetime.date.today().strftime('%b%d%Y')),
+    #             header = ['image'] + CLASS_NAMES, index=False)
+#
 
-    # Get the probability predictions for computing the log-loss function
-    # prediction probabilities number of samples, by number of classes
-    y_pred = y * 0
-    y_pred_mat = np.zeros((len(y), len(CLASS_NAMES)))   # forcing all class names, for testing with partial data
-
-    for trainInd, testInd in KFold(y, n_folds=5):
-        clf = RandomForestClassifier(n_estimators=100, n_jobs=cpu_count()-1)
-        clf.fit(X_train[trainInd, :], y[trainInd])
-
-        y_pred[testInd] = clf.predict(X_train[testInd, :])
-        y_pred_mat[testInd, :][:, np.sort(list(set(y)))] = clf.predict_proba(X_train[testInd, :])
-
-    print '>>>>>> Classification Report'
-    print classification_report(y, y_pred, target_names=CLASS_NAMES)
-
-    print '\n>>>>>>>Multi-class Log Loss =', multiclass_log_loss(y, y_pred_mat)
-
-    # make predictions and write to file
-    clf = RandomForestClassifier(n_estimators=100, n_jobs=cpu_count()-1)
-    clf.fit(X_train, y)
-    y_test_pred = np.zeros((X_test.shape[0], len(CLASS_NAMES)))
-    y_test_pred[:, np.sort(list(set(y)))] = clf.predict_proba(X_test)
-    pandas.DataFrame(y_test_pred, index=testFnames).reset_index() \
-        .to_csv(os.path.join(DATA_DIR, 'submissions', 'base_%s.csv' % datetime.date.today().strftime('%b%d%Y')),
-                header = ['image'] + CLASS_NAMES, index=False)
-
-
-res1 = pandas.read_csv('/Users/JennyYueJin/K/NDSB/Data/submissions/base_Jan262015.csv')
-res2 = pandas.read_csv('/Users/JennyYueJin/K/NDSB/Data/submissions/base.csv')
-res2.columns = res1.columns     # rearrange columns
-
-# compare column-wise averages
-res1ColMeans = np.mean(res1, axis=0)
-res2ColMeans = np.mean(res2, axis=0)
-
-x_before = np.array(pandas.read_csv('/Users/JennyYueJin/K/NDSB/Data/XwithRatios_25_tiny.csv', header=None))
-x_after = np.array(pandas.read_csv('/Users/JennyYueJin/K/NDSB/Data/tinyX_train_25_25.csv', header=None))
-
-print x_before[:,-1].mean()
-print append_features(x_after, 25, 25,  [(get_minor_major_ratio, 1)])[:,-1].mean()
-
-print x_before.shape
-print x_after.shape
-
-
-x_before.mean(axis=0)
-x_after.mean(axis=0)
-
-x_before[:3, :3]
-x_after[:3, :3]
-
-plt.ioff()
-line='train/acantharia_protist/23652.jpg'
-className = line.split(os.sep)[-2]
-classLabel = CLASS_MAPPING[className]
-imData = imread(os.path.join(DATA_DIR, line))
-print get_minor_major_ratio(imData, True)
-
-imData2 = resize(imData, (25, 25))
-print get_minor_major_ratio(imData2, True)
