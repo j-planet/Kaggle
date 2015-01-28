@@ -39,8 +39,6 @@ from features import FEATURE_NAMES
 plt.ioff()
 
 
-
-
 def print_matrix(mat, axis):
     assert axis in [0, 1]
 
@@ -180,8 +178,8 @@ def evaluate(X, y, clfKlass, **clfArgs):
         set_array_vals(y_pred_mat, testInd, np.sort(list(set(y))), clf.predict_proba(X[testInd, :]))
 
 
-    print '>>>>>> Classification Report'
-    print classification_report(y, y_pred, target_names=CLASS_NAMES)
+    # print '>>>>>> Classification Report'
+    # print classification_report(y, y_pred, target_names=CLASS_NAMES)
 
     MCLL = multiclass_log_loss(y, y_pred_mat)
     print '\n>>>>>>>Multi-class Log Loss =', MCLL
@@ -193,9 +191,18 @@ def set_array_vals(target, rowInds, colInds, source):
 
     assert len(rowInds), len(colInds) == source.shape
 
-    for rSource, rTarget in enumerate(rowInds):
-        for cSource, cTarget in enumerate(colInds):
-            target[rTarget, cTarget] = source[rSource, cSource]
+    wideMat = np.zeros((len(rowInds), target.shape[1]))
+    wideMat[:, colInds] = source
+
+    target[rowInds, :] = wideMat
+
+
+def plot_pixel_importances(width, height, X, y, **rfArgs):
+    clf = RandomForestClassifier(n_jobs=cpu_count()-1, **rfArgs)
+    clf.fit(X, y)
+
+    plt.matshow(clf.feature_importances_[ : width*height].reshape((width, height)))
+    plt.show()
 
 
 if __name__ == '__main__':
@@ -206,14 +213,18 @@ if __name__ == '__main__':
 
     x_fieldnames = np.array(['p_%i' % i for i in range(width*height)] + FEATURE_NAMES)
 
-    # plot_feature_importances(X_train, y, x_fieldnames, 0.5, numEstimators=100, min_samples_split=15)
+    # plot_feature_importances(X_train, y, x_fieldnames, 25, numEstimators=100, min_samples_split=15)
 
 
-    # for minSampleSplit in [2, 10, 15, 30, 100]:
-    #     print minSampleSplit
-    #     print evaluate(X_train, y, RandomForestClassifier,
-    #                    n_estimators=100, n_jobs=cpu_count()-1, min_samples_split=minSampleSplit)
+    for minSampleSplit in [10, 12, 15, 20]:
+        print minSampleSplit
+        print evaluate(X_train, y, RandomForestClassifier,
+                       n_estimators=100, n_jobs=cpu_count()-1, min_samples_split=minSampleSplit)
 
-    predict_and_submit(X_train, y,
-                       os.path.join(DATA_DIR, 'X_test_%i_%i.csv' % (width, height)),
-                       RandomForestClassifier, n_estimators=100, n_jobs=cpu_count()-1, min_samples_split=15)
+    # predict_and_submit(X_train, y,
+    #                    os.path.join(DATA_DIR, 'X_test_%i_%i.csv' % (width, height)),
+    #                    RandomForestClassifier, n_estimators=100, n_jobs=cpu_count()-1, min_samples_split=15)
+
+    # TODO:
+    #   - rotate the image so that the major axes all point in the same direction -> degree of rotation feature
+    #   - deep learning!
