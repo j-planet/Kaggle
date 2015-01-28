@@ -92,6 +92,10 @@ def trim_image(imData, bgValue=255):
     tempCols = [np.all(imData[:, col] == np.repeat(bgValue, numRows)) for col in range(numCols)]
     tempRows = [np.all(imData[row, :] == np.repeat(bgValue, numCols)) for row in range(numRows)]
 
+    if False not in tempRows or False not in tempCols:
+        print 'The entire image is blank with background %i. Not trimming...' % bgValue
+        return imData
+
     firstCol = tempCols.index(False)
     firstRow = tempRows.index(False)
     lastCol = -(1 + tempCols[::-1].index(False))
@@ -172,7 +176,7 @@ def largest_region(imData):
     return regionMax, rotatedRegionMaxImg, angle, regionLabels, regions, areas, belowMeanFilter, dialated
 
 
-def get_minor_major_ratio(imData, width, height, plot=False):
+def create_features(imData, width, height, plot=False):
     """
     segment and return the minor-major axis ratio of the largest dark (above-average darkness) region
     :param imData:

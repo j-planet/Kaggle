@@ -34,7 +34,7 @@ import scipy.stats as stats
 import seaborn as sns
 from skimage.feature import peak_local_max
 
-from fileMangling import read_train_data, read_test_data_given_path
+from fileMangling import read_train_data, read_test_data_given_path, write_train_data_to_files, write_test_data_to_files
 from features import FEATURE_NAMES
 plt.ioff()
 
@@ -209,22 +209,25 @@ if __name__ == '__main__':
 
     width, height = 25, 25
 
-    X_train, y = read_train_data(width, height)
+    # write_train_data_to_files([(width, height)])
+    write_test_data_to_files([(width, height)])
 
-    x_fieldnames = np.array(['p_%i' % i for i in range(width*height)] + FEATURE_NAMES)
+    # X_train, y = read_train_data(width, height)
 
+    # x_fieldnames = np.array(['p_%i' % i for i in range(width*height)] + FEATURE_NAMES)
+    #
     # plot_feature_importances(X_train, y, x_fieldnames, 25, numEstimators=100, min_samples_split=15)
 
+    # plot_pixel_importances(width, height, X_train, y)
 
-    for minSampleSplit in [10, 12, 15, 20]:
-        print minSampleSplit
-        print evaluate(X_train, y, RandomForestClassifier,
-                       n_estimators=100, n_jobs=cpu_count()-1, min_samples_split=minSampleSplit)
+    # for minSampleSplit in [10, 12, 15, 20]:
+    #     print minSampleSplit
+    #     print evaluate(X_train, y, RandomForestClassifier,
+    #                    n_estimators=100, n_jobs=cpu_count()-1, min_samples_split=minSampleSplit)
 
     # predict_and_submit(X_train, y,
     #                    os.path.join(DATA_DIR, 'X_test_%i_%i.csv' % (width, height)),
     #                    RandomForestClassifier, n_estimators=100, n_jobs=cpu_count()-1, min_samples_split=15)
 
     # TODO:
-    #   - rotate the image so that the major axes all point in the same direction -> degree of rotation feature
     #   - deep learning!

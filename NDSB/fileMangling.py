@@ -34,10 +34,11 @@ import scipy.stats as stats
 import seaborn as sns
 from skimage.feature import peak_local_max
 
-from features import get_minor_major_ratio, FEATURE_NAMES
+from features import create_features, FEATURE_NAMES
 
 
 plt.ioff()
+
 
 def num_lines_in_file(fpath):
     return int(subprocess.check_output('wc -l %s' % fpath, shell=True).strip().split()[0])
@@ -60,7 +61,7 @@ def create_test_data_table(testFListFpath, width, height):
         fpath = fpath.strip()
 
         imData = imread(os.path.join(DATA_DIR, fpath))
-        X[i, :] = get_minor_major_ratio(imData, width, height)
+        X[i, :] = create_features(imData, width, height)
 
         imgNames[i] = fpath.split(os.sep)[-1]
 
@@ -90,14 +91,17 @@ def create_training_data_table(trainFListFpath, width, height):
     i = 0
 
     for fpath in open(trainFListFpath):
-        fpath = fpath.strip()
+        try:
+            fpath = fpath.strip()
 
-        className = fpath.split(os.sep)[-2]
-        classLabel = CLASS_MAPPING[className]
+            className = fpath.split(os.sep)[-2]
+            classLabel = CLASS_MAPPING[className]
 
-        imData = imread(os.path.join(DATA_DIR, fpath))
-        X[i, :] = get_minor_major_ratio(imData, width, height)
-        y[i] = classLabel
+            imData = imread(os.path.join(DATA_DIR, fpath))
+            X[i, :] = create_features(imData, width, height)
+            y[i] = classLabel
+        except Exception as e:
+            print 'Skipping image %s due to error %s' % (fpath, e.message)
 
         i += 1
 
@@ -107,9 +111,8 @@ def create_training_data_table(trainFListFpath, width, height):
     return X, y.astype(int)
 
 
-def write_data_to_files(sizes,
+def write_train_data_to_files(sizes,
                         trainFListFpath = os.path.join(DATA_DIR, 'trainFnames.txt'),
-                        testFListFpath = os.path.join(DATA_DIR, 'testFnames.txt'),
                         outputDir = DATA_DIR):
     """
     most likely to be called once only
@@ -121,17 +124,22 @@ def write_data_to_files(sizes,
 
         X_train, y = create_training_data_table(trainFListFpath, width, height)
         # train X
-        np.savetxt(os.path.join(outputDir, 'X_train_%i_%i_rf.csv' % (width, height)),
+        np.savetxt(os.path.join(outputDir, 'X_train_%i_%i.csv' % (width, height)),
                    X_train, delimiter=',')
 
         # train y
         np.savetxt(os.path.join(outputDir, 'y.csv'), y, delimiter=',')
 
 
+def write_test_data_to_files(sizes,
+                        testFListFpath = os.path.join(DATA_DIR, 'testFnames.txt'),
+                        outputDir = DATA_DIR):
+
+    for width, height in sizes:
         X_test, testFnames = create_test_data_table(testFListFpath, width, height)
         # test X
         pandas.DataFrame(X_test, index=testFnames). \
-            to_csv(os.path.join(outputDir, 'X_test_%i_%i_rf.csv' % (width, height)), header=False)
+            to_csv(os.path.join(outputDir, 'X_test_%i_%i.csv' % (width, height)), header=False)
 
 
 def read_train_data(width, height, inputDir = DATA_DIR, isTiny = False):
@@ -185,4 +193,4 @@ def read_test_data_given_path(fpath):
 if __name__ == '__main__':
 
     width, height = 25, 25
-    write_data_to_files([(25, 25)])
+    write_train_data_to_files([(25, 25)])
