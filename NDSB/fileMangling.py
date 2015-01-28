@@ -58,12 +58,15 @@ def create_test_data_table(testFListFpath, width, height):
     i = 0
 
     for fpath in open(testFListFpath):
-        fpath = fpath.strip()
+        try:
+            fpath = fpath.strip()
 
-        imData = imread(os.path.join(DATA_DIR, fpath))
-        X[i, :] = create_features(imData, width, height)
+            imData = imread(os.path.join(DATA_DIR, fpath))
+            X[i, :] = create_features(imData, width, height)
 
-        imgNames[i] = fpath.split(os.sep)[-1]
+            imgNames[i] = fpath.split(os.sep)[-1]
+        except Exception as e:
+            print 'Skipping image %s due to error %s' % (fpath, e.message)
 
         i += 1
 

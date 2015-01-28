@@ -207,23 +207,23 @@ def plot_pixel_importances(width, height, X, y, **rfArgs):
 
 if __name__ == '__main__':
 
-    width, height = 25, 25
+    width, height = 15, 15
 
-    # write_train_data_to_files([(width, height)])
-    write_test_data_to_files([(width, height)])
+    # write_train_data_to_files([(15, 15), (30, 30), (40, 40)])
+    # write_test_data_to_files([(15, 15), (30, 30), (40, 40)])
 
-    # X_train, y = read_train_data(width, height)
+    X_train, y = read_train_data(width, height)
 
     # x_fieldnames = np.array(['p_%i' % i for i in range(width*height)] + FEATURE_NAMES)
-    #
+    # #
     # plot_feature_importances(X_train, y, x_fieldnames, 25, numEstimators=100, min_samples_split=15)
 
-    # plot_pixel_importances(width, height, X_train, y)
+    plot_pixel_importances(width, height, X_train, y)
 
-    # for minSampleSplit in [10, 12, 15, 20]:
-    #     print minSampleSplit
-    #     print evaluate(X_train, y, RandomForestClassifier,
-    #                    n_estimators=100, n_jobs=cpu_count()-1, min_samples_split=minSampleSplit)
+    for minSampleSplit in [13, 16]:
+        print minSampleSplit
+        print evaluate(X_train, y, RandomForestClassifier,
+                       n_estimators=100, n_jobs=cpu_count()-1, min_samples_split=minSampleSplit)
 
     # predict_and_submit(X_train, y,
     #                    os.path.join(DATA_DIR, 'X_test_%i_%i.csv' % (width, height)),
