@@ -6,10 +6,13 @@ import gzip
 import os
 import sys
 import time
-import numpy
+import numpy as np
+import pandas
 from matplotlib import pyplot as plt
 from PIL import Image
 from pprint import pprint
+
+from sklearn.cross_validation import StratifiedShuffleSplit
 
 import theano
 import theano.tensor as T
@@ -31,7 +34,7 @@ class LeNetConvPoolLayer(object):
         """
         Allocate a LeNetConvPoolLayer with shared variable internal parameters.
 
-        :type rng: numpy.random.RandomState
+        :type rng: np.random.RandomState
         :param rng: a random number generator used to initialize weights
 
         :type input: theano.tensor.dtensor4
@@ -53,19 +56,19 @@ class LeNetConvPoolLayer(object):
         self.input = input
 
         # there are "num input feature maps * filter height * filter width" inputs to each hidden unit
-        fan_in = numpy.prod(filter_shape[1:])
+        fan_in = np.prod(filter_shape[1:])
 
         # each unit in the lower layer receives a gradient from:
         # "num output feature maps * filter height * filter width" /
         #   pooling size
-        fan_out = (filter_shape[0] * numpy.prod(filter_shape[2:]) /
-                   numpy.prod(poolsize))
+        fan_out = (filter_shape[0] * np.prod(filter_shape[2:]) /
+                   np.prod(poolsize))
 
         # initialize weights with random weights
-        W_bound = numpy.sqrt(6. / (fan_in + fan_out))
+        W_bound = np.sqrt(6. / (fan_in + fan_out))
 
         self.W = theano.shared(
-            numpy.asarray(
+            np.asarray(
                 rng.uniform(low=-W_bound, high=W_bound, size=filter_shape),
                 dtype=theano.config.floatX
             ),
@@ -73,7 +76,7 @@ class LeNetConvPoolLayer(object):
         )
 
         # the bias is a 1D tensor -- one bias per output feature map
-        b_values = numpy.zeros((filter_shape[0],), dtype=theano.config.floatX)
+        b_values = np.zeros((filter_shape[0],), dtype=theano.config.floatX)
         self.b = theano.shared(value=b_values, borrow=True)
 
         # convolve input feature maps with filters
@@ -101,12 +104,18 @@ class LeNetConvPoolLayer(object):
         self.params = [self.W, self.b]
 
 
-def test_mlp(numFeatureMaps,
+def make_var(x):
+    return theano.shared(x, borrow=True)
+
+
+def test_mlp(datasets,
+             numFeatureMaps,
              imageShape,
              filterShape,
              poolSize,
              learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
-             dataset='/Users/JennyYueJin/K/tryTheano/Data/mnist.pkl.gz', batch_size=100,
+             dataset='/Users/JennyYueJin/K/tryTheano/Data/mnist.pkl.gz',
+             batch_size=100,
              n_hidden=100, rndState = 0,
              predict_set_x=None):
 
@@ -126,9 +135,9 @@ def test_mlp(numFeatureMaps,
     :return:
     """
 
-    datasets = load_data(dataset)
+    # datasets = load_data(dataset)
 
-    rng = numpy.random.RandomState(rndState)
+    rng = np.random.RandomState(rndState)
 
     train_set_x, train_set_y = datasets[0]
     valid_set_x, valid_set_y = datasets[1]
@@ -250,17 +259,21 @@ def test_mlp(numFeatureMaps,
         }
     )
 
-    train(n_train_batches, n_valid_batches, n_test_batches, train_model, validate_model, test_model, n_epochs)
+    train(n_train_batches, n_valid_batches, n_test_batches,
+          train_model, validate_model, test_model, n_epochs)
 
 
     # predict
-    predict_model = theano.function(
-        [],
-          layer3.y_pred,
-          givens={
-              x: theano.shared(predict_set_x, borrow=True)
-          }
-    )
+    if predict_set_x is not None:
+        predict_model = theano.function(
+            [],
+              layer3.y_pred,
+              givens={
+                  x: theano.shared(predict_set_x, borrow=True)
+              }
+        )
+    else:
+        predict_model = None
 
     return [layer0, layer1, layer2, layer3, predict_model()]
 
@@ -286,7 +299,7 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
     # on the validation set; in this case we
     # check every epoch
 
-    best_validation_loss = numpy.inf
+    best_validation_loss = np.inf
     best_iter = 0
     test_score = 0.
     start_time = time.clock()
@@ -295,12 +308,15 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
     done_looping = False
 
     while (epoch < n_epochs) and (not done_looping):
-
+        print 'epoch:', epoch
         epoch += 1
 
         for minibatch_index in xrange(n_train_batches):
 
+            print 'minibatch:', minibatch_index
             minibatch_avg_cost = train_model(minibatch_index)
+            print 'done evaluation train_model'
+
             # iteration number
             iter = (epoch - 1) * n_train_batches + minibatch_index
 
@@ -308,7 +324,7 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
                 # compute zero-one loss on validation set
                 validation_losses = [validate_model(i) for i
                                      in xrange(n_valid_batches)]
-                this_validation_loss = numpy.mean(validation_losses)
+                this_validation_loss = np.mean(validation_losses)
 
                 print(
                     'epoch %i, minibatch %i/%i, validation error %f %%' %
@@ -335,7 +351,7 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
                     # test it on the test set
                     test_losses = [test_model(i) for i
                                    in xrange(n_test_batches)]
-                    test_score = numpy.mean(test_losses)
+                    test_score = np.mean(test_losses)
 
                     print(('     epoch %i, minibatch %i/%i, test error of '
                            'best model %f %%') %
@@ -358,93 +374,70 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
         pass
 
 
+def read_data(batchSize,
+              xtrainfpath = '/Users/jennyyuejin/K/NDSB/Data/X_train_15_15.csv',
+              xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_15_15.csv',
+              yfpath = '/Users/jennyyuejin/K/NDSB/Data/y.csv',
+              takeNumColumns = None):
+
+    x_data = np.array(pandas.read_csv(xtrainfpath, header=None), dtype=theano.config.floatX)
+    y_data = np.array(pandas.read_csv(yfpath, header=None), dtype=theano.config.floatX).ravel()
+    testData = np.array(np.array(pandas.read_csv(xtestfpath, header=None))[:, 1:],
+                        dtype=theano.config.floatX)
+
+    numRows = x_data.shape[0] / batchSize * batchSize
+    x_data = x_data[:numRows, :]
+    y_data = y_data[:numRows]
+
+    if takeNumColumns is not None:
+        x_data = x_data[:, :takeNumColumns]
+        testData = testData[:, :takeNumColumns]
+
+    temp, testInds = StratifiedShuffleSplit(y_data, n_iter=1, test_size=0.1, random_state=1)._iter_indices().next()
+    testX, testY = x_data[testInds], y_data[testInds]
+
+    trainInds, validInds = StratifiedShuffleSplit(y_data[temp], n_iter=1, test_size=0.1, random_state=1)._iter_indices().next()
+    trainX, trainY = x_data[temp][trainInds], y_data[temp][trainInds]
+    validX, validY = x_data[temp][validInds], y_data[temp][validInds]
+
+    return [(make_var(trainX), T.cast(make_var(trainY), 'int32') ),
+            (make_var(validX), T.cast(make_var(validY), 'int32')),
+            (make_var(testX), T.cast(make_var(testY), 'int32'))], \
+           make_var(testData)
+
+
 if __name__ == '__main__':
 
 
-    # rng = numpy.random.RandomState(1)
-
-    # instantiate 4D tensor for input
-    input = T.tensor4(name='input')
-
-    # initialize shared variable for weights.
-    # w_shp = (2, 3, 9, 9)
-    # w_bound = numpy.sqrt(3 * 9 * 9)
-    # W = theano.shared( numpy.asarray(
-    #     rng.uniform(
-    #         low=-1.0 / w_bound,
-    #         high=1.0 / w_bound,
-    #         size=w_shp),
-    #     dtype=input.dtype), name ='W')
-
-    # initialize shared variable for bias (1D tensor) with random values
-    # IMPORTANT: biases are usually initialized to zero. However in this
-    # particular application, we simply apply the convolutional layer to
-    # an image without learning the parameters. We therefore initialize
-    # them to random values to "simulate" learning.
-    # b_shp = (2,)
-    # b = theano.shared(numpy.asarray(
-    #     rng.uniform(low=-.5, high=.5, size=b_shp),
-    #     dtype=input.dtype), name ='b')
-    #
-    # # build symbolic expression that computes the convolution of input with filters in w
-    # conv_out = conv.conv2d(input, W)
-
-    # build symbolic expression to add bias and apply activation function, i.e. produce neural net layer output
-    # A few words on ``dimshuffle`` :
-    #   ``dimshuffle`` is a powerful tool in reshaping a tensor;
-    #   what it allows you to do is to shuffle dimension around
-    #   but also to insert new ones along which the tensor will be
-    #   broadcastable;
-    #   dimshuffle('x', 2, 'x', 0, 1)
-    #   This will work on 3d tensors with no broadcastable
-    #   dimensions. The first dimension will be broadcastable,
-    #   then we will have the third dimension of the input tensor as
-    #   the second of the resulting tensor, etc. If the tensor has
-    #   shape (20, 30, 40), the resulting tensor will have dimensions
-    #   (1, 40, 1, 20, 30). (AxBxC tensor is mapped to 1xCx1xAxB tensor)
-    #   More examples:
-    #    dimshuffle('x') -> make a 0d (scalar) into a 1d vector
-    #    dimshuffle(0, 1) -> identity
-    #    dimshuffle(1, 0) -> inverts the first and second dimensions
-    #    dimshuffle('x', 0) -> make a row out of a 1d vector (N to 1xN)
-    #    dimshuffle(0, 'x') -> make a column out of a 1d vector (N to Nx1)
-    #    dimshuffle(2, 0, 1) -> AxBxC to CxAxB
-    #    dimshuffle(0, 'x', 1) -> AxB to Ax1xB
-    #    dimshuffle(1, 'x', 0) -> AxB to Bx1xA
-
-    # create theano function to compute filtered images
-
-
-    # ------ fun stuff ---------
-
     # open random image of dimensions 272 x 328
-    img = Image.open(open('/Users/jennyyuejin/K/tryTheano/Data/four.png'))
-    img_shape = (28, 28)
+    # img = Image.open(open('/Users/jennyyuejin/K/tryTheano/Data/four.png'))
+    # img_shape = (25, 25)
+    #
+    # # dimensions are (height, width, channel)
+    # img = np.array(img.getdata(), dtype='float64') / 256.
+    # img = img[: img_shape[0]*img_shape[1], 0].reshape(1, img_shape[0] * img_shape[1])
 
-    # dimensions are (height, width, channel)
-    img = numpy.array(img.getdata(), dtype='float64') / 256.
-    img = img[: img_shape[0]*img_shape[1], 0].reshape(1, img_shape[0] * img_shape[1])
+    trainData, testData = read_data(100,
+        xtrainfpath= '/Users/jennyyuejin/K/NDSB/Data/X_train_30_30.csv',
+        xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_30_30.csv',
+        takeNumColumns=30*30)
 
-    res = test_mlp([2, 2], [28, 28], [5, 5], [2, 2], n_epochs=2, learning_rate=0.5, batch_size=1,
-                   predict_set_x=img)
-
-
-    conv_out = conv.conv2d(input = input,
-                filters = l.W)
-                # filter_shape = l.W.get_value().shape,
-                # imgage_shape = (100, 1, img.shape[0], img.shape[1]))
-    output = T.nnet.sigmoid(conv_out + l.b.dimshuffle('x', 0, 'x', 'x'))
-    filtered_img = theano.function([input], output)(img_)
-
+    res = test_mlp(trainData,
+                   numFeatureMaps = [2, 2],
+                   imageShape = [30, 30],
+                   filterShape = [5, 5],
+                   poolSize = [2, 2],
+                   n_epochs=2, learning_rate=0.5, batch_size=100, n_hidden=200,
+                   predict_set_x=testData)
 
 
     # plot original image and first and second components of output
-    plt.subplot(1, 3, 1); plt.axis('off'); plt.imshow(img)
-    plt.gray()
-
-    # recall that the convOp output (filtered image) is actually a "minibatch",
-    # of size 1 here, so we take index 0 in the first dimension:
-    plt.subplot(1, 3, 2); plt.axis('off'); plt.imshow(filtered_img[0, 0, :, :])
-    plt.subplot(1, 3, 3); plt.axis('off'); plt.imshow(filtered_img[0, 1, :, :])
-
-    plt.show()
+    # plt.subplot(1, 3, 1); plt.axis('off'); plt.imshow(img)
+    # plt.gray()
+    #
+    # # recall that the convOp output (filtered image) is actually a "minibatch",
+    # # of size 1 here, so we take index 0 in the first dimension:
+    # plt.subplot(1, 3, 2); plt.axis('off'); plt.imshow(filtered_img[0, 0, :, :])
+    # plt.subplot(1, 3, 3); plt.axis('off'); plt.imshow(filtered_img[0, 1, :, :])
+    #
+    # plt.show()
