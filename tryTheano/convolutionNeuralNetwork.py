@@ -7,8 +7,9 @@ import os
 import sys
 import time
 import numpy
-import pylab
+from matplotlib import pyplot as plt
 from PIL import Image
+from pprint import pprint
 
 import theano
 import theano.tensor as T
@@ -20,6 +21,7 @@ sys.path.extend(['/Users/jennyyuejin/K/tryTheano'])
 
 from logisticRegressionExample import LogisticRegression, load_data
 from mlpExample import HiddenLayer
+plt.ioff()
 
 
 class LeNetConvPoolLayer(object):
@@ -106,7 +108,7 @@ def test_mlp(numFeatureMaps,
              learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
              dataset='/Users/JennyYueJin/K/tryTheano/Data/mnist.pkl.gz', batch_size=100,
              n_hidden=100, rndState = 0,
-             predict_x = None):
+             predict_set_x=None):
 
     """
     :param numFeatureMaps:
@@ -225,15 +227,6 @@ def test_mlp(numFeatureMaps,
         }
     )
 
-    predict_model = theano.function(
-        [],
-          layer3.y_pred,
-          givens = {
-              x: predict_x
-          }
-    )
-
-
     # create a list of gradients for all model parameters
     grads = T.grad(cost, params)
 
@@ -260,7 +253,16 @@ def test_mlp(numFeatureMaps,
     train(n_train_batches, n_valid_batches, n_test_batches, train_model, validate_model, test_model, n_epochs)
 
 
-    return predict_model
+    # predict
+    predict_model = theano.function(
+        [],
+          layer3.y_pred,
+          givens={
+              x: theano.shared(predict_set_x, borrow=True)
+          }
+    )
+
+    return [layer0, layer1, layer2, layer3, predict_model()]
 
 
 def train(n_train_batches, n_valid_batches, n_test_batches,
@@ -358,113 +360,91 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
 
 if __name__ == '__main__':
 
-    model = test_mlp([2, 2], [28, 28], [5, 5], [2, 2], n_epochs=10, learning_rate=0.5,
-                     predict_x=load_data('/Users/JennyYueJin/K/tryTheano/Data/mnist.pkl.gz')[0][0])
 
-    x = T.matrix('x')   # the data is presented as rasterized images
+    # rng = numpy.random.RandomState(1)
 
-    pred_func = theano.function(
-        [],
-          model.p_y_given_x,
-          givens={
-              x: load_data('/Users/JennyYueJin/K/tryTheano/Data/mnist.pkl.gz')[0][0]
-          },
-          on_unused_input='warn'
-    )
+    # instantiate 4D tensor for input
+    input = T.tensor4(name='input')
 
-    # for rndState in [0, 1, 2, 3]:
+    # initialize shared variable for weights.
+    # w_shp = (2, 3, 9, 9)
+    # w_bound = numpy.sqrt(3 * 9 * 9)
+    # W = theano.shared( numpy.asarray(
+    #     rng.uniform(
+    #         low=-1.0 / w_bound,
+    #         high=1.0 / w_bound,
+    #         size=w_shp),
+    #     dtype=input.dtype), name ='W')
+
+    # initialize shared variable for bias (1D tensor) with random values
+    # IMPORTANT: biases are usually initialized to zero. However in this
+    # particular application, we simply apply the convolutional layer to
+    # an image without learning the parameters. We therefore initialize
+    # them to random values to "simulate" learning.
+    # b_shp = (2,)
+    # b = theano.shared(numpy.asarray(
+    #     rng.uniform(low=-.5, high=.5, size=b_shp),
+    #     dtype=input.dtype), name ='b')
     #
-    #     rng = numpy.random.RandomState(rndState)
-    #
-    #     # instantiate 4D tensor for input
-    #     input = T.tensor4(name='input')
-    #
-    #     # initialize shared variable for weights.
-    #     w_shp = (2, 3, 9, 9)
-    #     w_bound = numpy.sqrt(3 * 9 * 9)
-    #     W = theano.shared( numpy.asarray(
-    #         rng.uniform(
-    #             low=-1.0 / w_bound,
-    #             high=1.0 / w_bound,
-    #             size=w_shp),
-    #         dtype=input.dtype), name ='W')
-    #
-    #     # initialize shared variable for bias (1D tensor) with random values
-    #     # IMPORTANT: biases are usually initialized to zero. However in this
-    #     # particular application, we simply apply the convolutional layer to
-    #     # an image without learning the parameters. We therefore initialize
-    #     # them to random values to "simulate" learning.
-    #     b_shp = (2,)
-    #     b = theano.shared(numpy.asarray(
-    #         rng.uniform(low=-.5, high=.5, size=b_shp),
-    #         dtype=input.dtype), name ='b')
-    #
-    #     # build symbolic expression that computes the convolution of input with filters in w
-    #     conv_out = conv.conv2d(input, W)
-    #
-    #     # build symbolic expression to add bias and apply activation function, i.e. produce neural net layer output
-    #     # A few words on ``dimshuffle`` :
-    #     #   ``dimshuffle`` is a powerful tool in reshaping a tensor;
-    #     #   what it allows you to do is to shuffle dimension around
-    #     #   but also to insert new ones along which the tensor will be
-    #     #   broadcastable;
-    #     #   dimshuffle('x', 2, 'x', 0, 1)
-    #     #   This will work on 3d tensors with no broadcastable
-    #     #   dimensions. The first dimension will be broadcastable,
-    #     #   then we will have the third dimension of the input tensor as
-    #     #   the second of the resulting tensor, etc. If the tensor has
-    #     #   shape (20, 30, 40), the resulting tensor will have dimensions
-    #     #   (1, 40, 1, 20, 30). (AxBxC tensor is mapped to 1xCx1xAxB tensor)
-    #     #   More examples:
-    #     #    dimshuffle('x') -> make a 0d (scalar) into a 1d vector
-    #     #    dimshuffle(0, 1) -> identity
-    #     #    dimshuffle(1, 0) -> inverts the first and second dimensions
-    #     #    dimshuffle('x', 0) -> make a row out of a 1d vector (N to 1xN)
-    #     #    dimshuffle(0, 'x') -> make a column out of a 1d vector (N to Nx1)
-    #     #    dimshuffle(2, 0, 1) -> AxBxC to CxAxB
-    #     #    dimshuffle(0, 'x', 1) -> AxB to Ax1xB
-    #     #    dimshuffle(1, 'x', 0) -> AxB to Bx1xA
-    #     output = T.nnet.sigmoid(conv_out + b.dimshuffle('x', 0, 'x', 'x'))
-    #
-    #     # create theano function to compute filtered images
-    #     f = theano.function([input], output)
-    #
-    #     # ------ fun stuff ---------
-    #
-    #     # open random image of dimensions 272 x 328
-    #     img = Image.open(open('/Users/jennyyuejin/K/tryTheano/Data/scene.JPG'))
-    #
-    #     # dimensions are (height, width, channel)
-    #     img = numpy.asarray(img, dtype='float64') / 256.
-    #
-    #     # put image in 4D tensor of shape (1, 3, height, width)
-    #     img_ = img.transpose(2, 0, 1).reshape(1, 3, img.shape[0], img.shape[1])
-    #     filtered_img = f(img_)
-    #
-    #     # plot original image and first and second components of output
-    #     pylab.subplot(4, 3, rndState*3+1); pylab.axis('off'); pylab.imshow(img)
-    #     pylab.gray();
-    #
-    #     # recall that the convOp output (filtered image) is actually a "minibatch",
-    #     # of size 1 here, so we take index 0 in the first dimension:
-    #     pylab.subplot(4, 3, rndState*3+2); pylab.axis('off'); pylab.imshow(filtered_img[0, 0, :, :])
-    #     pylab.subplot(4, 3, rndState*3+3); pylab.axis('off'); pylab.imshow(filtered_img[0, 1, :, :])
-    #
-    # pylab.show()
-    #
-    #
-    # input = T.dtensor4('input')
-    # maxpool_shape = (2, 2)
-    # pool_out = downsample.max_pool_2d(input, maxpool_shape, ignore_border=True)
-    # f = theano.function([input],pool_out)
-    #
-    # invals = numpy.random.RandomState(1).rand(3, 2, 5, 5)
-    # print 'With ignore_border set to True:'
-    # print 'invals[0, 0, :, :] =\n', invals[0, 0, :, :]
-    # print 'output[0, 0, :, :] =\n', f(invals)[0, 0, :, :]
-    #
-    # pool_out = downsample.max_pool_2d(input, maxpool_shape, ignore_border=False)
-    # f = theano.function([input],pool_out)
-    # print 'With ignore_border set to False:'
-    # print 'invals[1, 0, :, :] =\n ', invals[1, 0, :, :]
-    # print 'output[1, 0, :, :] =\n ', f(invals)[1, 0, :, :]
+    # # build symbolic expression that computes the convolution of input with filters in w
+    # conv_out = conv.conv2d(input, W)
+
+    # build symbolic expression to add bias and apply activation function, i.e. produce neural net layer output
+    # A few words on ``dimshuffle`` :
+    #   ``dimshuffle`` is a powerful tool in reshaping a tensor;
+    #   what it allows you to do is to shuffle dimension around
+    #   but also to insert new ones along which the tensor will be
+    #   broadcastable;
+    #   dimshuffle('x', 2, 'x', 0, 1)
+    #   This will work on 3d tensors with no broadcastable
+    #   dimensions. The first dimension will be broadcastable,
+    #   then we will have the third dimension of the input tensor as
+    #   the second of the resulting tensor, etc. If the tensor has
+    #   shape (20, 30, 40), the resulting tensor will have dimensions
+    #   (1, 40, 1, 20, 30). (AxBxC tensor is mapped to 1xCx1xAxB tensor)
+    #   More examples:
+    #    dimshuffle('x') -> make a 0d (scalar) into a 1d vector
+    #    dimshuffle(0, 1) -> identity
+    #    dimshuffle(1, 0) -> inverts the first and second dimensions
+    #    dimshuffle('x', 0) -> make a row out of a 1d vector (N to 1xN)
+    #    dimshuffle(0, 'x') -> make a column out of a 1d vector (N to Nx1)
+    #    dimshuffle(2, 0, 1) -> AxBxC to CxAxB
+    #    dimshuffle(0, 'x', 1) -> AxB to Ax1xB
+    #    dimshuffle(1, 'x', 0) -> AxB to Bx1xA
+
+    # create theano function to compute filtered images
+
+
+    # ------ fun stuff ---------
+
+    # open random image of dimensions 272 x 328
+    img = Image.open(open('/Users/jennyyuejin/K/tryTheano/Data/four.png'))
+    img_shape = (28, 28)
+
+    # dimensions are (height, width, channel)
+    img = numpy.array(img.getdata(), dtype='float64') / 256.
+    img = img[: img_shape[0]*img_shape[1], 0].reshape(1, img_shape[0] * img_shape[1])
+
+    res = test_mlp([2, 2], [28, 28], [5, 5], [2, 2], n_epochs=2, learning_rate=0.5, batch_size=1,
+                   predict_set_x=img)
+
+
+    conv_out = conv.conv2d(input = input,
+                filters = l.W)
+                # filter_shape = l.W.get_value().shape,
+                # imgage_shape = (100, 1, img.shape[0], img.shape[1]))
+    output = T.nnet.sigmoid(conv_out + l.b.dimshuffle('x', 0, 'x', 'x'))
+    filtered_img = theano.function([input], output)(img_)
+
+
+
+    # plot original image and first and second components of output
+    plt.subplot(1, 3, 1); plt.axis('off'); plt.imshow(img)
+    plt.gray()
+
+    # recall that the convOp output (filtered image) is actually a "minibatch",
+    # of size 1 here, so we take index 0 in the first dimension:
+    plt.subplot(1, 3, 2); plt.axis('off'); plt.imshow(filtered_img[0, 0, :, :])
+    plt.subplot(1, 3, 3); plt.axis('off'); plt.imshow(filtered_img[0, 1, :, :])
+
+    plt.show()
