@@ -133,7 +133,7 @@ def run_cnn(datasets,
             initialLearningRate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
             dataset='/Users/JennyYueJin/K/tryTheano/Data/mnist.pkl.gz',
             batch_size=100,
-            n_hidden=100, rndState=0,
+            n_hidden=100, rndState=0, patience=1000,
             predict_set_x=None, testFnames=None):
 
     """
@@ -153,7 +153,7 @@ def run_cnn(datasets,
     """
 
     # datasets = load_data(dataset)
-    config = '_'.join([str(i) for i in imageShape + filterShape + numFeatureMaps + poolSize + [n_hidden]])
+    config = '_'.join([str(i) for i in imageShape + filterShape + numFeatureMaps + poolSize + [n_hidden, initialLearningRate]])
     print '='*5, config, '='*5
 
     rng = np.random.RandomState(rndState)
@@ -274,7 +274,7 @@ def run_cnn(datasets,
     # create the updates list by automatically looping over all
     # (params[i], grads[i]) pairs.
     updates = [
-        (param_i, param_i - initialLearningRate / (1 + 0.001*(epoch_parameter+1)) * grad_i)
+        (param_i, param_i - initialLearningRate / (1 + 0.005*(epoch_parameter+1)) * grad_i)
         for param_i, grad_i in zip(params, grads)
     ]
 
@@ -307,9 +307,9 @@ def run_cnn(datasets,
 
     train(n_train_batches, n_valid_batches, n_test_batches,
           train_model, validate_model, test_model, print_stuff,
-          n_epochs)
+          n_epochs, patience=patience)
 
-    f = file('/Users/jennyyuejin/K/tryTheano/params_%i.save' % imageShape[0], 'wb')
+    f = file('/Users/jennyyuejin/K/tryTheano/params_%s.save' % config, 'wb')
     cPickle.dump(params, f, protocol=cPickle.HIGHEST_PROTOCOL)
     f.close()
 
@@ -342,7 +342,7 @@ def run_cnn(datasets,
 
 def train(n_train_batches, n_valid_batches, n_test_batches,
           train_model, validate_model, test_model, print_stuff,
-          n_epochs, patience = 10000, patience_increase = 2, improvement_threshold = 0.995):
+          n_epochs, patience = 2000, patience_increase = 2, improvement_threshold = 0.995):
 
     ###############
     # TRAIN MODEL #
@@ -490,18 +490,20 @@ if __name__ == '__main__':
     # img = img[: img_shape[0]*img_shape[1], 0].reshape(1, img_shape[0] * img_shape[1])
 
     batchSize = 1000
-    trainData, testData, testFnames = read_data(xtrainfpath= '/Users/jennyyuejin/K/NDSB/Data/X_train_15_15.csv',
-                                                xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_15_15.csv',
-                                                takeNumColumns=15*15)
+    edgeLength = 40
+    trainData, testData, testFnames = read_data(xtrainfpath= '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i.csv' % (edgeLength, edgeLength),
+                                                xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_%i_%i.csv' % (edgeLength, edgeLength),
+                                                takeNumColumns=edgeLength*edgeLength)
 
     res = run_cnn(trainData,
                   121,
-                  numFeatureMaps = [5, 5],
-                  imageShape = [15, 15],
-                  filterShape = [2, 2],
+                  numFeatureMaps = [3, 2],
+                  imageShape = [edgeLength, edgeLength],
+                  filterShape = [3, 3],
                   poolSize = [2, 2],
-                  n_epochs=10, initialLearningRate=0.1, batch_size=batchSize, n_hidden=200,
-                  predict_set_x=None, testFnames=testFnames)
+                  n_epochs=1000, initialLearningRate=0.02, batch_size=batchSize, n_hidden=300,
+                  patience=20000,
+                  predict_set_x=testData, testFnames=testFnames)
 
 
     # plot original image and first and second components of output
