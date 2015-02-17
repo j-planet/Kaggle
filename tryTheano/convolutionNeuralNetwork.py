@@ -26,10 +26,11 @@ sys.path.extend(['/Users/jennyyuejin/K/tryTheano'])
 
 from logisticRegressionExample import LogisticRegression, load_data
 from mlpExample import HiddenLayer
+
+from NDSB.fileMangling import make_submission_file
+
 plt.ioff()
-
-
-debugMode = True
+debugMode = False
 
 def inspect_inputs(i, node, fn):
     if debugMode:
@@ -97,8 +98,8 @@ class LeNetConvPoolLayer(object):
         conv_out = conv.conv2d(
             input=input,
             filters=self.W,
-            filter_shape=filter_shape,
-            image_shape=image_shape
+            # filter_shape=filter_shape,
+            # image_shape=image_shape
         )
 
         # downsample each feature map individually, using maxpooling
@@ -123,17 +124,17 @@ def make_var(x):
     return theano.shared(x, borrow=True)
 
 
-def test_mlp(datasets,
-             numYs,
-             numFeatureMaps,
-             imageShape,
-             filterShape,
-             poolSize,
-             learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
-             dataset='/Users/JennyYueJin/K/tryTheano/Data/mnist.pkl.gz',
-             batch_size=100,
-             n_hidden=100, rndState = 0,
-             predict_set_x=None):
+def run_cnn(datasets,
+            numYs,
+            numFeatureMaps,
+            imageShape,
+            filterShape,
+            poolSize,
+            learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
+            dataset='/Users/JennyYueJin/K/tryTheano/Data/mnist.pkl.gz',
+            batch_size=100,
+            n_hidden=100, rndState=0,
+            predict_set_x=None, testFnames=None):
 
     """
     :param numFeatureMaps:
@@ -166,8 +167,8 @@ def test_mlp(datasets,
 
     index = T.lscalar()  # index to a [mini]batch
     x = T.matrix('x')   # the data is presented as rasterized images
-    y = T.ivector('y')  # the labels are presented as 1D vector of
-    # [int] labels
+    y = T.ivector('y')  # the labels are presented as 1D vector of [int] labels
+
 
     ######################
     # BUILD ACTUAL MODEL #
@@ -177,7 +178,7 @@ def test_mlp(datasets,
     # Reshape matrix of rasterized images of shape (batch_size, 28 * 28)
     # to a 4D tensor, compatible with our LeNetConvPoolLayer
     # (28, 28) is the size of MNIST images.
-    layer0_input = x.reshape((batch_size, 1, imageShape[0], imageShape[1]))
+    layer0_input = x.reshape((-1, 1, imageShape[0], imageShape[1]))
 
     # Construct the first convolutional pooling layer:
     # filtering reduces the image size to (28-5+1 , 28-5+1) = (24, 24)
@@ -275,7 +276,8 @@ def test_mlp(datasets,
 
     print_stuff = theano.function(
         [index],
-        [layer0.output_print, layer1.output_print, layer2.output_print,
+        [theano.printing.Print('x shape', attrs=['shape'])(x),
+         layer0.output_print, layer1.output_print, layer2.output_print,
          layer3.t_dot_print, layer3.p_y_given_x_print],
         givens={
             x: train_set_x[index * batch_size: (index + 1) * batch_size],
@@ -302,12 +304,16 @@ def test_mlp(datasets,
           train_model, validate_model, test_model, print_stuff,
           n_epochs)
 
+    f = file('/Users/jennyyuejin/K/tryTheano/params_%i.save' % imageShape[0], 'wb')
+    cPickle.dump(params, f, protocol=cPickle.HIGHEST_PROTOCOL)
+    f.close()
 
     # predict
     if predict_set_x is not None:
+
         predict_model = theano.function(
             [],
-              layer3.y_pred,
+              layer3.p_y_given_x,
               givens={
                   x: predict_set_x
               },
@@ -316,10 +322,17 @@ def test_mlp(datasets,
                   pre_func=inspect_inputs,
                   post_func=inspect_outputs)
         )
-    else:
-        predict_model = None
 
-    return [layer0, layer1, layer2, layer3, predict_model()]
+        pred_results = predict_model()
+
+        make_submission_file(pred_results, testFnames,
+                             fNameSuffix='_'.join([str(i) for i in imageShape + filterShape + poolSize + [n_hidden]]))
+
+    else:
+        pred_results = None
+
+
+    return [layer0, layer1, layer2, layer3, pred_results]
 
 
 def train(n_train_batches, n_valid_batches, n_test_batches,
@@ -352,16 +365,19 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
     done_looping = False
 
     while (epoch < n_epochs) and (not done_looping):
-        print 'epoch:', epoch
+        print '----- epoch:', epoch
         epoch += 1
 
+        print 'minibatch:',
         for minibatch_index in xrange(n_train_batches):
 
-            print 'minibatch:', minibatch_index
+            print minibatch_index,
+
             if debugMode:
                 print_stuff(minibatch_index)
             minibatch_avg_cost = train_model(minibatch_index)
-            print 'done evaluation train_model. minibatch average cost =', minibatch_avg_cost
+
+            # print 'done evaluation train_model. minibatch average cost =', minibatch_avg_cost
 
             # iteration number
             iter = (epoch - 1) * n_train_batches + minibatch_index
@@ -421,16 +437,19 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
         pass
 
 
-def read_data(batchSize,
-              xtrainfpath = '/Users/jennyyuejin/K/NDSB/Data/X_train_15_15.csv',
+def read_data(xtrainfpath = '/Users/jennyyuejin/K/NDSB/Data/X_train_15_15.csv',
               xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_15_15.csv',
               yfpath = '/Users/jennyyuejin/K/NDSB/Data/y.csv',
               takeNumColumns = None):
 
+    # read training data
     x_data = np.array(pandas.read_csv(xtrainfpath, header=None), dtype=theano.config.floatX)
     y_data = np.array(pandas.read_csv(yfpath, header=None), dtype=theano.config.floatX).ravel()
-    testData = np.array(np.array(pandas.read_csv(xtestfpath, header=None))[:, 1:],
-                        dtype=theano.config.floatX)
+
+    # read test data
+    temp = np.array(pandas.read_csv(xtestfpath, header=None))
+    testFnames = temp[:, 0]
+    testData = np.array(temp[:, 1:], dtype=theano.config.floatX)
 
     numRows = x_data.shape[0]
     # numRows = x_data.shape[0] / batchSize * batchSize
@@ -451,7 +470,8 @@ def read_data(batchSize,
     return [(make_var(trainX), T.cast(make_var(trainY), 'int32') ),
             (make_var(validX), T.cast(make_var(validY), 'int32')),
             (make_var(testX), T.cast(make_var(testY), 'int32'))], \
-           make_var(testData)
+           make_var(testData), \
+           testFnames
 
 
 if __name__ == '__main__':
@@ -465,20 +485,19 @@ if __name__ == '__main__':
     # img = np.array(img.getdata(), dtype='float64') / 256.
     # img = img[: img_shape[0]*img_shape[1], 0].reshape(1, img_shape[0] * img_shape[1])
 
-    batchSize = 10000
-    trainData, testData = read_data(batchSize,
-                                    xtrainfpath= '/Users/jennyyuejin/K/NDSB/Data/X_train_15_15.csv',
-                                    xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_15_15.csv',
-                                    takeNumColumns=15*15)
+    batchSize = 1000
+    trainData, testData, testFnames = read_data(xtrainfpath= '/Users/jennyyuejin/K/NDSB/Data/X_train_15_15.csv',
+                                                xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_15_15.csv',
+                                                takeNumColumns=15*15)
 
-    res = test_mlp(trainData,
-                   121,
-                   numFeatureMaps = [2, 2],
-                   imageShape = [15, 15],
-                   filterShape = [2, 2],
-                   poolSize = [2, 2],
-                   n_epochs=2, learning_rate=0.5, batch_size=batchSize, n_hidden=200,
-                   predict_set_x=testData)
+    res = run_cnn(trainData,
+                  121,
+                  numFeatureMaps = [2, 2],
+                  imageShape = [15, 15],
+                  filterShape = [2, 2],
+                  poolSize = [2, 2],
+                  n_epochs=10, learning_rate=0.1, batch_size=batchSize, n_hidden=200,
+                  predict_set_x=testData, testFnames=testFnames)
 
 
     # plot original image and first and second components of output

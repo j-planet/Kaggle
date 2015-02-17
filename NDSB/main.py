@@ -34,7 +34,7 @@ import scipy.stats as stats
 import seaborn as sns
 from skimage.feature import peak_local_max
 
-from fileMangling import read_train_data, read_test_data_given_path, write_train_data_to_files, write_test_data_to_files
+from fileMangling import read_train_data, read_test_data_given_path, write_train_data_to_files, write_test_data_to_files, make_submission_file
 from features import FEATURE_NAMES
 plt.ioff()
 
@@ -126,10 +126,7 @@ def multiclass_log_loss(y_true, y_pred, eps=1e-15):
     return loss
 
 
-def predict_and_submit(X_train, y_train, testFpath, clfKlass,
-                       outputFpath = os.path.join(DATA_DIR, 'submissions',
-                                                  'base_%s.csv' % datetime.date.today().strftime('%b%d%Y')),
-                       **clfArgs):
+def predict_and_submit(X_train, y_train, testFpath, clfKlass, **clfArgs):
 
     X_test, testFnames = read_test_data_given_path(testFpath)
 
@@ -139,9 +136,7 @@ def predict_and_submit(X_train, y_train, testFpath, clfKlass,
     pred = np.zeros((X_test.shape[0], len(CLASS_NAMES)))
     pred[:, np.sort(list(set(y_train)))] = clf.predict_proba(X_test)
 
-    res = pandas.DataFrame(pred, index=testFnames).reset_index()
-    res.columns = ['image'] + CLASS_NAMES
-    res.to_csv(outputFpath, index=False)
+    make_submission_file(pred, testFnames, fNameSuffix='nonDN')
 
 
 def evaluate(X, y, clfKlass, **clfArgs):

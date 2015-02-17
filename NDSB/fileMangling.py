@@ -115,8 +115,8 @@ def create_training_data_table(trainFListFpath, width, height):
 
 
 def write_train_data_to_files(sizes,
-                        trainFListFpath = os.path.join(DATA_DIR, 'trainFnames.txt'),
-                        outputDir = DATA_DIR):
+                              trainFListFpath = os.path.join(DATA_DIR, 'trainFnames.txt'),
+                              outputDir = DATA_DIR):
     """
     most likely to be called once only
     :param sizes: list of sizes. [(width_0, height_0), ..., (width_n, height_n)]
@@ -135,8 +135,8 @@ def write_train_data_to_files(sizes,
 
 
 def write_test_data_to_files(sizes,
-                        testFListFpath = os.path.join(DATA_DIR, 'testFnames.txt'),
-                        outputDir = DATA_DIR):
+                             testFListFpath = os.path.join(DATA_DIR, 'testFnames.txt'),
+                             outputDir = DATA_DIR):
 
     for width, height in sizes:
         X_test, testFnames = create_test_data_table(testFListFpath, width, height)
@@ -191,6 +191,21 @@ def read_test_data_given_path(fpath):
     print 'DONE reading data. :)'
 
     return X_test[:, 1:], X_test[:, 0]
+
+
+def make_submission_file(pred, testFnames,
+                         outputDir = os.path.join(DATA_DIR, 'submissions'), fNameSuffix=''):
+
+    res = pandas.DataFrame(pred, index=testFnames).reset_index()
+    res.columns = ['image'] + CLASS_NAMES
+
+    outputFpath = os.path.join(outputDir,
+                               '%s%s.csv' %
+                               (datetime.date.today().strftime('%b%d%Y'),
+                                '_' + fNameSuffix if len(fNameSuffix) > 0 else ''))
+
+    print 'Writing predictions to', outputFpath
+    res.to_csv(outputFpath, index=False)
 
 
 if __name__ == '__main__':
