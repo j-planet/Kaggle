@@ -57,7 +57,11 @@ class LogisticRegression(object):
         #   x is a matrix where row-j  represents input training sample-j
         #   b is a vector where element-k represent the free parameter of hyper plain-k
 
+        # self.p_y_given_x = theano.printing.Print('LogisticRegression p_y_given_x')(T.nnet.softmax(T.dot(input, self.W) + self.b))
         self.p_y_given_x = T.nnet.softmax(T.dot(input, self.W) + self.b)
+
+        self.t_dot_print = theano.printing.Print('LogisticRegression T.dot', attrs=['__str__', 'shape'])(T.dot(input, self.W))
+        self.p_y_given_x_print = theano.printing.Print('LogisticRegreesion p_y_given_x', attrs=['__str__', 'shape'])(self.p_y_given_x)
 
         # symbolic description of how to compute prediction as class whose
         # probability is maximal

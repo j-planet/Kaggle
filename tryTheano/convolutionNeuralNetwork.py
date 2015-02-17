@@ -29,12 +29,16 @@ from mlpExample import HiddenLayer
 plt.ioff()
 
 
+debugMode = True
+
 def inspect_inputs(i, node, fn):
-    print i, node, "input(s) value(s):", [input[0] for input in fn.inputs],
+    if debugMode:
+        print i, node, "input(s) value(s):", [input[0] for input in fn.inputs]
 
 
 def inspect_outputs(i, node, fn):
-    print "output(s) value(s):", [output[0] for output in fn.outputs]
+    if debugMode:
+        print i, node, "output(s) value(s):", [output[0] for output in fn.outputs]
 
 
 class LeNetConvPoolLayer(object):
@@ -109,6 +113,7 @@ class LeNetConvPoolLayer(object):
         # thus be broadcasted across mini-batches and feature map
         # width & height
         self.output = T.tanh(pooled_out + self.b.dimshuffle('x', 0, 'x', 'x'))
+        self.output_print = theano.printing.Print('LeNet output', attrs=['__str__', 'shape'])(self.output)
 
         # store parameters of this layer
         self.params = [self.W, self.b]
@@ -119,6 +124,7 @@ def make_var(x):
 
 
 def test_mlp(datasets,
+             numYs,
              numFeatureMaps,
              imageShape,
              filterShape,
@@ -154,9 +160,9 @@ def test_mlp(datasets,
     test_set_x, test_set_y = datasets[2]
 
     # compute number of minibatches for training, validation and testing
-    n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
-    n_valid_batches = valid_set_x.get_value(borrow=True).shape[0] / batch_size
-    n_test_batches = test_set_x.get_value(borrow=True).shape[0] / batch_size
+    n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size + 1
+    n_valid_batches = valid_set_x.get_value(borrow=True).shape[0] / batch_size + 1
+    n_test_batches = test_set_x.get_value(borrow=True).shape[0] / batch_size + 1
 
     index = T.lscalar()  # index to a [mini]batch
     x = T.matrix('x')   # the data is presented as rasterized images
@@ -218,7 +224,7 @@ def test_mlp(datasets,
     )
 
     # classify the values of the fully-connected sigmoidal layer
-    layer3 = LogisticRegression(input=layer2.output, n_in=n_hidden, n_out=10)
+    layer3 = LogisticRegression(input=layer2.output, n_in=n_hidden, n_out=numYs)
 
     # create a list of all model parameters to be fit by gradient descent
     params = layer3.params + layer2.params + layer1.params + layer0.params
@@ -267,6 +273,17 @@ def test_mlp(datasets,
         for param_i, grad_i in zip(params, grads)
     ]
 
+    print_stuff = theano.function(
+        [index],
+        [layer0.output_print, layer1.output_print, layer2.output_print,
+         layer3.t_dot_print, layer3.p_y_given_x_print],
+        givens={
+            x: train_set_x[index * batch_size: (index + 1) * batch_size],
+            y: train_set_y[index * batch_size: (index + 1) * batch_size]
+        },
+        on_unused_input='warn'
+    ) if debugMode else None
+
     train_model = theano.function(
         [index],
         cost,
@@ -282,7 +299,8 @@ def test_mlp(datasets,
     )
 
     train(n_train_batches, n_valid_batches, n_test_batches,
-          train_model, validate_model, test_model, n_epochs)
+          train_model, validate_model, test_model, print_stuff,
+          n_epochs)
 
 
     # predict
@@ -291,7 +309,7 @@ def test_mlp(datasets,
             [],
               layer3.y_pred,
               givens={
-                  x: theano.shared(predict_set_x, borrow=True)
+                  x: predict_set_x
               },
               name='predict_model',
               mode=theano.compile.MonitorMode(
@@ -305,7 +323,7 @@ def test_mlp(datasets,
 
 
 def train(n_train_batches, n_valid_batches, n_test_batches,
-          train_model, validate_model, test_model,
+          train_model, validate_model, test_model, print_stuff,
           n_epochs, patience = 10000, patience_increase = 2, improvement_threshold = 0.995):
 
     ###############
@@ -340,8 +358,10 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
         for minibatch_index in xrange(n_train_batches):
 
             print 'minibatch:', minibatch_index
+            if debugMode:
+                print_stuff(minibatch_index)
             minibatch_avg_cost = train_model(minibatch_index)
-            print 'done evaluation train_model'
+            print 'done evaluation train_model. minibatch average cost =', minibatch_avg_cost
 
             # iteration number
             iter = (epoch - 1) * n_train_batches + minibatch_index
@@ -364,6 +384,7 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
 
                 # if we got the best validation score until now
                 if this_validation_loss < best_validation_loss:
+
                     #improve patience if loss improvement is good enough
                     if (
                                 this_validation_loss < best_validation_loss *
@@ -411,7 +432,8 @@ def read_data(batchSize,
     testData = np.array(np.array(pandas.read_csv(xtestfpath, header=None))[:, 1:],
                         dtype=theano.config.floatX)
 
-    numRows = x_data.shape[0] / batchSize * batchSize
+    numRows = x_data.shape[0]
+    # numRows = x_data.shape[0] / batchSize * batchSize
     x_data = x_data[:numRows, :]
     y_data = y_data[:numRows]
 
@@ -443,17 +465,19 @@ if __name__ == '__main__':
     # img = np.array(img.getdata(), dtype='float64') / 256.
     # img = img[: img_shape[0]*img_shape[1], 0].reshape(1, img_shape[0] * img_shape[1])
 
-    trainData, testData = read_data(100,
-                                    xtrainfpath= '/Users/jennyyuejin/K/NDSB/Data/X_train_30_30.csv',
-                                    xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_30_30.csv',
-                                    takeNumColumns=30*30)
+    batchSize = 10000
+    trainData, testData = read_data(batchSize,
+                                    xtrainfpath= '/Users/jennyyuejin/K/NDSB/Data/X_train_15_15.csv',
+                                    xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_15_15.csv',
+                                    takeNumColumns=15*15)
 
     res = test_mlp(trainData,
+                   121,
                    numFeatureMaps = [2, 2],
-                   imageShape = [30, 30],
-                   filterShape = [5, 5],
+                   imageShape = [15, 15],
+                   filterShape = [2, 2],
                    poolSize = [2, 2],
-                   n_epochs=2, learning_rate=0.5, batch_size=100, n_hidden=200,
+                   n_epochs=2, learning_rate=0.5, batch_size=batchSize, n_hidden=200,
                    predict_set_x=testData)
 
 

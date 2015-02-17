@@ -79,10 +79,14 @@ class HiddenLayer(object):
         self.b = b
 
         lin_output = T.dot(input, self.W) + self.b
+
         self.output = (
             lin_output if activation is None
             else activation(lin_output)
         )
+
+        self.output_print = theano.printing.Print('Hidden Layer output', attrs=['__str__', 'shape'])(self.output)
+
 
         # parameters of the model
         self.params = [self.W, self.b]
