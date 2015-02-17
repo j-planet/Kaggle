@@ -130,7 +130,7 @@ def run_cnn(datasets,
             imageShape,
             filterShape,
             poolSize,
-            learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
+            initialLearningRate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
             dataset='/Users/JennyYueJin/K/tryTheano/Data/mnist.pkl.gz',
             batch_size=100,
             n_hidden=100, rndState=0,
@@ -141,7 +141,7 @@ def run_cnn(datasets,
     :param imageShape: (image width, image height)
     :param filterShape: (filter width, filter height)
     :param poolSize: (pool block width, pool block height)
-    :param learning_rate:
+    :param initialLearningRate:
     :param L1_reg:
     :param L2_reg:
     :param n_epochs:
@@ -153,6 +153,8 @@ def run_cnn(datasets,
     """
 
     # datasets = load_data(dataset)
+    config = '_'.join([str(i) for i in imageShape + filterShape + numFeatureMaps + poolSize + [n_hidden]])
+    print '='*5, config, '='*5
 
     rng = np.random.RandomState(rndState)
 
@@ -166,6 +168,8 @@ def run_cnn(datasets,
     n_test_batches = test_set_x.get_value(borrow=True).shape[0] / batch_size + 1
 
     index = T.lscalar()  # index to a [mini]batch
+    epoch_parameter = T.lscalar() # index to epoch, used for decreasing the learning rate over time
+    epoch_given = T.lscalar() # index to epoch, used for decreasing the learning rate over time
     x = T.matrix('x')   # the data is presented as rasterized images
     y = T.ivector('y')  # the labels are presented as 1D vector of [int] labels
 
@@ -270,7 +274,7 @@ def run_cnn(datasets,
     # create the updates list by automatically looping over all
     # (params[i], grads[i]) pairs.
     updates = [
-        (param_i, param_i - learning_rate * grad_i)
+        (param_i, param_i - initialLearningRate / (1 + 0.001*(epoch_parameter+1)) * grad_i)
         for param_i, grad_i in zip(params, grads)
     ]
 
@@ -287,12 +291,13 @@ def run_cnn(datasets,
     ) if debugMode else None
 
     train_model = theano.function(
-        [index],
+        [index, epoch_given],
         cost,
         updates=updates,
         givens={
             x: train_set_x[index * batch_size: (index + 1) * batch_size],
-            y: train_set_y[index * batch_size: (index + 1) * batch_size]
+            y: train_set_y[index * batch_size: (index + 1) * batch_size],
+            epoch_parameter: epoch_given
         },
         name='train_model',
         mode=theano.compile.MonitorMode(
@@ -326,7 +331,7 @@ def run_cnn(datasets,
         pred_results = predict_model()
 
         make_submission_file(pred_results, testFnames,
-                             fNameSuffix='_'.join([str(i) for i in imageShape + filterShape + poolSize + [n_hidden]]))
+                             fNameSuffix=config)
 
     else:
         pred_results = None
@@ -366,7 +371,6 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
 
     while (epoch < n_epochs) and (not done_looping):
         print '----- epoch:', epoch
-        epoch += 1
 
         print 'minibatch:',
         for minibatch_index in xrange(n_train_batches):
@@ -375,9 +379,7 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
 
             if debugMode:
                 print_stuff(minibatch_index)
-            minibatch_avg_cost = train_model(minibatch_index)
-
-            # print 'done evaluation train_model. minibatch average cost =', minibatch_avg_cost
+            minibatch_avg_cost = train_model(minibatch_index, epoch)
 
             # iteration number
             iter = (epoch - 1) * n_train_batches + minibatch_index
@@ -424,6 +426,8 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
             if patience <= iter:
                 done_looping = True
                 break
+
+        epoch += 1
 
     end_time = time.clock()
     print(('Optimization complete. Best validation score of %f %% '
@@ -492,12 +496,12 @@ if __name__ == '__main__':
 
     res = run_cnn(trainData,
                   121,
-                  numFeatureMaps = [2, 2],
+                  numFeatureMaps = [5, 5],
                   imageShape = [15, 15],
                   filterShape = [2, 2],
                   poolSize = [2, 2],
-                  n_epochs=10, learning_rate=0.1, batch_size=batchSize, n_hidden=200,
-                  predict_set_x=testData, testFnames=testFnames)
+                  n_epochs=10, initialLearningRate=0.1, batch_size=batchSize, n_hidden=200,
+                  predict_set_x=None, testFnames=testFnames)
 
 
     # plot original image and first and second components of output
