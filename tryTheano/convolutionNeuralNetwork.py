@@ -19,12 +19,22 @@ import theano.tensor as T
 from theano.tensor.nnet import conv
 from theano.tensor.signal import downsample
 theano.config.openmp = True
+theano.config.optimizer = 'None'
+theano.config.exception_verbosity='high'
 
 sys.path.extend(['/Users/jennyyuejin/K/tryTheano'])
 
 from logisticRegressionExample import LogisticRegression, load_data
 from mlpExample import HiddenLayer
 plt.ioff()
+
+
+def inspect_inputs(i, node, fn):
+    print i, node, "input(s) value(s):", [input[0] for input in fn.inputs],
+
+
+def inspect_outputs(i, node, fn):
+    print "output(s) value(s):", [output[0] for output in fn.outputs]
 
 
 class LeNetConvPoolLayer(object):
@@ -224,7 +234,11 @@ def test_mlp(datasets,
         givens={
             x: test_set_x[index * batch_size: (index + 1) * batch_size],
             y: test_set_y[index * batch_size: (index + 1) * batch_size]
-        }
+        },
+        name='test_model',
+        mode=theano.compile.MonitorMode(
+            pre_func=inspect_inputs,
+            post_func=inspect_outputs)
     )
 
     validate_model = theano.function(
@@ -233,7 +247,11 @@ def test_mlp(datasets,
         givens={
             x: valid_set_x[index * batch_size: (index + 1) * batch_size],
             y: valid_set_y[index * batch_size: (index + 1) * batch_size]
-        }
+        },
+        name='validation_model',
+        mode=theano.compile.MonitorMode(
+            pre_func=inspect_inputs,
+            post_func=inspect_outputs)
     )
 
     # create a list of gradients for all model parameters
@@ -256,7 +274,11 @@ def test_mlp(datasets,
         givens={
             x: train_set_x[index * batch_size: (index + 1) * batch_size],
             y: train_set_y[index * batch_size: (index + 1) * batch_size]
-        }
+        },
+        name='train_model',
+        mode=theano.compile.MonitorMode(
+            pre_func=inspect_inputs,
+            post_func=inspect_outputs)
     )
 
     train(n_train_batches, n_valid_batches, n_test_batches,
@@ -270,7 +292,11 @@ def test_mlp(datasets,
               layer3.y_pred,
               givens={
                   x: theano.shared(predict_set_x, borrow=True)
-              }
+              },
+              name='predict_model',
+              mode=theano.compile.MonitorMode(
+                  pre_func=inspect_inputs,
+                  post_func=inspect_outputs)
         )
     else:
         predict_model = None
@@ -418,9 +444,9 @@ if __name__ == '__main__':
     # img = img[: img_shape[0]*img_shape[1], 0].reshape(1, img_shape[0] * img_shape[1])
 
     trainData, testData = read_data(100,
-        xtrainfpath= '/Users/jennyyuejin/K/NDSB/Data/X_train_30_30.csv',
-        xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_30_30.csv',
-        takeNumColumns=30*30)
+                                    xtrainfpath= '/Users/jennyyuejin/K/NDSB/Data/X_train_30_30.csv',
+                                    xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_30_30.csv',
+                                    takeNumColumns=30*30)
 
     res = test_mlp(trainData,
                    numFeatureMaps = [2, 2],
