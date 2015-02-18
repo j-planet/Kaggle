@@ -4,7 +4,7 @@ import sys
 sys.path.append('/Users/JennyYueJin/K/NDSB')
 
 from global_vars import DATA_DIR, CLASS_MAPPING, CLASS_NAMES
-from Utilities.utilities import plot_feature_importances
+# from Utilities.utilities import plot_feature_importances
 
 import subprocess
 import datetime
@@ -34,7 +34,7 @@ import scipy.stats as stats
 import seaborn as sns
 from skimage.feature import peak_local_max
 
-from features import create_features, FEATURE_NAMES
+from features import create_features, FEATURE_NAMES, trim_image
 
 
 plt.ioff()
@@ -76,6 +76,35 @@ def create_test_data_table(testFListFpath, width, height):
     return X, imgNames
 
 
+def create_test_data_table_simple(testFListFpath, width, height):
+
+    numSamples = num_lines_in_file(testFListFpath)
+    X = np.zeros((numSamples, width * height))
+    imgNames = [None]*numSamples
+
+    printIs = [int(i/100.*numSamples) for i in np.arange(100)]
+    i = 0
+
+    for fpath in open(testFListFpath):
+        try:
+            fpath = fpath.strip()
+
+            imData = imread(os.path.join(DATA_DIR, fpath))
+            X[i, :] = resize(trim_image(imData), (width, height)).ravel()
+
+            imgNames[i] = fpath.split(os.sep)[-1]
+
+        except Exception as e:
+            print 'Skipping image %s due to error %s' % (fpath, e.message)
+
+        i += 1
+
+        if i in printIs:
+            print '%i%% done...' % (100. * i/numSamples)
+
+    return X, imgNames
+
+
 def create_training_data_table(trainFListFpath, width, height):
 
     """
@@ -103,6 +132,45 @@ def create_training_data_table(trainFListFpath, width, height):
             imData = imread(os.path.join(DATA_DIR, fpath))
             X[i, :] = create_features(imData, width, height)
             y[i] = classLabel
+        except Exception as e:
+            print 'Skipping image %s due to error %s' % (fpath, e.message)
+
+        i += 1
+
+        if i in printIs:
+            print '%i%% done...' % (100. * i/numSamples)
+
+    return X, y.astype(int)
+
+
+def create_training_data_table_simple(trainFListFpath, width, height):
+
+    """
+    :param trainDatadir:
+    :param width:
+    :param height:
+    :return:    X (numpy array of size numImgs x (maxWidth x maxHeight),
+                y (numpy array of size (numImgs,))
+    """
+
+    numSamples = num_lines_in_file(trainFListFpath)
+    X = np.zeros((numSamples, width * height))
+    y = np.zeros((numSamples, ))
+
+    printIs = [int(i/100.*numSamples) for i in np.arange(100)]
+    i = 0
+
+    for fpath in open(trainFListFpath):
+        try:
+            fpath = fpath.strip()
+
+            className = fpath.split(os.sep)[-2]
+            classLabel = CLASS_MAPPING[className]
+
+            imData = imread(os.path.join(DATA_DIR, fpath))
+            X[i, :] = resize(trim_image(imData), (width, height)).ravel()
+            y[i] = classLabel
+
         except Exception as e:
             print 'Skipping image %s due to error %s' % (fpath, e.message)
 
@@ -210,5 +278,13 @@ def make_submission_file(pred, testFnames,
 
 if __name__ == '__main__':
 
-    width, height = 25, 25
-    write_train_data_to_files([(25, 25)])
+    width, height = 48, 48
+    # write_train_data_to_files([(25, 25)])
+
+    # x_train, _ = create_training_data_table_simple(os.path.join(DATA_DIR, 'trainFnames.txt'), width, height)
+    # np.savetxt(os.path.join(DATA_DIR, 'X_train_%i_%i_simple.csv' % (width, height)), x_train, delimiter=',')
+
+    x_test, testFnames = create_test_data_table_simple(os.path.join(DATA_DIR, 'testFnames.txt'), width, height)
+    pandas.DataFrame(x_test, index=testFnames). \
+        to_csv(os.path.join(DATA_DIR, 'X_test_%i_%i_simple.csv' % (width, height)), header=False)
+

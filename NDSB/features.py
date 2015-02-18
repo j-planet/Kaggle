@@ -4,7 +4,7 @@ import sys
 sys.path.append('/Users/JennyYueJin/K/NDSB')
 
 from global_vars import DATA_DIR, CLASS_MAPPING, CLASS_NAMES
-from Utilities.utilities import plot_feature_importances
+# from Utilities.utilities import plot_feature_importances
 
 import subprocess
 import datetime

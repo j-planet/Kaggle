@@ -1,3 +1,5 @@
+from _ctypes import resize
+
 __author__ = 'JennyYueJin'
 
 
@@ -125,11 +127,12 @@ def make_var(x):
 
 
 def run_cnn(datasets,
+            numConvPoolLayers,
             numYs,
             numFeatureMaps,
             imageShape,
-            filterShape,
-            poolSize,
+            filterShapes,
+            poolWidths,
             initialLearningRate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
             dataset='/Users/JennyYueJin/K/tryTheano/Data/mnist.pkl.gz',
             batch_size=100,
@@ -139,8 +142,8 @@ def run_cnn(datasets,
     """
     :param numFeatureMaps:
     :param imageShape: (image width, image height)
-    :param filterShape: (filter width, filter height)
-    :param poolSize: (pool block width, pool block height)
+    :param filterShapes: [(filter width, filter height), ...] for the conv-pool layers
+    :param poolWidths: (pool block width, pool block height)
     :param initialLearningRate:
     :param L1_reg:
     :param L2_reg:
@@ -151,9 +154,10 @@ def run_cnn(datasets,
     :param rndState:
     :return:
     """
+    assert numConvPoolLayers == len(numFeatureMaps) and numConvPoolLayers == len(filterShapes)
 
     # datasets = load_data(dataset)
-    config = '_'.join([str(i) for i in imageShape + filterShape + numFeatureMaps + poolSize + [n_hidden, initialLearningRate]])
+    config = '_'.join([str(i) for i in imageShape + filterShapes + poolWidths + [n_hidden, initialLearningRate]])
     print '='*5, config, '='*5
 
     rng = np.random.RandomState(rndState)
@@ -179,69 +183,79 @@ def run_cnn(datasets,
     ######################
     print '... building the model'
 
-    # Reshape matrix of rasterized images of shape (batch_size, 28 * 28)
-    # to a 4D tensor, compatible with our LeNetConvPoolLayer
-    # (28, 28) is the size of MNIST images.
-    layer0_input = x.reshape((-1, 1, imageShape[0], imageShape[1]))
 
-    # Construct the first convolutional pooling layer:
-    # filtering reduces the image size to (28-5+1 , 28-5+1) = (24, 24)
-    # maxpooling reduces this further to (24/2, 24/2) = (12, 12)
-    # 4D output tensor is thus of shape (batch_size, nkerns[0], 12, 12)
-    layer0 = LeNetConvPoolLayer(
-        rng,
-        input=layer0_input,
-        image_shape=(batch_size, 1, imageShape[0], imageShape[1]),
-        filter_shape=(numFeatureMaps[0], 1, filterShape[0], filterShape[1]),
-        poolsize=(2, 2)
-    )
 
     # Construct the second convolutional pooling layer
     # filtering reduces the image size to (12-5+1, 12-5+1) = (8, 8)
     # maxpooling reduces this further to (8/2, 8/2) = (4, 4)
     # 4D output tensor is thus of shape (batch_size, nkerns[1], 4, 4)
-    layer1_imgWidth = (imageShape[0]-filterShape[0]+1)/poolSize[0]
-    layer1_imgHeight = (imageShape[1]-filterShape[1]+1)/poolSize[1]
 
-    layer1 = LeNetConvPoolLayer(
+    # ------ build conv-pool layers
+    convPoolLayers = [None] * numConvPoolLayers
+
+    # Reshape matrix of rasterized images of shape (batch_size, 28 * 28)
+    # to a 4D tensor, compatible with our LeNetConvPoolLayer
+    # (28, 28) is the size of MNIST images.
+    layer0_input = x.reshape((-1, 1, imageShape[0], imageShape[1]))
+    prevOutputImageShape = ((imageShape[0] - filterShapes[0][0] + 1)/poolWidths[0],
+                            (imageShape[1] - filterShapes[0][1] + 1)/poolWidths[0])
+
+    # Construct the first convolutional pooling layer:
+    # filtering reduces the image size to (28-5+1 , 28-5+1) = (24, 24)
+    # maxpooling reduces this further to (24/2, 24/2) = (12, 12)
+    # 4D output tensor is thus of shape (batch_size, nkerns[0], 12, 12)
+    convPoolLayers[0] = LeNetConvPoolLayer(
         rng,
-        input=layer0.output,
-        image_shape=(batch_size, numFeatureMaps[0], layer1_imgWidth, layer1_imgHeight),
-        filter_shape=(numFeatureMaps[1], numFeatureMaps[0], filterShape[0], filterShape[1]),
-        poolsize=poolSize
+        input=layer0_input,
+        image_shape=(batch_size, 1, imageShape[0], imageShape[1]),
+        filter_shape=(numFeatureMaps[0], 1, filterShapes[0][0], filterShapes[0][1]),
+        poolsize=[poolWidths[0], poolWidths[0]]
     )
+
+
+    for i in range(1, numConvPoolLayers):
+
+        convPoolLayers[i] = LeNetConvPoolLayer(
+            rng,
+            input=convPoolLayers[i-1].output,
+            image_shape=(batch_size, numFeatureMaps[0], prevOutputImageShape[0], prevOutputImageShape[1]),
+            filter_shape=(numFeatureMaps[i], numFeatureMaps[i-1], filterShapes[i][0], filterShapes[i][1]),
+            poolsize=[poolWidths[i], poolWidths[i]]
+        )
+
+        prevOutputImageShape = ((prevOutputImageShape[0] - filterShapes[i][0] + 1)/poolWidths[i],
+                                (prevOutputImageShape[1] - filterShapes[i][1] + 1)/poolWidths[i])
+
 
     # the HiddenLayer being fully-connected, it operates on 2D matrices of
     # shape (batch_size, num_pixels) (i.e matrix of rasterized images).
     # This will generate a matrix of shape (batch_size, nkerns[1] * 4 * 4),
     # or (500, 50 * 4 * 4) = (500, 800) with the default values.
-    layer2_input = layer1.output.flatten(2)
-    layer2_imgWidth = (layer1_imgWidth-filterShape[0]+1)/poolSize[0]
-    layer2_imgHeight = (layer1_imgHeight-filterShape[1]+1)/poolSize[1]
+    fcLayer_input = convPoolLayers[-1].output.flatten(2)
 
     # construct a fully-connected sigmoidal layer
-    layer2 = HiddenLayer(
+    fullyConnectedLayer = HiddenLayer(
         rng,
-        input=layer2_input,
-        n_in=numFeatureMaps[1] * layer2_imgWidth * layer2_imgHeight,
+        input=fcLayer_input,
+        n_in=numFeatureMaps[-1] * prevOutputImageShape[0] * prevOutputImageShape[1],
         n_out=n_hidden,
         activation=T.tanh
     )
 
     # classify the values of the fully-connected sigmoidal layer
-    layer3 = LogisticRegression(input=layer2.output, n_in=n_hidden, n_out=numYs)
+    lastLayer = LogisticRegression(input=fullyConnectedLayer.output, n_in=n_hidden, n_out=numYs)
 
     # create a list of all model parameters to be fit by gradient descent
-    params = layer3.params + layer2.params + layer1.params + layer0.params
+    params = lastLayer.params + fullyConnectedLayer.params + [item for l in convPoolLayers for item in l.params]
 
     # the cost we minimize during training is the NLL of the model
-    cost = layer3.negative_log_likelihood(y)
+    cost = lastLayer.negative_log_likelihood(y)
     # + L1_reg * abs(params).sum() + L2_reg * (params**2).sum()
 
     # create a function to compute the mistakes that are made by the model
     test_model = theano.function(
         [index],
-        layer3.errors(y),
+        lastLayer.errors(y),
         givens={
             x: test_set_x[index * batch_size: (index + 1) * batch_size],
             y: test_set_y[index * batch_size: (index + 1) * batch_size]
@@ -254,7 +268,7 @@ def run_cnn(datasets,
 
     validate_model = theano.function(
         [index],
-        layer3.errors(y),
+        lastLayer.errors(y),
         givens={
             x: valid_set_x[index * batch_size: (index + 1) * batch_size],
             y: valid_set_y[index * batch_size: (index + 1) * batch_size]
@@ -274,15 +288,15 @@ def run_cnn(datasets,
     # create the updates list by automatically looping over all
     # (params[i], grads[i]) pairs.
     updates = [
-        (param_i, param_i - initialLearningRate / (1 + 0.005*(epoch_parameter+1)) * grad_i)
+        (param_i, param_i - initialLearningRate / (1 + 0.001*(epoch_parameter+1)) * grad_i)
         for param_i, grad_i in zip(params, grads)
     ]
 
     print_stuff = theano.function(
         [index],
         [theano.printing.Print('x shape', attrs=['shape'])(x),
-         layer0.output_print, layer1.output_print, layer2.output_print,
-         layer3.t_dot_print, layer3.p_y_given_x_print],
+         layer0.output_print, layer1.output_print, fullyConnectedLayer.output_print,
+         lastLayer.t_dot_print, lastLayer.p_y_given_x_print],
         givens={
             x: train_set_x[index * batch_size: (index + 1) * batch_size],
             y: train_set_y[index * batch_size: (index + 1) * batch_size]
@@ -318,7 +332,7 @@ def run_cnn(datasets,
 
         predict_model = theano.function(
             [],
-              layer3.p_y_given_x,
+              lastLayer.p_y_given_x,
               givens={
                   x: predict_set_x
               },
@@ -337,7 +351,7 @@ def run_cnn(datasets,
         pred_results = None
 
 
-    return [layer0, layer1, layer2, layer3, pred_results]
+    return convPoolLayers + [fullyConnectedLayer, lastLayer, pred_results]
 
 
 def train(n_train_batches, n_valid_batches, n_test_batches,
@@ -379,7 +393,7 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
 
             if debugMode:
                 print_stuff(minibatch_index)
-            minibatch_avg_cost = train_model(minibatch_index, epoch)
+            print 'minibatch_avg_cost =', train_model(minibatch_index, epoch)
 
             # iteration number
             iter = (epoch - 1) * n_train_batches + minibatch_index
@@ -490,19 +504,20 @@ if __name__ == '__main__':
     # img = img[: img_shape[0]*img_shape[1], 0].reshape(1, img_shape[0] * img_shape[1])
 
     batchSize = 1000
-    edgeLength = 40
-    trainData, testData, testFnames = read_data(xtrainfpath= '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i.csv' % (edgeLength, edgeLength),
-                                                xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_%i_%i.csv' % (edgeLength, edgeLength),
+    edgeLength = 48
+    trainData, testData, testFnames = read_data(xtrainfpath= '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i_simple.csv' % (edgeLength, edgeLength),
+                                                xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_%i_%i_simple.csv' % (edgeLength, edgeLength),
                                                 takeNumColumns=edgeLength*edgeLength)
 
     res = run_cnn(trainData,
+                  3,
                   121,
-                  numFeatureMaps = [3, 2],
+                  numFeatureMaps = [3, 3, 2],
                   imageShape = [edgeLength, edgeLength],
-                  filterShape = [3, 3],
-                  poolSize = [2, 2],
-                  n_epochs=1000, initialLearningRate=0.02, batch_size=batchSize, n_hidden=300,
-                  patience=20000,
+                  filterShapes = [(3, 3), (2, 2), (2, 2)],
+                  poolWidths = [2, 1, 1],
+                  n_epochs=1000, initialLearningRate=0.01, batch_size=batchSize, n_hidden=200,
+                  patience=30000,
                   predict_set_x=testData, testFnames=testFnames)
 
 
