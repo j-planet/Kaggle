@@ -218,7 +218,7 @@ def run_cnn(datasets,
         convPoolLayers[i] = LeNetConvPoolLayer(
             rng,
             input=convPoolLayers[i-1].output,
-            image_shape=(batch_size, numFeatureMaps[0], prevOutputImageShape[0], prevOutputImageShape[1]),
+            image_shape=(batch_size, numFeatureMaps[i-1], prevOutputImageShape[0], prevOutputImageShape[1]),
             filter_shape=(numFeatureMaps[i], numFeatureMaps[i-1], filterShapes[i][0], filterShapes[i][1]),
             poolsize=[poolWidths[i], poolWidths[i]]
         )
@@ -510,13 +510,13 @@ if __name__ == '__main__':
                                                 takeNumColumns=edgeLength*edgeLength)
 
     res = run_cnn(trainData,
-                  3,
+                  4,
                   121,
-                  numFeatureMaps = [3, 3, 2],
+                  numFeatureMaps = [3, 3, 2, 2],
                   imageShape = [edgeLength, edgeLength],
-                  filterShapes = [(3, 3), (2, 2), (2, 2)],
-                  poolWidths = [2, 1, 1],
-                  n_epochs=1000, initialLearningRate=0.01, batch_size=batchSize, n_hidden=200,
+                  filterShapes = [(3, 3), (2, 2), (2, 2), (2, 2)],
+                  poolWidths = [2, 2, 1, 1],
+                  n_epochs=1000, initialLearningRate=0.002, batch_size=batchSize, n_hidden=200,
                   patience=30000,
                   predict_set_x=testData, testFnames=testFnames)
 
