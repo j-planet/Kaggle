@@ -127,7 +127,6 @@ def make_var(x):
 
 
 def run_cnn(datasets,
-            numConvPoolLayers,
             numYs,
             numFeatureMaps,
             imageShape,
@@ -154,7 +153,7 @@ def run_cnn(datasets,
     :param rndState:
     :return:
     """
-    assert numConvPoolLayers == len(numFeatureMaps) and numConvPoolLayers == len(filterShapes)
+    assert len(numFeatureMaps) == len(filterShapes)
 
     # datasets = load_data(dataset)
     config = '_'.join([str(i) for i in imageShape + filterShapes + poolWidths + [n_hidden, initialLearningRate]])
@@ -191,7 +190,7 @@ def run_cnn(datasets,
     # 4D output tensor is thus of shape (batch_size, nkerns[1], 4, 4)
 
     # ------ build conv-pool layers
-    convPoolLayers = [None] * numConvPoolLayers
+    convPoolLayers = [None] * len(numFeatureMaps)
 
     # Reshape matrix of rasterized images of shape (batch_size, 28 * 28)
     # to a 4D tensor, compatible with our LeNetConvPoolLayer
@@ -213,7 +212,7 @@ def run_cnn(datasets,
     )
 
 
-    for i in range(1, numConvPoolLayers):
+    for i in range(1, len(convPoolLayers)):
 
         convPoolLayers[i] = LeNetConvPoolLayer(
             rng,
@@ -255,7 +254,7 @@ def run_cnn(datasets,
     # create a function to compute the mistakes that are made by the model
     test_model = theano.function(
         [index],
-        lastLayer.errors(y),
+        lastLayer.negative_log_likelihood(y),
         givens={
             x: test_set_x[index * batch_size: (index + 1) * batch_size],
             y: test_set_y[index * batch_size: (index + 1) * batch_size]
@@ -268,7 +267,7 @@ def run_cnn(datasets,
 
     validate_model = theano.function(
         [index],
-        lastLayer.errors(y),
+        lastLayer.negative_log_likelihood(y),
         givens={
             x: valid_set_x[index * batch_size: (index + 1) * batch_size],
             y: valid_set_y[index * batch_size: (index + 1) * batch_size]
@@ -288,7 +287,7 @@ def run_cnn(datasets,
     # create the updates list by automatically looping over all
     # (params[i], grads[i]) pairs.
     updates = [
-        (param_i, param_i - initialLearningRate / (1 + 0.001*(epoch_parameter+1)) * grad_i)
+        (param_i, param_i - initialLearningRate / (1 + 0.01*(epoch_parameter+1)) * grad_i)
         for param_i, grad_i in zip(params, grads)
     ]
 
@@ -393,6 +392,7 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
 
             if debugMode:
                 print_stuff(minibatch_index)
+
             print 'minibatch_avg_cost =', train_model(minibatch_index, epoch)
 
             # iteration number
@@ -503,20 +503,19 @@ if __name__ == '__main__':
     # img = np.array(img.getdata(), dtype='float64') / 256.
     # img = img[: img_shape[0]*img_shape[1], 0].reshape(1, img_shape[0] * img_shape[1])
 
-    batchSize = 1000
+    batchSize = 3000
     edgeLength = 48
     trainData, testData, testFnames = read_data(xtrainfpath= '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i_simple.csv' % (edgeLength, edgeLength),
                                                 xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_%i_%i_simple.csv' % (edgeLength, edgeLength),
                                                 takeNumColumns=edgeLength*edgeLength)
 
     res = run_cnn(trainData,
-                  4,
                   121,
-                  numFeatureMaps = [3, 3, 2, 2],
+                  numFeatureMaps = [10, 8, 3, 3],
                   imageShape = [edgeLength, edgeLength],
                   filterShapes = [(3, 3), (2, 2), (2, 2), (2, 2)],
                   poolWidths = [2, 2, 1, 1],
-                  n_epochs=1000, initialLearningRate=0.002, batch_size=batchSize, n_hidden=200,
+                  n_epochs=2000, initialLearningRate=0.05, batch_size=batchSize, n_hidden=200,
                   patience=30000,
                   predict_set_x=testData, testFnames=testFnames)
 
