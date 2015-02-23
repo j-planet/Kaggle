@@ -180,8 +180,8 @@ def run_cnn(numYs,
     n_test_batches = test_set_x.get_value(borrow=True).shape[0] / batch_size + 1
 
     index = T.lscalar()  # index to a [mini]batch
-    rate_dec_multiple = T.lscalar() # index to epoch, used for decreasing the learning rate over time
-    rate_dec_multiple_given = T.lscalar() # index to epoch, used for decreasing the learning rate over time
+    rate_dec_multiple = T.fscalar()         # index to epoch, used for decreasing the learning rate over time
+    rate_dec_multiple_given = T.fscalar()   # index to epoch, used for decreasing the learning rate over time
     x = T.matrix('x')   # the data is presented as rasterized images
     y = T.ivector('y')  # the labels are presented as 1D vector of [int] labels
 
@@ -296,7 +296,7 @@ def run_cnn(numYs,
     # create the updates list by automatically looping over all
     # (params[i], grads[i]) pairs.
     updates = [
-        (param_i, param_i - initialLearningRate / (1 + 0.005 * rate_dec_multiple) * grad_i)
+        (param_i, (param_i - initialLearningRate / (1 + 0.005 * rate_dec_multiple) * grad_i).astype(theano.config.floatX))
         for param_i, grad_i in zip(params, grads)
     ]
 
@@ -357,7 +357,6 @@ def run_cnn(numYs,
     make_submission_file(pred_results, testFnames,
                          fNameSuffix=config)
 
-
     return convPoolLayers + [fullyConnectedLayer, lastLayer, pred_results]
 
 
@@ -414,12 +413,12 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
                 this_validation_loss = np.mean(validation_losses)
 
                 print(
-                    'epoch %i, minibatch %i/%i, validation error %f %%' %
+                    'epoch %i, minibatch %i/%i, validation error %f' %
                     (
                         epoch,
                         minibatch_index + 1,
                         n_train_batches,
-                        this_validation_loss * 100.
+                        this_validation_loss
                     )
                 )
 
@@ -529,8 +528,9 @@ if __name__ == '__main__':
     # img = np.array(img.getdata(), dtype='float64') / 256.
     # img = img[: img_shape[0]*img_shape[1], 0].reshape(1, img_shape[0] * img_shape[1])
 
-    batchSize = 3000
+    batchSize = 250
     edgeLength = 48
+
     # trainData, testData, testFnames = read_data(xtrainfpath= '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i_simple.csv' % (edgeLength, edgeLength),
     #                                             xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_%i_%i_simple.csv' % (edgeLength, edgeLength),
     #                                             takeNumColumns=edgeLength*edgeLength)
@@ -543,9 +543,9 @@ if __name__ == '__main__':
                   numFeatureMaps = [4, 4, 3, 3, 3],
                   imageShape = [edgeLength, edgeLength],
                   filterShapes = [(3, 3), (2, 2), (2, 2), (2, 2), (2, 2)],
-                  poolWidths = [2, 2, 1, 1, 1],
-                  n_epochs=2000, initialLearningRate=0.1,
-                  batch_size=batchSize, n_hidden=200,
+                  poolWidths = [2, 2, 1, 1, 1, 1],
+                  n_epochs=2000, initialLearningRate=0.02,
+                  batch_size=batchSize, n_hidden=300,
                   patience=30000)
 
 
