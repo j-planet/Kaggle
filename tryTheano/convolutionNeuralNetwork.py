@@ -446,7 +446,7 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
                           (epoch, minibatch_index + 1, n_train_batches,
                            test_score * 100.))
                 else:   # we are going too fast
-                    print 'Bumping rate-decreasing-multiple from %f to %f.' % rate_dec_multiple, rate_dec_multiple*1.1
+                    print 'Bumping rate-decreasing-multiple from %f to %f.' % (rate_dec_multiple, rate_dec_multiple*1.1)
                     rate_dec_multiple *= 1.1
 
             if patience <= iter:
@@ -544,7 +544,8 @@ if __name__ == '__main__':
                   imageShape = [edgeLength, edgeLength],
                   filterShapes = [(3, 3), (2, 2), (2, 2), (2, 2), (2, 2)],
                   poolWidths = [2, 2, 1, 1, 1],
-                  n_epochs=2000, initialLearningRate=0.1, batch_size=batchSize, n_hidden=200,
+                  n_epochs=2000, initialLearningRate=0.1,
+                  batch_size=batchSize, n_hidden=200,
                   patience=30000)
 
 
