@@ -33,6 +33,10 @@ from NDSB.fileMangling import make_submission_file
 
 plt.ioff()
 debugMode = False
+print theano.config.device
+
+global X_TRAIN_FPATH, Y_FPATH, X_TEST_FPATH
+
 
 def inspect_inputs(i, node, fn):
     if debugMode:
@@ -126,8 +130,7 @@ def make_var(x):
     return theano.shared(x, borrow=True)
 
 
-def run_cnn(datasets,
-            numYs,
+def run_cnn(numYs,
             numFeatureMaps,
             imageShape,
             filterShapes,
@@ -135,8 +138,7 @@ def run_cnn(datasets,
             initialLearningRate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
             dataset='/Users/JennyYueJin/K/tryTheano/Data/mnist.pkl.gz',
             batch_size=100,
-            n_hidden=100, rndState=0, patience=1000,
-            predict_set_x=None, testFnames=None):
+            n_hidden=100, rndState=0, patience=1000):
 
     """
     :param numFeatureMaps:
@@ -155,15 +157,19 @@ def run_cnn(datasets,
     """
     assert len(numFeatureMaps) == len(filterShapes)
 
+    print X_TEST_FPATH
+
     # datasets = load_data(dataset)
     config = '_'.join([str(i) for i in imageShape + filterShapes + poolWidths + [n_hidden, initialLearningRate]])
     print '='*5, config, '='*5
 
     rng = np.random.RandomState(rndState)
 
-    train_set_x, train_set_y = datasets[0]
-    valid_set_x, valid_set_y = datasets[1]
-    test_set_x, test_set_y = datasets[2]
+    (train_set_x, train_set_y), (valid_set_x, valid_set_y), (test_set_x, test_set_y) = read_train_data(X_TRAIN_FPATH, Y_FPATH)
+
+    # train_set_x, train_set_y = datasets[0]
+    # valid_set_x, valid_set_y = datasets[1]
+    # test_set_x, test_set_y = datasets[2]
 
     # compute number of minibatches for training, validation and testing
     n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size + 1
@@ -293,9 +299,12 @@ def run_cnn(datasets,
 
     print_stuff = theano.function(
         [index],
-        [theano.printing.Print('x shape', attrs=['shape'])(x),
-         layer0.output_print, layer1.output_print, fullyConnectedLayer.output_print,
-         lastLayer.t_dot_print, lastLayer.p_y_given_x_print],
+        [theano.printing.Print('x shape', attrs=['shape'])(x)]
+        + [l.output_print for l in convPoolLayers]
+        + [fullyConnectedLayer.output_print,
+           lastLayer.t_dot_print,
+           lastLayer.p_y_given_x_print],
+
         givens={
             x: train_set_x[index * batch_size: (index + 1) * batch_size],
             y: train_set_y[index * batch_size: (index + 1) * batch_size]
@@ -327,27 +336,23 @@ def run_cnn(datasets,
     f.close()
 
     # predict
-    if predict_set_x is not None:
+    predict_set_x, testFnames = read_test_data(X_TEST_FPATH)
+    predict_model = theano.function(
+        [],
+          lastLayer.p_y_given_x,
+          givens={
+              x: predict_set_x
+          },
+          name='predict_model',
+          mode=theano.compile.MonitorMode(
+              pre_func=inspect_inputs,
+              post_func=inspect_outputs)
+    )
 
-        predict_model = theano.function(
-            [],
-              lastLayer.p_y_given_x,
-              givens={
-                  x: predict_set_x
-              },
-              name='predict_model',
-              mode=theano.compile.MonitorMode(
-                  pre_func=inspect_inputs,
-                  post_func=inspect_outputs)
-        )
+    pred_results = predict_model()
 
-        pred_results = predict_model()
-
-        make_submission_file(pred_results, testFnames,
-                             fNameSuffix=config)
-
-    else:
-        pred_results = None
+    make_submission_file(pred_results, testFnames,
+                         fNameSuffix=config)
 
 
     return convPoolLayers + [fullyConnectedLayer, lastLayer, pred_results]
@@ -455,28 +460,21 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
         pass
 
 
-def read_data(xtrainfpath = '/Users/jennyyuejin/K/NDSB/Data/X_train_15_15.csv',
-              xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_15_15.csv',
-              yfpath = '/Users/jennyyuejin/K/NDSB/Data/y.csv',
-              takeNumColumns = None):
+def read_train_data(xtrainfpath,
+                    yfpath = '/Users/jennyyuejin/K/NDSB/Data/y.csv',
+                    takeNumColumns = None):
 
     # read training data
     x_data = np.array(pandas.read_csv(xtrainfpath, header=None), dtype=theano.config.floatX)
     y_data = np.array(pandas.read_csv(yfpath, header=None), dtype=theano.config.floatX).ravel()
 
-    # read test data
-    temp = np.array(pandas.read_csv(xtestfpath, header=None))
-    testFnames = temp[:, 0]
-    testData = np.array(temp[:, 1:], dtype=theano.config.floatX)
-
     numRows = x_data.shape[0]
-    # numRows = x_data.shape[0] / batchSize * batchSize
+
     x_data = x_data[:numRows, :]
     y_data = y_data[:numRows]
 
     if takeNumColumns is not None:
         x_data = x_data[:, :takeNumColumns]
-        testData = testData[:, :takeNumColumns]
 
     temp, testInds = StratifiedShuffleSplit(y_data, n_iter=1, test_size=0.1, random_state=1)._iter_indices().next()
     testX, testY = x_data[testInds], y_data[testInds]
@@ -485,11 +483,31 @@ def read_data(xtrainfpath = '/Users/jennyyuejin/K/NDSB/Data/X_train_15_15.csv',
     trainX, trainY = x_data[temp][trainInds], y_data[temp][trainInds]
     validX, validY = x_data[temp][validInds], y_data[temp][validInds]
 
-    return [(make_var(trainX), T.cast(make_var(trainY), 'int32') ),
+    return [(make_var(trainX), T.cast(make_var(trainY), 'int32')),
             (make_var(validX), T.cast(make_var(validY), 'int32')),
-            (make_var(testX), T.cast(make_var(testY), 'int32'))], \
-           make_var(testData), \
-           testFnames
+            (make_var(testX), T.cast(make_var(testY), 'int32'))]
+
+
+def read_test_data(xtestfpath,
+                   takeNumColumns = None):
+
+    temp = np.array(pandas.read_csv(xtestfpath, header=None))
+    testFnames = temp[:, 0]
+    testData = np.array(temp[:, 1:], dtype=theano.config.floatX)
+
+    if takeNumColumns is not None:
+        testData = testData[:, :takeNumColumns]
+
+    return make_var(testData), testFnames
+
+
+def read_data(xtrainfpath,
+              xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_15_15.csv',
+              yfpath = '/Users/jennyyuejin/K/NDSB/Data/y.csv',
+              takeNumColumns = None):
+
+    return read_train_data(xtrainfpath, yfpath, takeNumColumns=takeNumColumns), \
+           read_test_data(xtestfpath, takeNumColumns=takeNumColumns)
 
 
 if __name__ == '__main__':
@@ -505,19 +523,21 @@ if __name__ == '__main__':
 
     batchSize = 3000
     edgeLength = 48
-    trainData, testData, testFnames = read_data(xtrainfpath= '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i_simple.csv' % (edgeLength, edgeLength),
-                                                xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_%i_%i_simple.csv' % (edgeLength, edgeLength),
-                                                takeNumColumns=edgeLength*edgeLength)
+    # trainData, testData, testFnames = read_data(xtrainfpath= '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i_simple.csv' % (edgeLength, edgeLength),
+    #                                             xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_%i_%i_simple.csv' % (edgeLength, edgeLength),
+    #                                             takeNumColumns=edgeLength*edgeLength)
 
-    res = run_cnn(trainData,
-                  121,
-                  numFeatureMaps = [10, 8, 3, 3],
+    X_TRAIN_FPATH= '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i_simple.csv' % (edgeLength, edgeLength)
+    X_TEST_FPATH = '/Users/jennyyuejin/K/NDSB/Data/X_test_%i_%i_simple.csv' % (edgeLength, edgeLength)
+    Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/y.csv'
+
+    res = run_cnn(121,
+                  numFeatureMaps = [4, 4, 3, 3],
                   imageShape = [edgeLength, edgeLength],
                   filterShapes = [(3, 3), (2, 2), (2, 2), (2, 2)],
                   poolWidths = [2, 2, 1, 1],
                   n_epochs=2000, initialLearningRate=0.05, batch_size=batchSize, n_hidden=200,
-                  patience=30000,
-                  predict_set_x=testData, testFnames=testFnames)
+                  patience=30000)
 
 
     # plot original image and first and second components of output
