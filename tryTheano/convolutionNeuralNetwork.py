@@ -160,7 +160,10 @@ def run_cnn(numYs,
     print X_TEST_FPATH
 
     # datasets = load_data(dataset)
-    config = '_'.join([str(i) for i in imageShape + filterShapes + poolWidths + [n_hidden, initialLearningRate]])
+    config = '_'.join([str(numFeatureMaps)]
+                      + [str(i) for i in imageShape]
+                      + [str(f[0]) for f in filterShapes]
+                      + [str(i) for i in poolWidths] + [str(n_hidden), str(initialLearningRate)])
     print '='*5, config, '='*5
 
     rng = np.random.RandomState(rndState)
@@ -177,8 +180,8 @@ def run_cnn(numYs,
     n_test_batches = test_set_x.get_value(borrow=True).shape[0] / batch_size + 1
 
     index = T.lscalar()  # index to a [mini]batch
-    epoch_parameter = T.lscalar() # index to epoch, used for decreasing the learning rate over time
-    epoch_given = T.lscalar() # index to epoch, used for decreasing the learning rate over time
+    rate_dec_multiple = T.lscalar() # index to epoch, used for decreasing the learning rate over time
+    rate_dec_multiple_given = T.lscalar() # index to epoch, used for decreasing the learning rate over time
     x = T.matrix('x')   # the data is presented as rasterized images
     y = T.ivector('y')  # the labels are presented as 1D vector of [int] labels
 
@@ -293,7 +296,7 @@ def run_cnn(numYs,
     # create the updates list by automatically looping over all
     # (params[i], grads[i]) pairs.
     updates = [
-        (param_i, param_i - initialLearningRate / (1 + 0.01*(epoch_parameter+1)) * grad_i)
+        (param_i, param_i - initialLearningRate / (1 + 0.005 * rate_dec_multiple) * grad_i)
         for param_i, grad_i in zip(params, grads)
     ]
 
@@ -313,13 +316,13 @@ def run_cnn(numYs,
     ) if debugMode else None
 
     train_model = theano.function(
-        [index, epoch_given],
+        [index, rate_dec_multiple_given],
         cost,
         updates=updates,
         givens={
             x: train_set_x[index * batch_size: (index + 1) * batch_size],
             y: train_set_y[index * batch_size: (index + 1) * batch_size],
-            epoch_parameter: epoch_given
+            rate_dec_multiple: rate_dec_multiple_given
         },
         name='train_model',
         mode=theano.compile.MonitorMode(
@@ -385,6 +388,7 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
     start_time = time.clock()
 
     epoch = 0
+    rate_dec_multiple = epoch
     done_looping = False
 
     while (epoch < n_epochs) and (not done_looping):
@@ -398,7 +402,7 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
             if debugMode:
                 print_stuff(minibatch_index)
 
-            print 'minibatch_avg_cost =', train_model(minibatch_index, epoch)
+            print 'minibatch_avg_cost =', train_model(minibatch_index, rate_dec_multiple)
 
             # iteration number
             iter = (epoch - 1) * n_train_batches + minibatch_index
@@ -441,12 +445,16 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
                            'best model %f %%') %
                           (epoch, minibatch_index + 1, n_train_batches,
                            test_score * 100.))
+                else:   # we are going too fast
+                    print 'Bumping rate-decreasing-multiple from %f to %f.' % rate_dec_multiple, rate_dec_multiple*1.1
+                    rate_dec_multiple *= 1.1
 
             if patience <= iter:
                 done_looping = True
                 break
 
         epoch += 1
+        rate_dec_multiple += 1
 
     end_time = time.clock()
     print(('Optimization complete. Best validation score of %f %% '
@@ -532,11 +540,11 @@ if __name__ == '__main__':
     Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/y.csv'
 
     res = run_cnn(121,
-                  numFeatureMaps = [4, 4, 3, 3],
+                  numFeatureMaps = [4, 4, 3, 3, 3],
                   imageShape = [edgeLength, edgeLength],
-                  filterShapes = [(3, 3), (2, 2), (2, 2), (2, 2)],
-                  poolWidths = [2, 2, 1, 1],
-                  n_epochs=2000, initialLearningRate=0.05, batch_size=batchSize, n_hidden=200,
+                  filterShapes = [(3, 3), (2, 2), (2, 2), (2, 2), (2, 2)],
+                  poolWidths = [2, 2, 1, 1, 1],
+                  n_epochs=2000, initialLearningRate=0.1, batch_size=batchSize, n_hidden=200,
                   patience=30000)
 
 
