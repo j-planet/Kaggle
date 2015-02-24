@@ -436,11 +436,9 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
                 if this_validation_loss < best_validation_loss:
 
                     #improve patience if loss improvement is good enough
-                    if (
-                                this_validation_loss < best_validation_loss *
-                                improvement_threshold
-                    ):
-                        patience = max(patience, iter * patience_increase)
+                    if this_validation_loss < best_validation_loss * improvement_threshold:
+                        # patience = max(patience, iter * patience_increase)
+                        patience += patience_increase * n_train_batches
 
                     best_validation_loss = this_validation_loss
                     best_iter = iter
