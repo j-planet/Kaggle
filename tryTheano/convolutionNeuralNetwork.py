@@ -271,7 +271,8 @@ def run_cnn(numYs,
         name='test_model',
         mode=theano.compile.MonitorMode(
             pre_func=inspect_inputs,
-            post_func=inspect_outputs)
+            post_func=inspect_outputs),
+        allow_input_downcast=True
     )
 
     validate_model = theano.function(
@@ -284,7 +285,8 @@ def run_cnn(numYs,
         name='validation_model',
         mode=theano.compile.MonitorMode(
             pre_func=inspect_inputs,
-            post_func=inspect_outputs)
+            post_func=inspect_outputs),
+        allow_input_downcast=True
     )
 
     # create a list of gradients for all model parameters
@@ -327,19 +329,25 @@ def run_cnn(numYs,
         name='train_model',
         mode=theano.compile.MonitorMode(
             pre_func=inspect_inputs,
-            post_func=inspect_outputs)
+            post_func=inspect_outputs),
+        allow_input_downcast=True
     )
 
     train(n_train_batches, n_valid_batches, n_test_batches,
           train_model, validate_model, test_model, print_stuff,
           n_epochs, patience=patience)
 
+    print 'Saving parameters...'
     f = file('/Users/jennyyuejin/K/tryTheano/params_%s.save' % config, 'wb')
     cPickle.dump(params, f, protocol=cPickle.HIGHEST_PROTOCOL)
     f.close()
 
     # predict
+    print 'Reading test data.'
     predict_set_x, testFnames = read_test_data(X_TEST_FPATH)
+    print 'Done reading test data.'
+
+    print 'Predicting...'
     predict_model = theano.function(
         [],
           lastLayer.p_y_given_x,
@@ -353,7 +361,9 @@ def run_cnn(numYs,
     )
 
     pred_results = predict_model()
+    print 'Done predicting.', pred_results.shape
 
+    print 'Writing prediction results to file...'
     make_submission_file(pred_results, testFnames,
                          fNameSuffix=config)
 
@@ -391,9 +401,9 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
     done_looping = False
 
     while (epoch < n_epochs) and (not done_looping):
-        print '----- epoch:', epoch
+        print '----- epoch:', epoch, patience
 
-        print 'minibatch:',
+        print 'minibatch:'
         for minibatch_index in xrange(n_train_batches):
 
             print minibatch_index,
@@ -426,11 +436,9 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
                 if this_validation_loss < best_validation_loss:
 
                     #improve patience if loss improvement is good enough
-                    if (
-                                this_validation_loss < best_validation_loss *
-                                improvement_threshold
-                    ):
-                        patience = max(patience, iter * patience_increase)
+                    if this_validation_loss < best_validation_loss * improvement_threshold:
+                        # patience = max(patience, iter * patience_increase)
+                        patience += patience_increase * n_train_batches
 
                     best_validation_loss = this_validation_loss
                     best_iter = iter
@@ -540,13 +548,13 @@ if __name__ == '__main__':
     Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/y.csv'
 
     res = run_cnn(121,
-                  numFeatureMaps = [4, 4, 3, 3, 3],
+                  numFeatureMaps = [8, 8, 4, 3, 3, 3, 3],
                   imageShape = [edgeLength, edgeLength],
-                  filterShapes = [(3, 3), (2, 2), (2, 2), (2, 2), (2, 2)],
-                  poolWidths = [2, 2, 1, 1, 1, 1],
-                  n_epochs=2000, initialLearningRate=0.02,
-                  batch_size=batchSize, n_hidden=300,
-                  patience=30000)
+                  filterShapes = [(4, 4), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2)],
+                  poolWidths = [1, 2, 1, 1, 1, 1, 1],
+                  n_epochs=1, initialLearningRate=0.05,
+                  batch_size=batchSize, n_hidden=350,
+                  patience=10000)
 
 
     # plot original image and first and second components of output
