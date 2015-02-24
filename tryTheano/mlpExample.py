@@ -91,6 +91,10 @@ class HiddenLayer(object):
         # parameters of the model
         self.params = [self.W, self.b]
 
+        # l1 and l2 errors
+        self.L1 = abs(self.W).sum()
+        self.L2 = (self.W**2).sum()
+
 
 class MLP(object):
     """Multi-Layer Perceptron Class

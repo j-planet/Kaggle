@@ -70,6 +70,11 @@ class LogisticRegression(object):
         # parameters of the model
         self.params = [self.W, self.b]
 
+        # l1 and l2 errors
+        self.L1 = abs(self.W).sum()
+        self.L2 = (self.W**2).sum()
+
+
     def negative_log_likelihood(self, y):
 
         # y.shape[0] is (symbolically) the number of rows in y, i.e.,

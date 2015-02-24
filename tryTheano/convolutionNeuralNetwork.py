@@ -1,5 +1,3 @@
-from _ctypes import resize
-
 __author__ = 'JennyYueJin'
 
 
@@ -34,6 +32,7 @@ from NDSB.fileMangling import make_submission_file
 plt.ioff()
 debugMode = False
 print theano.config.device
+# os.environ['OMP_NUM_THREADS'] = '200'
 
 global X_TRAIN_FPATH, Y_FPATH, X_TEST_FPATH
 
@@ -125,6 +124,10 @@ class LeNetConvPoolLayer(object):
         # store parameters of this layer
         self.params = [self.W, self.b]
 
+        # l1 and l2 errors
+        self.L1 = abs(self.W).sum()
+        self.L2 = (self.W**2).sum()
+
 
 def make_var(x):
     return theano.shared(x, borrow=True)
@@ -163,7 +166,8 @@ def run_cnn(numYs,
     config = '_'.join([str(numFeatureMaps)]
                       + [str(i) for i in imageShape]
                       + [str(f[0]) for f in filterShapes]
-                      + [str(i) for i in poolWidths] + [str(n_hidden), str(initialLearningRate)])
+                      + [str(i) for i in poolWidths] +
+                      [str(n_hidden), str(initialLearningRate), str(L1_reg), str(L2_reg)])
     print '='*5, config, '='*5
 
     rng = np.random.RandomState(rndState)
@@ -258,7 +262,8 @@ def run_cnn(numYs,
 
     # the cost we minimize during training is the NLL of the model
     cost = lastLayer.negative_log_likelihood(y)
-    # + L1_reg * abs(params).sum() + L2_reg * (params**2).sum()
+           # L1_reg * sum([l.L1 for l in [lastLayer, fullyConnectedLayer]]) + \
+    # L2_reg * sum([l.L2 for l in [lastLayer, fullyConnectedLayer] + convPoolLayers])
 
     # create a function to compute the mistakes that are made by the model
     test_model = theano.function(
@@ -304,11 +309,12 @@ def run_cnn(numYs,
 
     print_stuff = theano.function(
         [index],
-        [theano.printing.Print('x shape', attrs=['shape'])(x)]
-        + [l.output_print for l in convPoolLayers]
-        + [fullyConnectedLayer.output_print,
-           lastLayer.t_dot_print,
-           lastLayer.p_y_given_x_print],
+        [lastLayer.L1_print],
+        # + [theano.printing.Print('x shape', attrs=['shape'])(x)]
+        # + [l.output_print for l in convPoolLayers]
+        # + [fullyConnectedLayer.output_print,
+        #    lastLayer.t_dot_print,
+        #    lastLayer.p_y_given_x_print],
 
         givens={
             x: train_set_x[index * batch_size: (index + 1) * batch_size],
@@ -536,7 +542,7 @@ if __name__ == '__main__':
     # img = np.array(img.getdata(), dtype='float64') / 256.
     # img = img[: img_shape[0]*img_shape[1], 0].reshape(1, img_shape[0] * img_shape[1])
 
-    batchSize = 250
+    batchSize = 1000
     edgeLength = 48
 
     # trainData, testData, testFnames = read_data(xtrainfpath= '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i_simple.csv' % (edgeLength, edgeLength),
@@ -548,12 +554,13 @@ if __name__ == '__main__':
     Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/y.csv'
 
     res = run_cnn(121,
-                  numFeatureMaps = [8, 8, 4, 3, 3, 3, 3],
+                  numFeatureMaps = [4, 4, 4, 3, 3, 3, 3],
                   imageShape = [edgeLength, edgeLength],
                   filterShapes = [(4, 4), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2)],
                   poolWidths = [1, 2, 1, 1, 1, 1, 1],
-                  n_epochs=1, initialLearningRate=0.05,
+                  n_epochs=10000, initialLearningRate=0.05,
                   batch_size=batchSize, n_hidden=350,
+                  L1_reg=0, L2_reg=0.001,
                   patience=10000)
 
 
