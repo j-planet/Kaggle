@@ -534,6 +534,6 @@ if __name__ == '__main__':
     numEpochs=1500
     cnnObj.train(saveParameters = (numEpochs > 1), n_epochs=numEpochs, patience=15000)
 
-    # cnnObj = CNN.create_class_obj_from_filefpath = '/Users/jennyyuejin/K/tryTheano/params_[4, 4, 4, 3, 3, 3, 3]_48_48_4_2_2_2_2_2_2_1_2_1_1_1_1_1_350_0.05_0_0.001.save')
+    # cnnObj = CNN.create_class_obj_from_file(fpath = '/Users/jennyyuejin/K/tryTheano/params_[4, 4, 4, 3, 3, 3, 3]_48_48_4_2_2_2_2_2_2_1_2_1_1_1_1_1_350_0.05_0_0.001.save')
     cnnObj.predict('/Users/jennyyuejin/K/NDSB/Data/submissions', chunksize=5000)
 
