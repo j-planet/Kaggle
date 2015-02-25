@@ -5,6 +5,7 @@ import cPickle
 import os
 import sys
 import time
+import datetime
 import numpy as np
 import pandas
 from matplotlib import pyplot as plt
@@ -25,6 +26,7 @@ from logisticRegressionExample import LogisticRegression, load_data
 from mlpExample import HiddenLayer
 
 from NDSB.fileMangling import make_submission_file
+from NDSB.global_vars import CLASS_NAMES
 from leNetConvPoolLayer import LeNetConvPoolLayer
 
 plt.ioff()
@@ -49,7 +51,6 @@ def make_var(x):
 
 
 class CNN(object):
-
 
     def __init__(self, numYs,
                  numFeatureMaps,
@@ -252,7 +253,7 @@ class CNN(object):
                 theano.printing.Print('hidden', attrs=['__str__'])(self.fullyConnectedLayer.L1),
                 theano.printing.Print('convPools', attrs=['__str__'])(self.convPoolLayers[0].L1)
             ],
-             # + theano.printing.Print('x shape', attrs=['shape'])(x)],
+            # + theano.printing.Print('x shape', attrs=['shape'])(x)],
             # + [l.output_print for l in self.convPoolLayers]
             # + [self.fullyConnectedLayer.output_print,
             #    self.lastLayer.t_dot_print,
@@ -267,7 +268,7 @@ class CNN(object):
 
         print 'Done building CNN object.'
 
-    def train(self, n_epochs=1000, patience=1000):
+    def train(self, saveParameters, n_epochs=1000, patience=1000):
 
         # compute number of minibatches for training, validation and testing
         n_train_batches = self.train_set_x.get_value(borrow=True).shape[0] / self.batchSize + 1
@@ -278,27 +279,45 @@ class CNN(object):
               self.train_model, self.validate_model, self.test_model, self.print_stuff,
               n_epochs, patience=patience)
 
-        print 'Saving parameters...'
-        f = file('/Users/jennyyuejin/K/tryTheano/params_%s.save' % self.config, 'wb')
-        cPickle.dump(self.params, f, protocol=cPickle.HIGHEST_PROTOCOL)
-        f.close()
+        if saveParameters:
+            print 'Saving parameters...'
+            f = file('/Users/jennyyuejin/K/tryTheano/params_%s.save' % self.config, 'wb')
+            cPickle.dump(self.params, f, protocol=cPickle.HIGHEST_PROTOCOL)
+            f.close()
 
-    def predict(self):
+    def predict(self, outputDir, chunksize=10000, takeNumColumns=None):
 
-        print 'Reading test data.'
-        predict_set_x, testFnames = read_test_data(X_TEST_FPATH)
-        print 'Done reading test data.'
+        outputFpath = os.path.join(outputDir,
+                                   '%s_%s.csv' %
+                                   (datetime.date.today().strftime('%b%d%Y'), self.config)
+        )
+        outputFile = file(outputFpath, 'w')
 
-        print 'Predicting...'
+        # write headers
+        headers = ['image'] + CLASS_NAMES
+        outputFile.write(','.join(headers))
+        outputFile.write('\n')
 
-        pred_results = self.predict_model(predict_set_x)
-        print 'Done predicting.', pred_results.shape
+        # write contents
+        reader = pandas.read_csv(X_TEST_FPATH, chunksize = chunksize, header=None)
 
-        print 'Writing prediction results to file...'
-        make_submission_file(pred_results, testFnames,
-                             fNameSuffix=self.config)
+        print '========= Saving prediction results for %s to %s.' (X_TEST_FPATH, outputFpath)
 
-        return pred_results
+        for i, chunk in enumerate(reader):
+
+            print 'chunk', i
+
+            pred_x, testFnames = read_test_data_in_chunk(chunk, takeNumColumns=takeNumColumns)
+
+            pred_results = self.predict_model(pred_x)
+
+            pandas.DataFrame(pred_results, index=testFnames).reset_index().to_csv(outputFile, header=False)
+
+            outputFile.flush()
+
+        outputFile.close()
+
+        return outputFpath
 
 
 def train(n_train_batches, n_valid_batches, n_test_batches,
@@ -354,12 +373,13 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
                 this_validation_loss = np.mean(validation_losses)
 
                 print(
-                    'epoch %i, minibatch %i/%i, validation error %f' %
+                    'epoch %i, minibatch %i/%i, val error %f (vs best val error of %f)' %
                     (
                         epoch,
                         minibatch_index + 1,
                         n_train_batches,
-                        this_validation_loss
+                        this_validation_loss,
+                        best_validation_loss
                     )
                 )
 
@@ -434,26 +454,29 @@ def read_train_data(xtrainfpath,
             (make_var(testX), T.cast(make_var(testY), 'int32'))]
 
 
-def read_test_data(xtestfpath,
-                   takeNumColumns = None):
+def read_test_data_in_chunk(chunk, takeNumColumns=None):
+    """
+    :param chunk: pandas DataFrame
+    :return:
+    """
 
-    temp = np.array(pandas.read_csv(xtestfpath, header=None))
-    testFnames = temp[:, 0]
-    testData = np.array(temp[:, 1:], dtype=theano.config.floatX)
+    chunk = np.array(chunk)
+
+    testFnames = chunk[:, 0]
+    testData = np.array(chunk[:, 1:], dtype=theano.config.floatX)
 
     if takeNumColumns is not None:
         testData = testData[:, :takeNumColumns]
 
-    return make_var(testData), testFnames
+    return testData, testFnames
 
-
-def read_data(xtrainfpath,
-              xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_15_15.csv',
-              yfpath = '/Users/jennyyuejin/K/NDSB/Data/y.csv',
-              takeNumColumns = None):
-
-    return read_train_data(xtrainfpath, yfpath, takeNumColumns=takeNumColumns), \
-           read_test_data(xtestfpath, takeNumColumns=takeNumColumns)
+# def read_data(xtrainfpath,
+#               xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_15_15.csv',
+#               yfpath = '/Users/jennyyuejin/K/NDSB/Data/y.csv',
+#               takeNumColumns = None):
+#
+#     return read_train_data(xtrainfpath, yfpath, takeNumColumns=takeNumColumns), \
+#            read_test_data(xtestfpath, takeNumColumns=takeNumColumns)
 
 
 if __name__ == '__main__':
@@ -484,19 +507,22 @@ if __name__ == '__main__':
                  filterShapes = [(4, 4), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2)],
                  poolWidths = [1, 2, 1, 1, 1, 1, 1],
                  initialLearningRate=0.05, batch_size=batchSize, n_hidden=350,
-                 L1_reg=0, L2_reg=0.001,
+                 L1_reg=0, L2_reg=0.0003,
                  )
 
-    cnnObj.train(n_epochs=10000, patience=10000)
+    cnnObj.train(saveParameters=False, n_epochs=1, patience=100)
+
+    cnnObj.predict('/Users/jennyyuejin/K/NDSB/Data/submissions', chunksize=5000)
 
 
-    # plot original image and first and second components of output
-    # plt.subplot(1, 3, 1); plt.axis('off'); plt.imshow(img)
-    # plt.gray()
-    #
-    # # recall that the convOp output (filtered image) is actually a "minibatch",
-    # # of size 1 here, so we take index 0 in the first dimension:
-    # plt.subplot(1, 3, 2); plt.axis('off'); plt.imshow(filtered_img[0, 0, :, :])
-    # plt.subplot(1, 3, 3); plt.axis('off'); plt.imshow(filtered_img[0, 1, :, :])
-    #
-    # plt.show()
+
+        # plot original image and first and second components of output
+        # plt.subplot(1, 3, 1); plt.axis('off'); plt.imshow(img)
+        # plt.gray()
+        #
+        # # recall that the convOp output (filtered image) is actually a "minibatch",
+        # # of size 1 here, so we take index 0 in the first dimension:
+        # plt.subplot(1, 3, 2); plt.axis('off'); plt.imshow(filtered_img[0, 0, :, :])
+        # plt.subplot(1, 3, 3); plt.axis('off'); plt.imshow(filtered_img[0, 1, :, :])
+        #
+        # plt.show()

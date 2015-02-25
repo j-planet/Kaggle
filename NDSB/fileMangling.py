@@ -275,6 +275,7 @@ def make_submission_file(pred, testFnames,
     print 'Writing predictions to', outputFpath
     res.to_csv(outputFpath, index=False)
 
+    return outputFpath
 
 if __name__ == '__main__':
 
