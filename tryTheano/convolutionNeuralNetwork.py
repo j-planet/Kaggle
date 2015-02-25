@@ -4,6 +4,7 @@ __author__ = 'JennyYueJin'
 import cPickle
 import os
 import sys
+import json
 import time
 import datetime
 import numpy as np
@@ -11,6 +12,7 @@ import pandas
 from matplotlib import pyplot as plt
 from PIL import Image
 from pprint import pprint
+from math import log10
 
 from sklearn.cross_validation import StratifiedShuffleSplit
 
@@ -80,6 +82,7 @@ class CNN(object):
         self.L1_reg = L1_reg
         self.L2_reg = L2_reg
 
+        # TODO: make this a function
         self.config = '_'.join([str(numFeatureMaps)]
                                + [str(i) for i in imageShape]
                                + [str(f[0]) for f in filterShapes]
@@ -301,7 +304,7 @@ class CNN(object):
         # write contents
         reader = pandas.read_csv(X_TEST_FPATH, chunksize = chunksize, header=None)
 
-        print '========= Saving prediction results for %s to %s.' (X_TEST_FPATH, outputFpath)
+        print '========= Saving prediction results for %s to %s.' % (X_TEST_FPATH, outputFpath)
 
         for i, chunk in enumerate(reader):
 
@@ -319,10 +322,46 @@ class CNN(object):
 
         return outputFpath
 
+    @classmethod
+    def create_class_obj_from_file(cls, fpath):
+
+        # parse parameters from the filename
+        containingDir, fname = os.path.split(fpath)     # strip directory
+        fname, _ = os.path.splitext(fname)              # strip extension
+
+        # parse into numeric tokens
+        tokens = [json.loads(s) for s in fname.split('_')[1:]]
+
+        # extract variables
+        numFeatureMaps = tokens[0]
+        numConvPoolLayers = len(numFeatureMaps)
+        imageShape = tokens[1:3]
+        filterShapes = [(i,i) for i in tokens[3 : 3 + numConvPoolLayers]]
+        poolWidths = tokens[3 + numConvPoolLayers : 3 + 2*numConvPoolLayers]
+        n_hidden, learningRate, L1, L2 = tokens[-4:]
+
+        # initialize the CNN object
+        obj = CNN(len(CLASS_NAMES), numFeatureMaps, imageShape, filterShapes, poolWidths,
+                  n_hidden=n_hidden,
+                  initialLearningRate=learningRate, batch_size=batchSize, L1_reg=L1, L2_reg=L2)
+
+        # fill in parameters
+        params = cPickle.load(file(fpath, 'rb'))
+        obj.lastLayer.W.set_value(params[0].get_value())
+        obj.lastLayer.b.set_value(params[1].get_value())
+        obj.fullyConnectedLayer.W.set_value(params[2].get_value())
+        obj.fullyConnectedLayer.b.set_value(params[3].get_value())
+
+        for i in range(numConvPoolLayers):
+            obj.convPoolLayers[i].W.set_value(params[4 + i*2].get_value())
+            obj.convPoolLayers[i].b.set_value(params[4 + i*2 + 1].get_value())
+
+        return obj
+
 
 def train(n_train_batches, n_valid_batches, n_test_batches,
           train_model, validate_model, test_model, print_stuff,
-          n_epochs, patience = 2000, patience_increase = 2, improvement_threshold = 0.995):
+          n_epochs, patience = 2000, patience_increase = 2, improvement_threshold = 0.999):
 
     ###############
     # TRAIN MODEL #
@@ -388,7 +427,7 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
 
                     #improve patience if loss improvement is good enough
                     if this_validation_loss < best_validation_loss * improvement_threshold:
-                        # patience = max(patience, iter * patience_increase)
+
                         patience += patience_increase * n_train_batches
 
                     best_validation_loss = this_validation_loss
@@ -403,9 +442,12 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
                            'best model %f %%') %
                           (epoch, minibatch_index + 1, n_train_batches,
                            test_score * 100.))
-                else:   # we are going too fast
-                    print 'Bumping rate-decreasing-multiple from %f to %f.' % (rate_dec_multiple, rate_dec_multiple*1.1)
-                    rate_dec_multiple *= 1.1
+                elif this_validation_loss > best_validation_loss*1.05:   # shooting over in the wrong direction
+                    print 'DECREASING rate-decreasing-multiple from %f to %f.' % (rate_dec_multiple, rate_dec_multiple/1.15)
+                    rate_dec_multiple /= 1.15
+                else:
+                    print 'Bumping rate-decreasing-multiple from %f to %f.' % (rate_dec_multiple, rate_dec_multiple*1.15)
+                    rate_dec_multiple *= 1.15
 
             if patience <= iter:
                 done_looping = True
@@ -470,59 +512,28 @@ def read_test_data_in_chunk(chunk, takeNumColumns=None):
 
     return testData, testFnames
 
-# def read_data(xtrainfpath,
-#               xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_15_15.csv',
-#               yfpath = '/Users/jennyyuejin/K/NDSB/Data/y.csv',
-#               takeNumColumns = None):
-#
-#     return read_train_data(xtrainfpath, yfpath, takeNumColumns=takeNumColumns), \
-#            read_test_data(xtestfpath, takeNumColumns=takeNumColumns)
-
 
 if __name__ == '__main__':
 
-
-    # open random image of dimensions 272 x 328
-    # img = Image.open(open('/Users/jennyyuejin/K/tryTheano/Data/four.png'))
-    # img_shape = (25, 25)
-    #
-    # # dimensions are (height, width, channel)
-    # img = np.array(img.getdata(), dtype='float64') / 256.
-    # img = img[: img_shape[0]*img_shape[1], 0].reshape(1, img_shape[0] * img_shape[1])
-
     batchSize = 250
     edgeLength = 48
-
-    # trainData, testData, testFnames = read_data(xtrainfpath= '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i_simple.csv' % (edgeLength, edgeLength),
-    #                                             xtestfpath = '/Users/jennyyuejin/K/NDSB/Data/X_test_%i_%i_simple.csv' % (edgeLength, edgeLength),
-    #                                             takeNumColumns=edgeLength*edgeLength)
 
     X_TRAIN_FPATH= '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i_simple.csv' % (edgeLength, edgeLength)
     X_TEST_FPATH = '/Users/jennyyuejin/K/NDSB/Data/X_test_%i_%i_simple.csv' % (edgeLength, edgeLength)
     Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/y.csv'
 
-    cnnObj = CNN(121,
+    cnnObj = CNN(len(CLASS_NAMES),
                  numFeatureMaps = [4, 4, 4, 3, 3, 3, 3],
                  imageShape = [edgeLength, edgeLength],
-                 filterShapes = [(4, 4), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2)],
-                 poolWidths = [1, 2, 1, 1, 1, 1, 1],
-                 initialLearningRate=0.05, batch_size=batchSize, n_hidden=350,
-                 L1_reg=0, L2_reg=0.0003,
+                 filterShapes = [(3, 3), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2)],
+                 poolWidths = [1, 1, 1, 1, 1, 1, 1],
+                 initialLearningRate=0.08, batch_size=batchSize, n_hidden=350,
+                 L1_reg=0, L2_reg=0.001,
                  )
 
-    cnnObj.train(saveParameters=False, n_epochs=1, patience=100)
+    numEpochs=1500
+    cnnObj.train(saveParameters = (numEpochs > 1), n_epochs=numEpochs, patience=15000)
 
+    # cnnObj = CNN.create_class_obj_from_filefpath = '/Users/jennyyuejin/K/tryTheano/params_[4, 4, 4, 3, 3, 3, 3]_48_48_4_2_2_2_2_2_2_1_2_1_1_1_1_1_350_0.05_0_0.001.save')
     cnnObj.predict('/Users/jennyyuejin/K/NDSB/Data/submissions', chunksize=5000)
 
-
-
-        # plot original image and first and second components of output
-        # plt.subplot(1, 3, 1); plt.axis('off'); plt.imshow(img)
-        # plt.gray()
-        #
-        # # recall that the convOp output (filtered image) is actually a "minibatch",
-        # # of size 1 here, so we take index 0 in the first dimension:
-        # plt.subplot(1, 3, 2); plt.axis('off'); plt.imshow(filtered_img[0, 0, :, :])
-        # plt.subplot(1, 3, 3); plt.axis('off'); plt.imshow(filtered_img[0, 1, :, :])
-        #
-        # plt.show()
