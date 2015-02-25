@@ -30,20 +30,19 @@ from mlpExample import HiddenLayer
 from NDSB.fileMangling import make_submission_file
 
 plt.ioff()
-debugMode = False
+DEBUG_MODE = False
 print theano.config.device
-# os.environ['OMP_NUM_THREADS'] = '200'
 
 global X_TRAIN_FPATH, Y_FPATH, X_TEST_FPATH
 
 
 def inspect_inputs(i, node, fn):
-    if debugMode:
+    if DEBUG_MODE:
         print i, node, "input(s) value(s):", [input[0] for input in fn.inputs]
 
 
 def inspect_outputs(i, node, fn):
-    if debugMode:
+    if DEBUG_MODE:
         print i, node, "output(s) value(s):", [output[0] for output in fn.outputs]
 
 
@@ -95,6 +94,8 @@ class LeNetConvPoolLayer(object):
             borrow=True
         )
 
+
+
         # the bias is a 1D tensor -- one bias per output feature map
         b_values = np.zeros((filter_shape[0],), dtype=theano.config.floatX)
         self.b = theano.shared(value=b_values, borrow=True)
@@ -133,247 +134,260 @@ def make_var(x):
     return theano.shared(x, borrow=True)
 
 
-def run_cnn(numYs,
-            numFeatureMaps,
-            imageShape,
-            filterShapes,
-            poolWidths,
-            initialLearningRate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
-            dataset='/Users/JennyYueJin/K/tryTheano/Data/mnist.pkl.gz',
-            batch_size=100,
-            n_hidden=100, rndState=0, patience=1000):
-
-    """
-    :param numFeatureMaps:
-    :param imageShape: (image width, image height)
-    :param filterShapes: [(filter width, filter height), ...] for the conv-pool layers
-    :param poolWidths: (pool block width, pool block height)
-    :param initialLearningRate:
-    :param L1_reg:
-    :param L2_reg:
-    :param n_epochs:
-    :param dataset:
-    :param batch_size:
-    :param n_hidden:
-    :param rndState:
-    :return:
-    """
-    assert len(numFeatureMaps) == len(filterShapes)
-
-    print X_TEST_FPATH
-
-    # datasets = load_data(dataset)
-    config = '_'.join([str(numFeatureMaps)]
-                      + [str(i) for i in imageShape]
-                      + [str(f[0]) for f in filterShapes]
-                      + [str(i) for i in poolWidths] +
-                      [str(n_hidden), str(initialLearningRate), str(L1_reg), str(L2_reg)])
-    print '='*5, config, '='*5
-
-    rng = np.random.RandomState(rndState)
-
-    (train_set_x, train_set_y), (valid_set_x, valid_set_y), (test_set_x, test_set_y) = read_train_data(X_TRAIN_FPATH, Y_FPATH)
-
-    # train_set_x, train_set_y = datasets[0]
-    # valid_set_x, valid_set_y = datasets[1]
-    # test_set_x, test_set_y = datasets[2]
-
-    # compute number of minibatches for training, validation and testing
-    n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size + 1
-    n_valid_batches = valid_set_x.get_value(borrow=True).shape[0] / batch_size + 1
-    n_test_batches = test_set_x.get_value(borrow=True).shape[0] / batch_size + 1
-
-    index = T.lscalar()  # index to a [mini]batch
-    rate_dec_multiple = T.fscalar()         # index to epoch, used for decreasing the learning rate over time
-    rate_dec_multiple_given = T.fscalar()   # index to epoch, used for decreasing the learning rate over time
-    x = T.matrix('x')   # the data is presented as rasterized images
-    y = T.ivector('y')  # the labels are presented as 1D vector of [int] labels
+class CNN(object):
 
 
-    ######################
-    # BUILD ACTUAL MODEL #
-    ######################
-    print '... building the model'
+    def __init__(self, numYs,
+                 numFeatureMaps,
+                 imageShape,
+                 filterShapes,
+                 poolWidths,
+                 initialLearningRate=0.01, L1_reg=0.00, L2_reg=0.0001, batch_size=100, n_hidden=100,
+                 rndState=0):
 
+        """
+        :param numFeatureMaps:
+        :param imageShape: (image width, image height)
+        :param filterShapes: [(filter width, filter height), ...] for the conv-pool layers
+        :param poolWidths: (pool block width, pool block height)
+        :param initialLearningRate:
+        :param L1_reg:
+        :param L2_reg:
+        :param n_epochs:
+        :param dataset:
+        :param batch_size:
+        :param n_hidden:
+        :param rndState:
+        :return:
+        """
+        assert len(numFeatureMaps) == len(filterShapes)
 
+        self.L1_reg = L1_reg
+        self.L2_reg = L2_reg
 
-    # Construct the second convolutional pooling layer
-    # filtering reduces the image size to (12-5+1, 12-5+1) = (8, 8)
-    # maxpooling reduces this further to (8/2, 8/2) = (4, 4)
-    # 4D output tensor is thus of shape (batch_size, nkerns[1], 4, 4)
+        self.config = '_'.join([str(numFeatureMaps)]
+                               + [str(i) for i in imageShape]
+                               + [str(f[0]) for f in filterShapes]
+                               + [str(i) for i in poolWidths] +
+                               [str(n_hidden), str(initialLearningRate), str(self.L1_reg), str(self.L2_reg)])
+        print '='*5, self.config, '='*5
 
-    # ------ build conv-pool layers
-    convPoolLayers = [None] * len(numFeatureMaps)
+        rng = np.random.RandomState(rndState)
 
-    # Reshape matrix of rasterized images of shape (batch_size, 28 * 28)
-    # to a 4D tensor, compatible with our LeNetConvPoolLayer
-    # (28, 28) is the size of MNIST images.
-    layer0_input = x.reshape((-1, 1, imageShape[0], imageShape[1]))
-    prevOutputImageShape = ((imageShape[0] - filterShapes[0][0] + 1)/poolWidths[0],
-                            (imageShape[1] - filterShapes[0][1] + 1)/poolWidths[0])
+        x = T.matrix('x')   # the data is presented as rasterized images
+        y = T.ivector('y')  # the labels are presented as 1D vector of [int] labels
+        self.batchSize = batch_size
 
-    # Construct the first convolutional pooling layer:
-    # filtering reduces the image size to (28-5+1 , 28-5+1) = (24, 24)
-    # maxpooling reduces this further to (24/2, 24/2) = (12, 12)
-    # 4D output tensor is thus of shape (batch_size, nkerns[0], 12, 12)
-    convPoolLayers[0] = LeNetConvPoolLayer(
-        rng,
-        input=layer0_input,
-        image_shape=(batch_size, 1, imageShape[0], imageShape[1]),
-        filter_shape=(numFeatureMaps[0], 1, filterShapes[0][0], filterShapes[0][1]),
-        poolsize=[poolWidths[0], poolWidths[0]]
-    )
+        ######################
+        # BUILD ACTUAL MODEL #
+        ######################
+        print '... building the model'
 
+        # Construct the second convolutional pooling layer
+        # filtering reduces the image size to (12-5+1, 12-5+1) = (8, 8)
+        # maxpooling reduces this further to (8/2, 8/2) = (4, 4)
+        # 4D output tensor is thus of shape (batch_size, nkerns[1], 4, 4)
 
-    for i in range(1, len(convPoolLayers)):
+        # ------ build conv-pool layers
+        self.convPoolLayers = [None] * len(numFeatureMaps)
 
-        convPoolLayers[i] = LeNetConvPoolLayer(
+        # Reshape matrix of rasterized images of shape (batch_size, 28 * 28)
+        # to a 4D tensor, compatible with our LeNetConvPoolLayer
+        # (28, 28) is the size of MNIST images.
+        layer0_input = x.reshape((-1, 1, imageShape[0], imageShape[1]))
+        prevOutputImageShape = ((imageShape[0] - filterShapes[0][0] + 1)/poolWidths[0],
+                                (imageShape[1] - filterShapes[0][1] + 1)/poolWidths[0])
+
+        # Construct the first convolutional pooling layer:
+        # filtering reduces the image size to (28-5+1 , 28-5+1) = (24, 24)
+        # maxpooling reduces this further to (24/2, 24/2) = (12, 12)
+        # 4D output tensor is thus of shape (batch_size, nkerns[0], 12, 12)
+        self.convPoolLayers[0] = LeNetConvPoolLayer(
             rng,
-            input=convPoolLayers[i-1].output,
-            image_shape=(batch_size, numFeatureMaps[i-1], prevOutputImageShape[0], prevOutputImageShape[1]),
-            filter_shape=(numFeatureMaps[i], numFeatureMaps[i-1], filterShapes[i][0], filterShapes[i][1]),
-            poolsize=[poolWidths[i], poolWidths[i]]
+            input=layer0_input,
+            image_shape=(batch_size, 1, imageShape[0], imageShape[1]),
+            filter_shape=(numFeatureMaps[0], 1, filterShapes[0][0], filterShapes[0][1]),
+            poolsize=[poolWidths[0], poolWidths[0]]
         )
 
-        prevOutputImageShape = ((prevOutputImageShape[0] - filterShapes[i][0] + 1)/poolWidths[i],
-                                (prevOutputImageShape[1] - filterShapes[i][1] + 1)/poolWidths[i])
+
+        for i in range(1, len(self.convPoolLayers)):
+
+            self.convPoolLayers[i] = LeNetConvPoolLayer(
+                rng,
+                input=self.convPoolLayers[i-1].output,
+                image_shape=(batch_size, numFeatureMaps[i-1], prevOutputImageShape[0], prevOutputImageShape[1]),
+                filter_shape=(numFeatureMaps[i], numFeatureMaps[i-1], filterShapes[i][0], filterShapes[i][1]),
+                poolsize=[poolWidths[i], poolWidths[i]]
+            )
+
+            prevOutputImageShape = ((prevOutputImageShape[0] - filterShapes[i][0] + 1)/poolWidths[i],
+                                    (prevOutputImageShape[1] - filterShapes[i][1] + 1)/poolWidths[i])
 
 
-    # the HiddenLayer being fully-connected, it operates on 2D matrices of
-    # shape (batch_size, num_pixels) (i.e matrix of rasterized images).
-    # This will generate a matrix of shape (batch_size, nkerns[1] * 4 * 4),
-    # or (500, 50 * 4 * 4) = (500, 800) with the default values.
-    fcLayer_input = convPoolLayers[-1].output.flatten(2)
+        # the HiddenLayer being fully-connected, it operates on 2D matrices of
+        # shape (batch_size, num_pixels) (i.e matrix of rasterized images).
+        # This will generate a matrix of shape (batch_size, nkerns[1] * 4 * 4),
+        # or (500, 50 * 4 * 4) = (500, 800) with the default values.
+        fcLayer_input = self.convPoolLayers[-1].output.flatten(2)
 
-    # construct a fully-connected sigmoidal layer
-    fullyConnectedLayer = HiddenLayer(
-        rng,
-        input=fcLayer_input,
-        n_in=numFeatureMaps[-1] * prevOutputImageShape[0] * prevOutputImageShape[1],
-        n_out=n_hidden,
-        activation=T.tanh
-    )
+        # construct a fully-connected sigmoidal layer
+        self.fullyConnectedLayer = HiddenLayer(
+            rng,
+            input=fcLayer_input,
+            n_in=numFeatureMaps[-1] * prevOutputImageShape[0] * prevOutputImageShape[1],
+            n_out=n_hidden,
+            activation=T.tanh
+        )
 
-    # classify the values of the fully-connected sigmoidal layer
-    lastLayer = LogisticRegression(input=fullyConnectedLayer.output, n_in=n_hidden, n_out=numYs)
+        # classify the values of the fully-connected sigmoidal layer
+        self.lastLayer = LogisticRegression(input=self.fullyConnectedLayer.output, n_in=n_hidden, n_out=numYs)
 
-    # create a list of all model parameters to be fit by gradient descent
-    params = lastLayer.params + fullyConnectedLayer.params + [item for l in convPoolLayers for item in l.params]
 
-    # the cost we minimize during training is the NLL of the model
-    cost = lastLayer.negative_log_likelihood(y)
-           # L1_reg * sum([l.L1 for l in [lastLayer, fullyConnectedLayer]]) + \
-    # L2_reg * sum([l.L2 for l in [lastLayer, fullyConnectedLayer] + convPoolLayers])
 
-    # create a function to compute the mistakes that are made by the model
-    test_model = theano.function(
-        [index],
-        lastLayer.negative_log_likelihood(y),
-        givens={
-            x: test_set_x[index * batch_size: (index + 1) * batch_size],
-            y: test_set_y[index * batch_size: (index + 1) * batch_size]
-        },
-        name='test_model',
-        mode=theano.compile.MonitorMode(
-            pre_func=inspect_inputs,
-            post_func=inspect_outputs),
-        allow_input_downcast=True
-    )
+        ######################
+        #        TRAIN       #
+        ######################
 
-    validate_model = theano.function(
-        [index],
-        lastLayer.negative_log_likelihood(y),
-        givens={
-            x: valid_set_x[index * batch_size: (index + 1) * batch_size],
-            y: valid_set_y[index * batch_size: (index + 1) * batch_size]
-        },
-        name='validation_model',
-        mode=theano.compile.MonitorMode(
-            pre_func=inspect_inputs,
-            post_func=inspect_outputs),
-        allow_input_downcast=True
-    )
+        # training parameters
+        index = T.lscalar()  # index to a [mini]batch
+        rate_dec_multiple = T.fscalar()         # index to epoch, used for decreasing the learning rate over time
+        rate_dec_multiple_given = T.fscalar()   # index to epoch, used for decreasing the learning rate over time
 
-    # create a list of gradients for all model parameters
-    grads = T.grad(cost, params)
+        # self.train_set_x = theano.shared(np.zeros(1), borrow=True)
+        # self.train_set_y = theano.shared(np.zeros(1), borrow=True)
+        # self.valid_set_x = theano.shared(np.zeros(1), borrow=True)
+        # self.valid_set_y = theano.shared(np.zeros(1), borrow=True)
+        # self.test_set_x = theano.shared(np.zeros(1), borrow=True)
+        # self.test_set_y = theano.shared(np.zeros(1), borrow=True)
+        # self.predict_set_x = theano.shared(np.zeros(1), borrow=True)
 
-    # train_model is a function that updates the model parameters by
-    # SGD Since this model has many parameters, it would be tedious to
-    # manually create an update rule for each model parameter. We thus
-    # create the updates list by automatically looping over all
-    # (params[i], grads[i]) pairs.
-    updates = [
-        (param_i, (param_i - initialLearningRate / (1 + 0.005 * rate_dec_multiple) * grad_i).astype(theano.config.floatX))
-        for param_i, grad_i in zip(params, grads)
-    ]
+        # TODO: move this to training time
+        (self.train_set_x, self.train_set_y), (self.valid_set_x, self.valid_set_y), (self.test_set_x, self.test_set_y) = read_train_data(X_TRAIN_FPATH, Y_FPATH)
 
-    print_stuff = theano.function(
-        [index],
-        [lastLayer.L1_print],
-        # + [theano.printing.Print('x shape', attrs=['shape'])(x)]
-        # + [l.output_print for l in convPoolLayers]
-        # + [fullyConnectedLayer.output_print,
-        #    lastLayer.t_dot_print,
-        #    lastLayer.p_y_given_x_print],
+        # create a list of all model parameters to be fit by gradient descent
+        self.params = self.lastLayer.params \
+                      + self.fullyConnectedLayer.params \
+                      + [item for l in self.convPoolLayers for item in l.params]
 
-        givens={
-            x: train_set_x[index * batch_size: (index + 1) * batch_size],
-            y: train_set_y[index * batch_size: (index + 1) * batch_size]
-        },
-        on_unused_input='warn'
-    ) if debugMode else None
+        # the cost we minimize during training is the NLL of the model
+        self.cost = self.lastLayer.negative_log_likelihood(y)
+                    # + L1_reg * sum([l.L1 for l in self.convPoolLayers + [self.lastLayer, self.fullyConnectedLayer]]) \
+                    # + L2_reg * sum([l.L2 for l in self.convPoolLayers + [self.lastLayer, self.fullyConnectedLayer]])
 
-    train_model = theano.function(
-        [index, rate_dec_multiple_given],
-        cost,
-        updates=updates,
-        givens={
-            x: train_set_x[index * batch_size: (index + 1) * batch_size],
-            y: train_set_y[index * batch_size: (index + 1) * batch_size],
-            rate_dec_multiple: rate_dec_multiple_given
-        },
-        name='train_model',
-        mode=theano.compile.MonitorMode(
-            pre_func=inspect_inputs,
-            post_func=inspect_outputs),
-        allow_input_downcast=True
-    )
 
-    train(n_train_batches, n_valid_batches, n_test_batches,
-          train_model, validate_model, test_model, print_stuff,
-          n_epochs, patience=patience)
+        # create a list of gradients for all model parameters
+        self.grads = T.grad(self.cost, self.params)
 
-    print 'Saving parameters...'
-    f = file('/Users/jennyyuejin/K/tryTheano/params_%s.save' % config, 'wb')
-    cPickle.dump(params, f, protocol=cPickle.HIGHEST_PROTOCOL)
-    f.close()
+        self.updates = [
+            (param_i, (param_i - initialLearningRate / (1 + 0.005 * rate_dec_multiple) * grad_i).astype(theano.config.floatX))
+            for param_i, grad_i in zip(self.params, self.grads)
+        ]
 
-    # predict
-    print 'Reading test data.'
-    predict_set_x, testFnames = read_test_data(X_TEST_FPATH)
-    print 'Done reading test data.'
 
-    print 'Predicting...'
-    predict_model = theano.function(
-        [],
-          lastLayer.p_y_given_x,
-          givens={
-              x: predict_set_x
-          },
-          name='predict_model',
-          mode=theano.compile.MonitorMode(
-              pre_func=inspect_inputs,
-              post_func=inspect_outputs)
-    )
+        self.train_model = theano.function(
+            [index, rate_dec_multiple_given],
+            self.cost,
+            updates=self.updates,
+            givens={
+                x: self.train_set_x[index * self.batchSize: (index + 1) * self.batchSize],
+                y: self.train_set_y[index * self.batchSize: (index + 1) * self.batchSize],
+                rate_dec_multiple: rate_dec_multiple_given
+            },
+            name='train_model',
+            mode=theano.compile.MonitorMode(
+                pre_func=inspect_inputs,
+                post_func=inspect_outputs),
+            allow_input_downcast=True
+        )
 
-    pred_results = predict_model()
-    print 'Done predicting.', pred_results.shape
+        # create a function to compute the mistakes that are made by the model
+        self.test_model = theano.function(
+            [index],
+            self.lastLayer.negative_log_likelihood(y),
+            givens={
+                x: self.test_set_x[index * batch_size: (index + 1) * batch_size],
+                y: self.test_set_y[index * batch_size: (index + 1) * batch_size]
+            },
+            name='test_model',
+            mode=theano.compile.MonitorMode(
+                pre_func=inspect_inputs,
+                post_func=inspect_outputs),
+            allow_input_downcast=True
+        )
 
-    print 'Writing prediction results to file...'
-    make_submission_file(pred_results, testFnames,
-                         fNameSuffix=config)
+        self.validate_model = theano.function(
+            [index],
+            self.lastLayer.negative_log_likelihood(y),
+            givens={
+                x: self.valid_set_x[index * batch_size: (index + 1) * batch_size],
+                y: self.valid_set_y[index * batch_size: (index + 1) * batch_size]
+            },
+            name='validation_model',
+            mode=theano.compile.MonitorMode(
+                pre_func=inspect_inputs,
+                post_func=inspect_outputs),
+            allow_input_downcast=True
+        )
 
-    return convPoolLayers + [fullyConnectedLayer, lastLayer, pred_results]
+        self.predict_model = theano.function(
+            [x],
+              self.lastLayer.p_y_given_x,
+              name='predict_model',
+              mode=theano.compile.MonitorMode(
+                  pre_func=inspect_inputs,
+                  post_func=inspect_outputs)
+        )
+
+        self.print_stuff = theano.function(
+            [index],
+            [theano.printing.Print('x shape', attrs=['shape'])(x)]
+            + [l.output_print for l in self.convPoolLayers]
+            + [self.fullyConnectedLayer.output_print,
+               self.lastLayer.t_dot_print,
+               self.lastLayer.p_y_given_x_print],
+
+            givens={
+                x: self.train_set_x[index * batch_size: (index + 1) * batch_size],
+                y: self.train_set_y[index * batch_size: (index + 1) * batch_size]
+            },
+            on_unused_input='warn'
+        ) if DEBUG_MODE else None
+
+        print 'Done building CNN object.'
+
+    def train(self, n_epochs=1000, patience=1000):
+
+        # compute number of minibatches for training, validation and testing
+        n_train_batches = self.train_set_x.get_value(borrow=True).shape[0] / self.batchSize + 1
+        n_valid_batches = self.valid_set_x.get_value(borrow=True).shape[0] / self.batchSize + 1
+        n_test_batches = self.test_set_x.get_value(borrow=True).shape[0] / self.batchSize + 1
+
+        train(n_train_batches, n_valid_batches, n_test_batches,
+              self.train_model, self.validate_model, self.test_model, self.print_stuff,
+              n_epochs, patience=patience)
+
+        print 'Saving parameters...'
+        f = file('/Users/jennyyuejin/K/tryTheano/params_%s.save' % self.config, 'wb')
+        cPickle.dump(self.params, f, protocol=cPickle.HIGHEST_PROTOCOL)
+        f.close()
+
+    def predict(self):
+
+        print 'Reading test data.'
+        predict_set_x, testFnames = read_test_data(X_TEST_FPATH)
+        print 'Done reading test data.'
+
+        print 'Predicting...'
+
+        pred_results = self.predict_model(predict_set_x)
+        print 'Done predicting.', pred_results.shape
+
+        print 'Writing prediction results to file...'
+        make_submission_file(pred_results, testFnames,
+                             fNameSuffix=self.config)
+
+        return pred_results
 
 
 def train(n_train_batches, n_valid_batches, n_test_batches,
@@ -414,7 +428,7 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
 
             print minibatch_index,
 
-            if debugMode:
+            if DEBUG_MODE:
                 print_stuff(minibatch_index)
 
             print 'minibatch_avg_cost =', train_model(minibatch_index, rate_dec_multiple)
@@ -553,15 +567,16 @@ if __name__ == '__main__':
     X_TEST_FPATH = '/Users/jennyyuejin/K/NDSB/Data/X_test_%i_%i_simple.csv' % (edgeLength, edgeLength)
     Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/y.csv'
 
-    res = run_cnn(121,
-                  numFeatureMaps = [4, 4, 4, 3, 3, 3, 3],
-                  imageShape = [edgeLength, edgeLength],
-                  filterShapes = [(4, 4), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2)],
-                  poolWidths = [1, 2, 1, 1, 1, 1, 1],
-                  n_epochs=10000, initialLearningRate=0.05,
-                  batch_size=batchSize, n_hidden=350,
-                  L1_reg=0, L2_reg=0.001,
-                  patience=10000)
+    cnnObj = CNN(121,
+                 numFeatureMaps = [4, 4, 4, 3, 3, 3, 3],
+                 imageShape = [edgeLength, edgeLength],
+                 filterShapes = [(4, 4), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2)],
+                 poolWidths = [1, 2, 1, 1, 1, 1, 1],
+                 initialLearningRate=0.05, batch_size=batchSize, n_hidden=350,
+                 L1_reg=0, L2_reg=0.001,
+                 )
+
+    cnnObj.train(n_epochs=10000, patience=10000)
 
 
     # plot original image and first and second components of output
