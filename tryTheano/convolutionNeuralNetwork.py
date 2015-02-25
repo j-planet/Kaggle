@@ -2,7 +2,6 @@ __author__ = 'JennyYueJin'
 
 
 import cPickle
-import gzip
 import os
 import sys
 import time
@@ -16,8 +15,6 @@ from sklearn.cross_validation import StratifiedShuffleSplit
 
 import theano
 import theano.tensor as T
-from theano.tensor.nnet import conv
-from theano.tensor.signal import downsample
 theano.config.openmp = True
 theano.config.optimizer = 'None'
 theano.config.exception_verbosity='high'
@@ -28,106 +25,23 @@ from logisticRegressionExample import LogisticRegression, load_data
 from mlpExample import HiddenLayer
 
 from NDSB.fileMangling import make_submission_file
+from leNetConvPoolLayer import LeNetConvPoolLayer
 
 plt.ioff()
-DEBUG_MODE = False
+DEBUG_VERBOSITY = 0
 print theano.config.device
 
 global X_TRAIN_FPATH, Y_FPATH, X_TEST_FPATH
 
 
 def inspect_inputs(i, node, fn):
-    if DEBUG_MODE:
+    if DEBUG_VERBOSITY >= 2:
         print i, node, "input(s) value(s):", [input[0] for input in fn.inputs]
 
 
 def inspect_outputs(i, node, fn):
-    if DEBUG_MODE:
+    if DEBUG_VERBOSITY >= 2:
         print i, node, "output(s) value(s):", [output[0] for output in fn.outputs]
-
-
-class LeNetConvPoolLayer(object):
-    """Pool Layer of a convolutional network """
-
-    def __init__(self, rng, input, filter_shape, image_shape, poolsize=(2, 2)):
-        """
-        Allocate a LeNetConvPoolLayer with shared variable internal parameters.
-
-        :type rng: np.random.RandomState
-        :param rng: a random number generator used to initialize weights
-
-        :type input: theano.tensor.dtensor4
-        :param input: symbolic image tensor, of shape image_shape
-
-        :type filter_shape: tuple or list of length 4
-        :param filter_shape: (number of filters, num input feature maps,
-                              filter height, filter width)
-
-        :type image_shape: tuple or list of length 4
-        :param image_shape: (batch size, num input feature maps,
-                             image height, image width)
-
-        :type poolsize: tuple or list of length 2
-        :param poolsize: the downsampling (pooling) factor (#rows, #cols)
-        """
-
-        assert image_shape[1] == filter_shape[1]
-        self.input = input
-
-        # there are "num input feature maps * filter height * filter width" inputs to each hidden unit
-        fan_in = np.prod(filter_shape[1:])
-
-        # each unit in the lower layer receives a gradient from:
-        # "num output feature maps * filter height * filter width" /
-        #   pooling size
-        fan_out = (filter_shape[0] * np.prod(filter_shape[2:]) /
-                   np.prod(poolsize))
-
-        # initialize weights with random weights
-        W_bound = np.sqrt(6. / (fan_in + fan_out))
-
-        self.W = theano.shared(
-            np.asarray(
-                rng.uniform(low=-W_bound, high=W_bound, size=filter_shape),
-                dtype=theano.config.floatX
-            ),
-            borrow=True
-        )
-
-
-
-        # the bias is a 1D tensor -- one bias per output feature map
-        b_values = np.zeros((filter_shape[0],), dtype=theano.config.floatX)
-        self.b = theano.shared(value=b_values, borrow=True)
-
-        # convolve input feature maps with filters
-        conv_out = conv.conv2d(
-            input=input,
-            filters=self.W,
-            # filter_shape=filter_shape,
-            # image_shape=image_shape
-        )
-
-        # downsample each feature map individually, using maxpooling
-        pooled_out = downsample.max_pool_2d(
-            input=conv_out,
-            ds=poolsize,
-            ignore_border=True
-        )
-
-        # add the bias term. Since the bias is a vector (1D array), we first
-        # reshape it to a tensor of shape (1, n_filters, 1, 1). Each bias will
-        # thus be broadcasted across mini-batches and feature map
-        # width & height
-        self.output = T.tanh(pooled_out + self.b.dimshuffle('x', 0, 'x', 'x'))
-        self.output_print = theano.printing.Print('LeNet output', attrs=['__str__', 'shape'])(self.output)
-
-        # store parameters of this layer
-        self.params = [self.W, self.b]
-
-        # l1 and l2 errors
-        self.L1 = abs(self.W).sum()
-        self.L2 = (self.W**2).sum()
 
 
 def make_var(x):
@@ -243,6 +157,7 @@ class CNN(object):
         # classify the values of the fully-connected sigmoidal layer
         self.lastLayer = LogisticRegression(input=self.fullyConnectedLayer.output, n_in=n_hidden, n_out=numYs)
 
+        self.layers = self.convPoolLayers + [self.lastLayer, self.fullyConnectedLayer]
 
 
         ######################
@@ -254,14 +169,6 @@ class CNN(object):
         rate_dec_multiple = T.fscalar()         # index to epoch, used for decreasing the learning rate over time
         rate_dec_multiple_given = T.fscalar()   # index to epoch, used for decreasing the learning rate over time
 
-        # self.train_set_x = theano.shared(np.zeros(1), borrow=True)
-        # self.train_set_y = theano.shared(np.zeros(1), borrow=True)
-        # self.valid_set_x = theano.shared(np.zeros(1), borrow=True)
-        # self.valid_set_y = theano.shared(np.zeros(1), borrow=True)
-        # self.test_set_x = theano.shared(np.zeros(1), borrow=True)
-        # self.test_set_y = theano.shared(np.zeros(1), borrow=True)
-        # self.predict_set_x = theano.shared(np.zeros(1), borrow=True)
-
         # TODO: move this to training time
         (self.train_set_x, self.train_set_y), (self.valid_set_x, self.valid_set_y), (self.test_set_x, self.test_set_y) = read_train_data(X_TRAIN_FPATH, Y_FPATH)
 
@@ -271,9 +178,8 @@ class CNN(object):
                       + [item for l in self.convPoolLayers for item in l.params]
 
         # the cost we minimize during training is the NLL of the model
-        self.cost = self.lastLayer.negative_log_likelihood(y)
-                    # + L1_reg * sum([l.L1 for l in self.convPoolLayers + [self.lastLayer, self.fullyConnectedLayer]]) \
-                    # + L2_reg * sum([l.L2 for l in self.convPoolLayers + [self.lastLayer, self.fullyConnectedLayer]])
+        self.cost = self.lastLayer.negative_log_likelihood(y) \
+                    + L2_reg * sum(l.L2 for l in self.layers)
 
 
         # create a list of gradients for all model parameters
@@ -332,27 +238,32 @@ class CNN(object):
 
         self.predict_model = theano.function(
             [x],
-              self.lastLayer.p_y_given_x,
-              name='predict_model',
-              mode=theano.compile.MonitorMode(
-                  pre_func=inspect_inputs,
-                  post_func=inspect_outputs)
+            self.lastLayer.p_y_given_x,
+            name='predict_model',
+            mode=theano.compile.MonitorMode(
+                pre_func=inspect_inputs,
+                post_func=inspect_outputs)
         )
 
         self.print_stuff = theano.function(
             [index],
-            [theano.printing.Print('x shape', attrs=['shape'])(x)]
-            + [l.output_print for l in self.convPoolLayers]
-            + [self.fullyConnectedLayer.output_print,
-               self.lastLayer.t_dot_print,
-               self.lastLayer.p_y_given_x_print],
+            [
+                theano.printing.Print('last', attrs=['__str__'])(self.lastLayer.L1),
+                theano.printing.Print('hidden', attrs=['__str__'])(self.fullyConnectedLayer.L1),
+                theano.printing.Print('convPools', attrs=['__str__'])(self.convPoolLayers[0].L1)
+            ],
+             # + theano.printing.Print('x shape', attrs=['shape'])(x)],
+            # + [l.output_print for l in self.convPoolLayers]
+            # + [self.fullyConnectedLayer.output_print,
+            #    self.lastLayer.t_dot_print,
+            #    self.lastLayer.p_y_given_x_print],
 
             givens={
                 x: self.train_set_x[index * batch_size: (index + 1) * batch_size],
                 y: self.train_set_y[index * batch_size: (index + 1) * batch_size]
             },
             on_unused_input='warn'
-        ) if DEBUG_MODE else None
+        ) if DEBUG_VERBOSITY > 0 else None
 
         print 'Done building CNN object.'
 
@@ -428,7 +339,7 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
 
             print minibatch_index,
 
-            if DEBUG_MODE:
+            if DEBUG_VERBOSITY:
                 print_stuff(minibatch_index)
 
             print 'minibatch_avg_cost =', train_model(minibatch_index, rate_dec_multiple)
@@ -556,7 +467,7 @@ if __name__ == '__main__':
     # img = np.array(img.getdata(), dtype='float64') / 256.
     # img = img[: img_shape[0]*img_shape[1], 0].reshape(1, img_shape[0] * img_shape[1])
 
-    batchSize = 1000
+    batchSize = 250
     edgeLength = 48
 
     # trainData, testData, testFnames = read_data(xtrainfpath= '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i_simple.csv' % (edgeLength, edgeLength),
