@@ -18,7 +18,7 @@ sys.path.extend(['/Users/jennyyuejin/K/tryTheano'])
 class LeNetConvPoolLayer(object):
     """Pool Layer of a convolutional network """
 
-    def __init__(self, rng, input, filter_shape, image_shape, poolsize=(2, 2)):
+    def __init__(self, rng, input, filter_shape, image_shape, poolsize=(2, 2), activation = T.tanh):
         """
         Allocate a LeNetConvPoolLayer with shared variable internal parameters.
 
@@ -38,6 +38,10 @@ class LeNetConvPoolLayer(object):
 
         :type poolsize: tuple or list of length 2
         :param poolsize: the downsampling (pooling) factor (#rows, #cols)
+
+        :type activation: theano.Op or function
+        :param activation: Non linearity to be applied in the hidden
+                           layer
         """
 
         assert image_shape[1] == filter_shape[1]
@@ -88,7 +92,9 @@ class LeNetConvPoolLayer(object):
         # reshape it to a tensor of shape (1, n_filters, 1, 1). Each bias will
         # thus be broadcasted across mini-batches and feature map
         # width & height
-        self.output = T.tanh(pooled_out + self.b.dimshuffle('x', 0, 'x', 'x'))
+        self.lin_output = pooled_out + self.b.dimshuffle('x', 0, 'x', 'x')
+
+        self.output = self.lin_output if activation is None else activation(self.lin_output)
         self.output_print = theano.printing.Print('LeNet output', attrs=['__str__', 'shape'])(self.output)
 
         # store parameters of this layer

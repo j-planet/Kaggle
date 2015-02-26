@@ -52,6 +52,14 @@ def make_var(x):
     return theano.shared(x, borrow=True)
 
 
+def reLU(x):
+    return T.maximum(0.0, x)
+
+
+def sigmoid(x):
+    return T.nnet.sigmoid(x)
+
+
 class CNN(object):
 
     def __init__(self, numYs,
@@ -59,7 +67,9 @@ class CNN(object):
                  imageShape,
                  filterShapes,
                  poolWidths,
-                 initialLearningRate=0.01, L1_reg=0.00, L2_reg=0.0001, batch_size=100, n_hidden=100,
+                 n_hiddens,
+                 dropOutRates,
+                 initialLearningRate=0.01, L1_reg=0.00, L2_reg=0.0001, batch_size=100,
                  rndState=0):
 
         """
@@ -73,21 +83,25 @@ class CNN(object):
         :param n_epochs:
         :param dataset:
         :param batch_size:
-        :param n_hidden:
+        :param n_hiddens:
         :param rndState:
         :return:
         """
         assert len(numFeatureMaps) == len(filterShapes)
+        assert len(n_hiddens) == len(dropOutRates)
 
         self.L1_reg = L1_reg
         self.L2_reg = L2_reg
 
         # TODO: make this a function
-        self.config = '_'.join([str(numFeatureMaps)]
-                               + [str(i) for i in imageShape]
-                               + [str(f[0]) for f in filterShapes]
-                               + [str(i) for i in poolWidths] +
-                               [str(n_hidden), str(initialLearningRate), str(self.L1_reg), str(self.L2_reg)])
+        self.config = '_'.join([str(numFeatureMaps),
+                                str(imageShape),
+                                str(filterShapes),
+                                str(poolWidths),
+                                str(n_hiddens),
+                                str(dropOutRates)]
+                               + [str(initialLearningRate), str(self.L1_reg), str(self.L2_reg)])
+
         print '='*5, self.config, '='*5
 
         rng = np.random.RandomState(rndState)
@@ -95,6 +109,8 @@ class CNN(object):
         x = T.matrix('x')   # the data is presented as rasterized images
         y = T.ivector('y')  # the labels are presented as 1D vector of [int] labels
         self.batchSize = batch_size
+        self.x = x
+        self.y = y
 
         ######################
         # BUILD ACTUAL MODEL #
@@ -143,25 +159,42 @@ class CNN(object):
                                     (prevOutputImageShape[1] - filterShapes[i][1] + 1)/poolWidths[i])
 
 
+        # ------ build hidden layers
+
+        self.fullyConnectedLayers = [None] * len(n_hiddens)
+
         # the HiddenLayer being fully-connected, it operates on 2D matrices of
         # shape (batch_size, num_pixels) (i.e matrix of rasterized images).
         # This will generate a matrix of shape (batch_size, nkerns[1] * 4 * 4),
         # or (500, 50 * 4 * 4) = (500, 800) with the default values.
         fcLayer_input = self.convPoolLayers[-1].output.flatten(2)
 
-        # construct a fully-connected sigmoidal layer
-        self.fullyConnectedLayer = HiddenLayer(
+        self.fullyConnectedLayers[0]  = HiddenLayer(
             rng,
             input=fcLayer_input,
             n_in=numFeatureMaps[-1] * prevOutputImageShape[0] * prevOutputImageShape[1],
-            n_out=n_hidden,
-            activation=T.tanh
+            n_out=n_hiddens[0],
+            activation=T.tanh,
+            drop_out_rate=dropOutRates[0]
         )
 
-        # classify the values of the fully-connected sigmoidal layer
-        self.lastLayer = LogisticRegression(input=self.fullyConnectedLayer.output, n_in=n_hidden, n_out=numYs)
+        for i in range(1, len(self.fullyConnectedLayers)):
+            self.fullyConnectedLayers[i] = HiddenLayer(
+                rng,
+                input=self.fullyConnectedLayers[i-1].output,
+                n_in=n_hiddens[i-1],
+                n_out=n_hiddens[i],
+                activation=T.tanh,
+                drop_out_rate=dropOutRates[i]
+            )
 
-        self.layers = self.convPoolLayers + [self.lastLayer, self.fullyConnectedLayer]
+
+        # ------ build the last layer -- Logistic Regression layer
+
+        # classify the values of the fully-connected sigmoidal layer
+        self.lastLayer = LogisticRegression(input=self.fullyConnectedLayers[-1].output, n_in=n_hiddens[-1], n_out=numYs)
+
+        self.layers = self.convPoolLayers + self.fullyConnectedLayers + [self.lastLayer]
 
 
         ######################
@@ -178,7 +211,7 @@ class CNN(object):
 
         # create a list of all model parameters to be fit by gradient descent
         self.params = self.lastLayer.params \
-                      + self.fullyConnectedLayer.params \
+                      + [item for l in self.fullyConnectedLayers for item in l.params] \
                       + [item for l in self.convPoolLayers for item in l.params]
 
         # the cost we minimize during training is the NLL of the model
@@ -288,7 +321,7 @@ class CNN(object):
             cPickle.dump(self.params, f, protocol=cPickle.HIGHEST_PROTOCOL)
             f.close()
 
-    def predict(self, outputDir, chunksize=10000, takeNumColumns=None):
+    def predict(self, outputDir, chunksize=5000, takeNumColumns=None):
 
         outputFpath = os.path.join(outputDir,
                                    '%s_%s.csv' %
@@ -314,7 +347,7 @@ class CNN(object):
 
             pred_results = self.predict_model(pred_x)
 
-            pandas.DataFrame(pred_results, index=testFnames).reset_index().to_csv(outputFile, header=False)
+            pandas.DataFrame(pred_results, index=testFnames).reset_index().to_csv(outputFile, header=False, index=False)
 
             outputFile.flush()
 
@@ -342,15 +375,15 @@ class CNN(object):
 
         # initialize the CNN object
         obj = CNN(len(CLASS_NAMES), numFeatureMaps, imageShape, filterShapes, poolWidths,
-                  n_hidden=n_hidden,
+                  n_hiddens=[n_hidden],
                   initialLearningRate=learningRate, batch_size=batchSize, L1_reg=L1, L2_reg=L2)
 
         # fill in parameters
         params = cPickle.load(file(fpath, 'rb'))
         obj.lastLayer.W.set_value(params[0].get_value())
         obj.lastLayer.b.set_value(params[1].get_value())
-        obj.fullyConnectedLayer.W.set_value(params[2].get_value())
-        obj.fullyConnectedLayer.b.set_value(params[3].get_value())
+        obj.fullyConnectedLayers[0].W.set_value(params[2].get_value())
+        obj.fullyConnectedLayers[0].b.set_value(params[3].get_value())
 
         for i in range(numConvPoolLayers):
             obj.convPoolLayers[i].W.set_value(params[4 + i*2].get_value())
@@ -523,17 +556,22 @@ if __name__ == '__main__':
     Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/y.csv'
 
     cnnObj = CNN(len(CLASS_NAMES),
-                 numFeatureMaps = [4, 4, 4, 3, 3, 3, 3],
+                 numFeatureMaps = [4, 4, 3, 3, 3, 3, 3],
                  imageShape = [edgeLength, edgeLength],
-                 filterShapes = [(3, 3), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2)],
-                 poolWidths = [1, 1, 1, 1, 1, 1, 1],
-                 initialLearningRate=0.08, batch_size=batchSize, n_hidden=350,
-                 L1_reg=0, L2_reg=0.001,
+                 filterShapes = [(4, 4), (2, 2), (2, 2), (2, 2), (2, 2), (1, 1), (1, 1)],
+                 poolWidths = [2, 1, 1, 1, 1, 1, 1],
+                 n_hiddens=[512, 513, 121],
+                 dropOutRates=[0.5, 0.5, None],
+                 initialLearningRate=0.025, batch_size=batchSize,
+                 L1_reg=0, L2_reg=0,
                  )
 
-    numEpochs=1500
-    cnnObj.train(saveParameters = (numEpochs > 1), n_epochs=numEpochs, patience=15000)
+    numEpochs = 1500
+    cnnObj.train(saveParameters = (numEpochs > 1), n_epochs=numEpochs, patience=20000)
 
-    # cnnObj = CNN.create_class_obj_from_file(fpath = '/Users/jennyyuejin/K/tryTheano/params_[4, 4, 4, 3, 3, 3, 3]_48_48_4_2_2_2_2_2_2_1_2_1_1_1_1_1_350_0.05_0_0.001.save')
     cnnObj.predict('/Users/jennyyuejin/K/NDSB/Data/submissions', chunksize=5000)
 
+    # obj = CNN.create_class_obj_from_file(fpath = '/Users/jennyyuejin/K/tryTheano/params_[4, 4, 4, 3, 3, 3, 3]_48_48_4_2_2_2_2_2_2_1_2_1_1_1_1_1_350_0.05_0_0.001.save')
+    # obj.predict('/Users/jennyyuejin/K/NDSB/Data/submissions', chunksize=5000)
+    #
+    # obj.fullyConnectedLayer.output.eval({obj.x: obj.train_set_x.get_value(), obj.y: obj.train_set_y})

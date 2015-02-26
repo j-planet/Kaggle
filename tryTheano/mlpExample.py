@@ -12,11 +12,12 @@ import theano
 import theano.tensor as T
 
 from logisticRegressionExample import LogisticRegression, load_data
+from dropOut import DropOut
 
 
 class HiddenLayer(object):
-    def __init__(self, rng, input, n_in, n_out, W=None, b=None,
-                 activation=T.tanh):
+    def __init__(self, rng, input, n_in, n_out, drop_out_rate = None, W=None, b=None,
+                 activation=T.tanh, random_seed = 0):
         """
         Typical hidden layer of a MLP: units are fully-connected and have
         sigmoidal activation function. Weight matrix W is of shape (n_in,n_out)
@@ -41,9 +42,12 @@ class HiddenLayer(object):
         :type activation: theano.Op or function
         :param activation: Non linearity to be applied in the hidden
                            layer
+
+        :param drop_out_rate: drop out rate. if None then no drop out.
         """
 
         self.input = input
+        self.drop_out_rate = drop_out_rate
 
         # `W` is initialized with `W_values` which is uniformely sampled
         # from sqrt(-6./(n_in+n_hidden)) and sqrt(6./(n_in+n_hidden))
@@ -84,6 +88,9 @@ class HiddenLayer(object):
             lin_output if activation is None
             else activation(lin_output)
         )
+
+        if drop_out_rate is not None:
+            self.output = DropOut.dropOut(self.output, self.drop_out_rate, random_seed)
 
         self.output_print = theano.printing.Print('Hidden Layer output', attrs=['__str__', 'shape'])(self.output)
 

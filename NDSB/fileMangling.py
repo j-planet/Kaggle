@@ -282,10 +282,17 @@ if __name__ == '__main__':
     width, height = 48, 48
     # write_train_data_to_files([(25, 25)])
 
+    x_train, _ = create_training_data_table(os.path.join(DATA_DIR, 'trainFnames.txt'), width, height)
+    np.savetxt(os.path.join(DATA_DIR, 'X_train_%i_%i.csv' % (width, height)), x_train, delimiter=',')
+
+    x_test, testFnames = create_test_data_table(os.path.join(DATA_DIR, 'testFnames.txt'), width, height)
+    pandas.DataFrame(x_test, index=testFnames). \
+        to_csv(os.path.join(DATA_DIR, 'X_test_%i_%i.csv' % (width, height)), header=False)
+
     # x_train, _ = create_training_data_table_simple(os.path.join(DATA_DIR, 'trainFnames.txt'), width, height)
     # np.savetxt(os.path.join(DATA_DIR, 'X_train_%i_%i_simple.csv' % (width, height)), x_train, delimiter=',')
-
-    x_test, testFnames = create_test_data_table_simple(os.path.join(DATA_DIR, 'testFnames.txt'), width, height)
-    pandas.DataFrame(x_test, index=testFnames). \
-        to_csv(os.path.join(DATA_DIR, 'X_test_%i_%i_simple.csv' % (width, height)), header=False)
-
+    #
+    # x_test, testFnames = create_test_data_table_simple(os.path.join(DATA_DIR, 'testFnames.txt'), width, height)
+    # pandas.DataFrame(x_test, index=testFnames). \
+    #     to_csv(os.path.join(DATA_DIR, 'X_test_%i_%i_simple.csv' % (width, height)), header=False)
+    #
