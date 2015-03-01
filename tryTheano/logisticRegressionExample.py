@@ -57,7 +57,6 @@ class LogisticRegression(object):
         #   x is a matrix where row-j  represents input training sample-j
         #   b is a vector where element-k represent the free parameter of hyper plain-k
 
-        # self.p_y_given_x = theano.printing.Print('LogisticRegression p_y_given_x')(T.nnet.softmax(T.dot(input, self.W) + self.b))
         self.p_y_given_x = T.nnet.softmax(T.dot(input, self.W) + self.b)
 
         self.t_dot_print = theano.printing.Print('LogisticRegression T.dot', attrs=['__str__', 'shape'])(T.dot(input, self.W))
@@ -65,7 +64,7 @@ class LogisticRegression(object):
 
         # symbolic description of how to compute prediction as class whose
         # probability is maximal
-        self.y_pred = T.argmax(self.p_y_given_x, axis=1)
+        # self.y_pred = T.argmax(self.p_y_given_x, axis=1)
 
         # parameters of the model
         self.params = [self.W, self.b]
@@ -90,29 +89,29 @@ class LogisticRegression(object):
 
         return -T.mean(T.log(self.p_y_given_x)[T.arange(y.shape[0]), y])
 
-    def errors(self, y):
-        """Return a float representing the number of errors in the minibatch
-        over the total number of examples of the minibatch ; zero one
-        loss over the size of the minibatch
-
-        :type y: theano.tensor.TensorType
-        :param y: corresponds to a vector that gives for each example the
-                  correct label
-        """
-
-        # check if y has same dimension of y_pred
-        if y.ndim != self.y_pred.ndim:
-            raise TypeError(
-                'y should have the same shape as self.y_pred',
-                ('y', y.type, 'y_pred', self.y_pred.type)
-            )
-        # check if y is of the correct datatype
-        if y.dtype.startswith('int'):
-            # the T.neq operator returns a vector of 0s and 1s, where 1
-            # represents a mistake in prediction
-            return T.mean(T.neq(self.y_pred, y))
-        else:
-            raise NotImplementedError()
+    # def errors(self, y):
+    #     """Return a float representing the number of errors in the minibatch
+    #     over the total number of examples of the minibatch ; zero one
+    #     loss over the size of the minibatch
+    #
+    #     :type y: theano.tensor.TensorType
+    #     :param y: corresponds to a vector that gives for each example the
+    #               correct label
+    #     """
+    #
+    #     # check if y has same dimension of y_pred
+    #     if y.ndim != self.y_pred.ndim:
+    #         raise TypeError(
+    #             'y should have the same shape as self.y_pred',
+    #             ('y', y.type, 'y_pred', self.y_pred.type)
+    #         )
+    #     # check if y is of the correct datatype
+    #     if y.dtype.startswith('int'):
+    #         # the T.neq operator returns a vector of 0s and 1s, where 1
+    #         # represents a mistake in prediction
+    #         return T.mean(T.neq(self.y_pred, y))
+    #     else:
+    #         raise NotImplementedError()
 
 
 def load_data(dataset):

@@ -34,7 +34,7 @@ import scipy.stats as stats
 import seaborn as sns
 from skimage.feature import peak_local_max
 
-from fileMangling import read_train_data, read_test_data_given_path, write_train_data_to_files, write_test_data_to_files, make_submission_file
+from fileMangling import read_test_data_given_path, write_train_data_to_files, write_test_data_to_files, make_submission_file
 from features import FEATURE_NAMES
 plt.ioff()
 
@@ -149,7 +149,7 @@ def evaluate(X, y, clfKlass, **clfArgs):
     :return: MCLL
     """
 
-    print '======= Evaluationg ======='
+    print '======= Evaluating ======='
 
     # # print "CV-ing"
     # scores = cross_validation.cross_val_score(RandomForestClassifier(n_estimators=100, n_jobs=cpu_count()-1),
@@ -202,27 +202,45 @@ def plot_pixel_importances(width, height, X, y, **rfArgs):
 
 if __name__ == '__main__':
 
-    width, height = 15, 15
+    width, height = 48, 48
 
     # write_train_data_to_files([(15, 15), (30, 30), (40, 40)])
     # write_test_data_to_files([(15, 15), (30, 30), (40, 40)])
 
-    X_train, y = read_train_data(width, height)
+
+    xdata = np.array(pandas.read_csv('/Users/jennyyuejin/K/NDSB/Data/X_train_48_48_simple.csv', header=None))
+    ydata = np.array(pandas.read_csv('/Users/jennyyuejin/K/NDSB/Data/y.csv', header=None, dtype=int)).ravel()
+
+    featureVals = xdata[:, width*height:]
+    lastlayer = np.load('/Users/jennyyuejin/K/NDSB/Data/lastlayeroutput_train.npy')
+    fullX = np.concatenate([lastlayer, featureVals], axis=1)
+
+
+    # X_train, y = read_train_data(width, height)
 
     # x_fieldnames = np.array(['p_%i' % i for i in range(width*height)] + FEATURE_NAMES)
     # #
-    # plot_feature_importances(X_train, y, x_fieldnames, 25, numEstimators=100, min_samples_split=15)
+    # plot_feature_importances(fullX, ydata,
+    #                          np.array(['p'+str(i) for i in range(lastlayer.shape[1])] + FEATURE_NAMES),
+    #                          0.7, numEstimators=100, min_samples_split=15)
 
-    plot_pixel_importances(width, height, X_train, y)
+    # plot_pixel_importances(10, 20, lastlayer, ydata)
 
-    for minSampleSplit in [13, 16]:
-        print minSampleSplit
-        print evaluate(X_train, y, RandomForestClassifier,
-                       n_estimators=100, n_jobs=cpu_count()-1, min_samples_split=minSampleSplit)
+    # for minSampleSplit in [17]:
+    #     print minSampleSplit
+    #     print evaluate(fullX, ydata, RandomForestClassifier,
+    #                    n_estimators=100, n_jobs=cpu_count()-1, min_samples_split=minSampleSplit)
 
-    # predict_and_submit(X_train, y,
-    #                    os.path.join(DATA_DIR, 'X_test_%i_%i.csv' % (width, height)),
-    #                    RandomForestClassifier, n_estimators=100, n_jobs=cpu_count()-1, min_samples_split=15)
 
-    # TODO:
-    #   - deep learning!
+    featureVals_test = np.array(pandas.read_csv('/Users/jennyyuejin/K/NDSB/Data/X_test_48_48_featureVals.csv', header=None))
+    lastlayer_test = np.array(pandas.read_csv('/Users/jennyyuejin/K/NDSB/Data/lastlayerout_test.csv', header=None, sep=' '))
+    fullX_test = np.concatenate([lastlayer_test, featureVals_test], axis=1)
+    testFnames = list(np.array(pandas.read_table('/Users/jennyyuejin/K/NDSB/Data/testFnames.txt', header=None)).ravel())
+
+    clf = RandomForestClassifier(n_estimators=100, min_samples_split=20)
+    clf.fit(fullX, ydata)
+
+    pred = np.zeros((fullX_test.shape[0], len(CLASS_NAMES)))
+    pred[:, np.sort(list(set(ydata)))] = clf.predict_proba(fullX_test)
+
+    make_submission_file(pred, testFnames, fNameSuffix='withLastLayer')

@@ -67,8 +67,6 @@ class LeNetConvPoolLayer(object):
             borrow=True
         )
 
-
-
         # the bias is a 1D tensor -- one bias per output feature map
         b_values = np.zeros((filter_shape[0],), dtype=theano.config.floatX)
         self.b = theano.shared(value=b_values, borrow=True)
@@ -77,8 +75,8 @@ class LeNetConvPoolLayer(object):
         conv_out = conv.conv2d(
             input=input,
             filters=self.W,
-            # filter_shape=filter_shape,
-            # image_shape=image_shape
+            filter_shape=filter_shape,
+            image_shape=image_shape
         )
 
         # downsample each feature map individually, using maxpooling
@@ -101,5 +99,5 @@ class LeNetConvPoolLayer(object):
         self.params = [self.W, self.b]
 
         # l1 and l2 errors
-        self.L1 = abs(self.W).sum()
-        self.L2 = (self.W**2).sum()
+        self.L1 = T.cast(abs(self.W).sum(), theano.config.floatX)
+        self.L2 = T.cast((self.W**2).sum(), theano.config.floatX)

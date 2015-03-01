@@ -48,6 +48,8 @@ class HiddenLayer(object):
 
         self.input = input
         self.drop_out_rate = drop_out_rate
+        self.n_int = n_in
+        self.n_out = n_out
 
         # `W` is initialized with `W_values` which is uniformely sampled
         # from sqrt(-6./(n_in+n_hidden)) and sqrt(6./(n_in+n_hidden))
@@ -89,8 +91,8 @@ class HiddenLayer(object):
             else activation(lin_output)
         )
 
-        if drop_out_rate is not None:
-            self.output = DropOut.dropOut(self.output, self.drop_out_rate, random_seed)
+        # if drop_out_rate is not None:
+        #     self.output = DropOut.dropOut(self.output, self.drop_out_rate, random_seed)
 
         self.output_print = theano.printing.Print('Hidden Layer output', attrs=['__str__', 'shape'])(self.output)
 

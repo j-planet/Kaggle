@@ -22,7 +22,7 @@ theano.config.openmp = True
 theano.config.optimizer = 'None'
 theano.config.exception_verbosity='high'
 
-sys.path.extend(['/Users/jennyyuejin/K/tryTheano'])
+sys.path.extend(['/Users/jennyyuejin/K/tryTheano','/Users/jennyyuejin/K'])
 
 from logisticRegressionExample import LogisticRegression, load_data
 from mlpExample import HiddenLayer
@@ -35,7 +35,7 @@ plt.ioff()
 DEBUG_VERBOSITY = 0
 print theano.config.device
 
-global X_TRAIN_FPATH, Y_FPATH, X_TEST_FPATH
+global BATCH_SIZE, EDGE_LENGTH, X_TRAIN_FPATH, Y_FPATH, X_TEST_FPATH
 
 
 def inspect_inputs(i, node, fn):
@@ -53,6 +53,7 @@ def make_var(x):
 
 
 def reLU(x):
+    # return x
     return T.maximum(0.0, x)
 
 
@@ -69,7 +70,7 @@ class CNN(object):
                  poolWidths,
                  n_hiddens,
                  dropOutRates,
-                 initialLearningRate=0.01, L1_reg=0.00, L2_reg=0.0001, batch_size=100,
+                 initialLearningRate=0.05, L1_reg=0.00, L2_reg=0.0001,
                  rndState=0):
 
         """
@@ -82,13 +83,13 @@ class CNN(object):
         :param L2_reg:
         :param n_epochs:
         :param dataset:
-        :param batch_size:
+        :param BATCH_SIZE:
         :param n_hiddens:
         :param rndState:
         :return:
         """
-        assert len(numFeatureMaps) == len(filterShapes)
-        assert len(n_hiddens) == len(dropOutRates)
+        assert len(numFeatureMaps) == len(filterShapes), '%i vs %i' % (len(numFeatureMaps), len(filterShapes))
+        assert len(n_hiddens) == len(dropOutRates), '%i vs %i' % (len(n_hiddens), len(dropOutRates))
 
         self.L1_reg = L1_reg
         self.L2_reg = L2_reg
@@ -108,7 +109,7 @@ class CNN(object):
 
         x = T.matrix('x')   # the data is presented as rasterized images
         y = T.ivector('y')  # the labels are presented as 1D vector of [int] labels
-        self.batchSize = batch_size
+        self.batchSize = BATCH_SIZE
         self.x = x
         self.y = y
 
@@ -120,39 +121,43 @@ class CNN(object):
         # Construct the second convolutional pooling layer
         # filtering reduces the image size to (12-5+1, 12-5+1) = (8, 8)
         # maxpooling reduces this further to (8/2, 8/2) = (4, 4)
-        # 4D output tensor is thus of shape (batch_size, nkerns[1], 4, 4)
+        # 4D output tensor is thus of shape (BATCH_SIZE, nkerns[1], 4, 4)
 
         # ------ build conv-pool layers
         self.convPoolLayers = [None] * len(numFeatureMaps)
 
-        # Reshape matrix of rasterized images of shape (batch_size, 28 * 28)
+        # Reshape matrix of rasterized images of shape (BATCH_SIZE, 28 * 28)
         # to a 4D tensor, compatible with our LeNetConvPoolLayer
         # (28, 28) is the size of MNIST images.
-        layer0_input = x.reshape((-1, 1, imageShape[0], imageShape[1]))
+        newDim1 = x.size/(imageShape[0] * imageShape[1])       # CRAZINESS!!! GPU does NOT work with -1... REDUNKS
+        layer0_input = x.reshape((newDim1, 1, imageShape[0], imageShape[1]))
         prevOutputImageShape = ((imageShape[0] - filterShapes[0][0] + 1)/poolWidths[0],
                                 (imageShape[1] - filterShapes[0][1] + 1)/poolWidths[0])
 
         # Construct the first convolutional pooling layer:
         # filtering reduces the image size to (28-5+1 , 28-5+1) = (24, 24)
         # maxpooling reduces this further to (24/2, 24/2) = (12, 12)
-        # 4D output tensor is thus of shape (batch_size, nkerns[0], 12, 12)
+        # 4D output tensor is thus of shape (BATCH_SIZE, nkerns[0], 12, 12)
         self.convPoolLayers[0] = LeNetConvPoolLayer(
             rng,
             input=layer0_input,
-            image_shape=(batch_size, 1, imageShape[0], imageShape[1]),
+            image_shape=(BATCH_SIZE, 1, imageShape[0], imageShape[1]),
             filter_shape=(numFeatureMaps[0], 1, filterShapes[0][0], filterShapes[0][1]),
-            poolsize=[poolWidths[0], poolWidths[0]]
+            poolsize=[poolWidths[0], poolWidths[0]],
+            # activation=reLU
+            # activation=lambda _x: reLU(T.tanh(_x))
         )
-
 
         for i in range(1, len(self.convPoolLayers)):
 
             self.convPoolLayers[i] = LeNetConvPoolLayer(
                 rng,
                 input=self.convPoolLayers[i-1].output,
-                image_shape=(batch_size, numFeatureMaps[i-1], prevOutputImageShape[0], prevOutputImageShape[1]),
+                image_shape=(BATCH_SIZE, numFeatureMaps[i-1], prevOutputImageShape[0], prevOutputImageShape[1]),
                 filter_shape=(numFeatureMaps[i], numFeatureMaps[i-1], filterShapes[i][0], filterShapes[i][1]),
-                poolsize=[poolWidths[i], poolWidths[i]]
+                poolsize=[poolWidths[i], poolWidths[i]],
+                # activation=lambda x: reLU(T.tanh(x))
+                # activation=reLU
             )
 
             prevOutputImageShape = ((prevOutputImageShape[0] - filterShapes[i][0] + 1)/poolWidths[i],
@@ -164,17 +169,19 @@ class CNN(object):
         self.fullyConnectedLayers = [None] * len(n_hiddens)
 
         # the HiddenLayer being fully-connected, it operates on 2D matrices of
-        # shape (batch_size, num_pixels) (i.e matrix of rasterized images).
-        # This will generate a matrix of shape (batch_size, nkerns[1] * 4 * 4),
+        # shape (BATCH_SIZE, num_pixels) (i.e matrix of rasterized images).
+        # This will generate a matrix of shape (BATCH_SIZE, nkerns[1] * 4 * 4),
         # or (500, 50 * 4 * 4) = (500, 800) with the default values.
         fcLayer_input = self.convPoolLayers[-1].output.flatten(2)
 
-        self.fullyConnectedLayers[0]  = HiddenLayer(
+        self.fullyConnectedLayers[0] = HiddenLayer(
             rng,
             input=fcLayer_input,
             n_in=numFeatureMaps[-1] * prevOutputImageShape[0] * prevOutputImageShape[1],
             n_out=n_hiddens[0],
-            activation=T.tanh,
+            # activation=T.tanh,
+            # activation=lambda x: reLU(T.tanh(x)),
+            # activation=reLU,
             drop_out_rate=dropOutRates[0]
         )
 
@@ -184,7 +191,8 @@ class CNN(object):
                 input=self.fullyConnectedLayers[i-1].output,
                 n_in=n_hiddens[i-1],
                 n_out=n_hiddens[i],
-                activation=T.tanh,
+                # activation=lambda x: reLU(T.tanh(x)),
+                # activation=reLU,
                 drop_out_rate=dropOutRates[i]
             )
 
@@ -202,9 +210,9 @@ class CNN(object):
         ######################
 
         # training parameters
-        index = T.lscalar()  # index to a [mini]batch
-        rate_dec_multiple = T.fscalar()         # index to epoch, used for decreasing the learning rate over time
-        rate_dec_multiple_given = T.fscalar()   # index to epoch, used for decreasing the learning rate over time
+        index = T.scalar(dtype='int32')  # index to a [mini]batch
+        rate_dec_multiple = T.scalar(dtype=theano.config.floatX)         # index to epoch, used for decreasing the learning rate over time
+        rate_dec_multiple_given = T.scalar(dtype=theano.config.floatX)   # index to epoch, used for decreasing the learning rate over time
 
         # TODO: move this to training time
         (self.train_set_x, self.train_set_y), (self.valid_set_x, self.valid_set_y), (self.test_set_x, self.test_set_y) = read_train_data(X_TRAIN_FPATH, Y_FPATH)
@@ -223,7 +231,7 @@ class CNN(object):
         self.grads = T.grad(self.cost, self.params)
 
         self.updates = [
-            (param_i, (param_i - initialLearningRate / (1 + 0.005 * rate_dec_multiple) * grad_i).astype(theano.config.floatX))
+            (param_i, (param_i - initialLearningRate / (1 + 0.01 * rate_dec_multiple) * grad_i).astype(theano.config.floatX))
             for param_i, grad_i in zip(self.params, self.grads)
         ]
 
@@ -249,8 +257,8 @@ class CNN(object):
             [index],
             self.lastLayer.negative_log_likelihood(y),
             givens={
-                x: self.test_set_x[index * batch_size: (index + 1) * batch_size],
-                y: self.test_set_y[index * batch_size: (index + 1) * batch_size]
+                x: self.test_set_x[index * BATCH_SIZE: (index + 1) * BATCH_SIZE],
+                y: self.test_set_y[index * BATCH_SIZE: (index + 1) * BATCH_SIZE]
             },
             name='test_model',
             mode=theano.compile.MonitorMode(
@@ -263,8 +271,8 @@ class CNN(object):
             [index],
             self.lastLayer.negative_log_likelihood(y),
             givens={
-                x: self.valid_set_x[index * batch_size: (index + 1) * batch_size],
-                y: self.valid_set_y[index * batch_size: (index + 1) * batch_size]
+                x: self.valid_set_x[index * BATCH_SIZE: (index + 1) * BATCH_SIZE],
+                y: self.valid_set_y[index * BATCH_SIZE: (index + 1) * BATCH_SIZE]
             },
             name='validation_model',
             mode=theano.compile.MonitorMode(
@@ -285,10 +293,9 @@ class CNN(object):
         self.print_stuff = theano.function(
             [index],
             [
-                theano.printing.Print('last', attrs=['__str__'])(self.lastLayer.L1),
-                theano.printing.Print('hidden', attrs=['__str__'])(self.fullyConnectedLayer.L1),
-                theano.printing.Print('convPools', attrs=['__str__'])(self.convPoolLayers[0].L1)
+
             ],
+
             # + theano.printing.Print('x shape', attrs=['shape'])(x)],
             # + [l.output_print for l in self.convPoolLayers]
             # + [self.fullyConnectedLayer.output_print,
@@ -296,30 +303,34 @@ class CNN(object):
             #    self.lastLayer.p_y_given_x_print],
 
             givens={
-                x: self.train_set_x[index * batch_size: (index + 1) * batch_size],
-                y: self.train_set_y[index * batch_size: (index + 1) * batch_size]
+                x: self.train_set_x[index * BATCH_SIZE: (index + 1) * BATCH_SIZE],
+                y: self.train_set_y[index * BATCH_SIZE: (index + 1) * BATCH_SIZE]
             },
-            on_unused_input='warn'
+            on_unused_input='ignore'
         ) if DEBUG_VERBOSITY > 0 else None
 
         print 'Done building CNN object.'
 
-    def train(self, saveParameters, n_epochs=1000, patience=1000):
+    def train(self, saveParameters, n_epochs, patience):
 
         # compute number of minibatches for training, validation and testing
-        n_train_batches = self.train_set_x.get_value(borrow=True).shape[0] / self.batchSize + 1
-        n_valid_batches = self.valid_set_x.get_value(borrow=True).shape[0] / self.batchSize + 1
-        n_test_batches = self.test_set_x.get_value(borrow=True).shape[0] / self.batchSize + 1
+        # NOTE: skipping the last mini-batch on purpose in case of imperfect division for GPU speed
+        n_train_batches = self.train_set_x.get_value(borrow=True).shape[0] / self.batchSize
+        n_valid_batches = self.valid_set_x.get_value(borrow=True).shape[0] / self.batchSize
+        n_test_batches = self.test_set_x.get_value(borrow=True).shape[0] / self.batchSize
 
-        train(n_train_batches, n_valid_batches, n_test_batches,
+        train(self, saveParameters, n_train_batches, n_valid_batches, n_test_batches,
               self.train_model, self.validate_model, self.test_model, self.print_stuff,
               n_epochs, patience=patience)
 
-        if saveParameters:
-            print 'Saving parameters...'
-            f = file('/Users/jennyyuejin/K/tryTheano/params_%s.save' % self.config, 'wb')
-            cPickle.dump(self.params, f, protocol=cPickle.HIGHEST_PROTOCOL)
-            f.close()
+    def saveParams(self, suffix=''):
+        print 'Saving parameters...'
+        f = file('/Users/jennyyuejin/K/tryTheano/params_%s%s.save' %
+                 (self.config,
+                  '' if suffix=='' else '_' + str(suffix)),
+                 'wb')
+        cPickle.dump(self.params, f, protocol=cPickle.HIGHEST_PROTOCOL)
+        f.close()
 
     def predict(self, outputDir, chunksize=5000, takeNumColumns=None):
 
@@ -355,44 +366,76 @@ class CNN(object):
 
         return outputFpath
 
+    def calculate_last_layer_train(self, fname):
+
+        numOutPoints = self.fullyConnectedLayers[-1].n_out
+        fullx = np.array(pandas.read_csv(fname, header=None, dtype=theano.config.floatX))
+        numTrain = fullx.shape[0]
+        res = np.empty((numTrain, numOutPoints))
+
+        for i in range(numTrain/BATCH_SIZE + 1):
+            print i
+            res[i*BATCH_SIZE : (i+1)*BATCH_SIZE, :] = self.fullyConnectedLayers[-1].output.eval({self.x: fullx[i*BATCH_SIZE : (i+1)*BATCH_SIZE]})
+
+        return res
+
+    def calculate_last_layer_test(self, inputFname, chunksize=1000):
+
+        numOutPoints = self.fullyConnectedLayers[-1].n_out
+
+        res = np.empty((0, numOutPoints))
+        reader = pandas.read_csv(inputFname, chunksize = chunksize, header=None)
+
+        for i, chunk in enumerate(reader):
+
+            print 'chunk', i
+            pred_x, _ = read_test_data_in_chunk(chunk)
+            vals = self.fullyConnectedLayers[-1].output.eval({self.x: pred_x})
+
+            res = np.append(res, vals, axis=0)
+
+        return res
+
     @classmethod
     def create_class_obj_from_file(cls, fpath):
 
         # parse parameters from the filename
         containingDir, fname = os.path.split(fpath)     # strip directory
         fname, _ = os.path.splitext(fname)              # strip extension
-
-        # parse into numeric tokens
-        tokens = [json.loads(s) for s in fname.split('_')[1:]]
+        fname = fname.replace('(', '[').replace(')',']').replace('None', 'null')
 
         # extract variables
-        numFeatureMaps = tokens[0]
-        numConvPoolLayers = len(numFeatureMaps)
-        imageShape = tokens[1:3]
-        filterShapes = [(i,i) for i in tokens[3 : 3 + numConvPoolLayers]]
-        poolWidths = tokens[3 + numConvPoolLayers : 3 + 2*numConvPoolLayers]
-        n_hidden, learningRate, L1, L2 = tokens[-4:]
+        numFeatureMaps, imageShape, filterShapes, poolWidths, n_hiddens, dropOutRates, learningRate, L1, L2 \
+            = [json.loads(s) for s in fname.split('_')[1:10]]
+
+        print 'Loading variables:'
+        pprint(dict(zip(['numFeatureMaps', 'imageShape', 'filterShapes', 'poolWidths', 'n_hiddens', 'dropOutRates', 'learningRate', 'L1', 'L2'],
+                        [numFeatureMaps, imageShape, filterShapes, poolWidths, n_hiddens, dropOutRates, learningRate, L1, L2])))
 
         # initialize the CNN object
         obj = CNN(len(CLASS_NAMES), numFeatureMaps, imageShape, filterShapes, poolWidths,
-                  n_hiddens=[n_hidden],
-                  initialLearningRate=learningRate, batch_size=batchSize, L1_reg=L1, L2_reg=L2)
+                  n_hiddens, dropOutRates,
+                  initialLearningRate=learningRate, L1_reg=L1, L2_reg=L2)
 
         # fill in parameters
         params = cPickle.load(file(fpath, 'rb'))
         obj.lastLayer.W.set_value(params[0].get_value())
         obj.lastLayer.b.set_value(params[1].get_value())
-        obj.fullyConnectedLayers[0].W.set_value(params[2].get_value())
-        obj.fullyConnectedLayers[0].b.set_value(params[3].get_value())
 
-        for i in range(numConvPoolLayers):
-            obj.convPoolLayers[i].W.set_value(params[4 + i*2].get_value())
-            obj.convPoolLayers[i].b.set_value(params[4 + i*2 + 1].get_value())
+        numSkip = 2
+        for i, fcLayer in enumerate(obj.fullyConnectedLayers):
+            fcLayer.W.set_value(params[numSkip + 2*i].get_value())
+            fcLayer.b.set_value(params[numSkip + 2*i + 1].get_value())
+        numSkip += 2*len(n_hiddens)
+
+        for i, cpLayer in enumerate(obj.convPoolLayers):
+            cpLayer.W.set_value(params[numSkip + 2*i].get_value())
+            cpLayer.b.set_value(params[numSkip + 2*i + 1].get_value())
 
         return obj
 
 
-def train(n_train_batches, n_valid_batches, n_test_batches,
+def train(cnnObj, saveParameters, n_train_batches, n_valid_batches, n_test_batches,
           train_model, validate_model, test_model, print_stuff,
           n_epochs, patience = 2000, patience_increase = 2, improvement_threshold = 0.999):
 
@@ -412,6 +455,7 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
     # minibatche before checking the network
     # on the validation set; in this case we
     # check every epoch
+    miniBatchPrints = range(n_train_batches)[::5]
 
     best_validation_loss = np.inf
     best_iter = 0
@@ -428,12 +472,13 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
         print 'minibatch:'
         for minibatch_index in xrange(n_train_batches):
 
-            print minibatch_index,
-
-            if DEBUG_VERBOSITY:
+            if DEBUG_VERBOSITY > 0:
                 print_stuff(minibatch_index)
 
-            print 'minibatch_avg_cost =', train_model(minibatch_index, rate_dec_multiple)
+            curTrainCost = train_model(minibatch_index, rate_dec_multiple)
+
+            if minibatch_index in miniBatchPrints:
+                print minibatch_index, 'minibatch_avg_cost =', curTrainCost
 
             # iteration number
             iter = (epoch - 1) * n_train_batches + minibatch_index
@@ -460,8 +505,8 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
 
                     #improve patience if loss improvement is good enough
                     if this_validation_loss < best_validation_loss * improvement_threshold:
-
                         patience += patience_increase * n_train_batches
+                        cnnObj.saveParams()
 
                     best_validation_loss = this_validation_loss
                     best_iter = iter
@@ -475,9 +520,9 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
                            'best model %f %%') %
                           (epoch, minibatch_index + 1, n_train_batches,
                            test_score * 100.))
-                elif this_validation_loss > best_validation_loss*1.05:   # shooting over in the wrong direction
-                    print 'DECREASING rate-decreasing-multiple from %f to %f.' % (rate_dec_multiple, rate_dec_multiple/1.15)
-                    rate_dec_multiple /= 1.15
+                # elif this_validation_loss > best_validation_loss*1.05:   # shooting over in the wrong direction
+                #     print 'DECREASING rate-decreasing-multiple from %f to %f.' % (rate_dec_multiple, rate_dec_multiple/1.15)
+                #     rate_dec_multiple /= 1.15
                 else:
                     print 'Bumping rate-decreasing-multiple from %f to %f.' % (rate_dec_multiple, rate_dec_multiple*1.15)
                     rate_dec_multiple *= 1.15
@@ -502,20 +547,17 @@ def train(n_train_batches, n_valid_batches, n_test_batches,
 
 
 def read_train_data(xtrainfpath,
-                    yfpath = '/Users/jennyyuejin/K/NDSB/Data/y.csv',
-                    takeNumColumns = None):
+                    yfpath = '/Users/jennyyuejin/K/NDSB/Data/y.csv'):
 
     # read training data
-    x_data = np.array(pandas.read_csv(xtrainfpath, header=None), dtype=theano.config.floatX)
+    x_data = np.array(pandas.read_csv(xtrainfpath, header=None), dtype=theano.config.floatX)[:, : (EDGE_LENGTH**2)]
     y_data = np.array(pandas.read_csv(yfpath, header=None), dtype=theano.config.floatX).ravel()
 
-    numRows = x_data.shape[0]
+    print x_data.dtype
 
-    x_data = x_data[:numRows, :]
-    y_data = y_data[:numRows]
-
-    if takeNumColumns is not None:
-        x_data = x_data[:, :takeNumColumns]
+    # numRows = x_data.shape[0]
+    # x_data = x_data[:numRows, :]
+    # y_data = y_data[:numRows]
 
     temp, testInds = StratifiedShuffleSplit(y_data, n_iter=1, test_size=0.1, random_state=1)._iter_indices().next()
     testX, testY = x_data[testInds], y_data[testInds]
@@ -524,12 +566,14 @@ def read_train_data(xtrainfpath,
     trainX, trainY = x_data[temp][trainInds], y_data[temp][trainInds]
     validX, validY = x_data[temp][validInds], y_data[temp][validInds]
 
+    print trainX.dtype
+
     return [(make_var(trainX), T.cast(make_var(trainY), 'int32')),
             (make_var(validX), T.cast(make_var(validY), 'int32')),
             (make_var(testX), T.cast(make_var(testY), 'int32'))]
 
 
-def read_test_data_in_chunk(chunk, takeNumColumns=None):
+def read_test_data_in_chunk(chunk):
     """
     :param chunk: pandas DataFrame
     :return:
@@ -538,40 +582,108 @@ def read_test_data_in_chunk(chunk, takeNumColumns=None):
     chunk = np.array(chunk)
 
     testFnames = chunk[:, 0]
-    testData = np.array(chunk[:, 1:], dtype=theano.config.floatX)
-
-    if takeNumColumns is not None:
-        testData = testData[:, :takeNumColumns]
+    testData = np.array(chunk[:, 1:], dtype=theano.config.floatX)[:, :(EDGE_LENGTH**2)]
 
     return testData, testFnames
 
 
 if __name__ == '__main__':
 
-    batchSize = 250
-    edgeLength = 48
+    BATCH_SIZE = 100
+    EDGE_LENGTH = 48
 
-    X_TRAIN_FPATH= '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i_simple.csv' % (edgeLength, edgeLength)
-    X_TEST_FPATH = '/Users/jennyyuejin/K/NDSB/Data/X_test_%i_%i_simple.csv' % (edgeLength, edgeLength)
+    X_TRAIN_FPATH = '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i_simple.csv' % (EDGE_LENGTH, EDGE_LENGTH)
+    X_TEST_FPATH = '/Users/jennyyuejin/K/NDSB/Data/X_test_%i_%i_simple.csv' % (EDGE_LENGTH, EDGE_LENGTH)
     Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/y.csv'
 
+    # ------ train
+    # cnnObj = CNN(len(CLASS_NAMES),
+    #              numFeatureMaps = [4, 4, 4, 3, 3, 3, 3],
+    #              imageShape = [EDGE_LENGTH, EDGE_LENGTH],
+    #              filterShapes = [(4, 4), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2)],
+    #              poolWidths = [2, 1, 1, 1, 1, 1, 1],
+    #              n_hiddens=[512, 200],
+    #              dropOutRates=[0.5, 0.2],
+    #              initialLearningRate=0.1,
+    #              L1_reg=0, L2_reg=0.00001,
+    #              )
+
+    # cnnObj = CNN(len(CLASS_NAMES),
+    #              numFeatureMaps = [4, 3],
+    #              imageShape = [EDGE_LENGTH, EDGE_LENGTH],
+    #              filterShapes = [(4, 4), (2, 2)],
+    #              poolWidths = [2, 2],
+    #              n_hiddens=[512, 200],
+    #              dropOutRates=[0.5, 0.2],
+    #              initialLearningRate=0.05,
+    #              L1_reg=0, L2_reg=0.01,
+    #              )
+
     cnnObj = CNN(len(CLASS_NAMES),
-                 numFeatureMaps = [4, 4, 3, 3, 3, 3, 3],
-                 imageShape = [edgeLength, edgeLength],
-                 filterShapes = [(4, 4), (2, 2), (2, 2), (2, 2), (2, 2), (1, 1), (1, 1)],
-                 poolWidths = [2, 1, 1, 1, 1, 1, 1],
-                 n_hiddens=[512, 513, 121],
-                 dropOutRates=[0.5, 0.5, None],
-                 initialLearningRate=0.025, batch_size=batchSize,
-                 L1_reg=0, L2_reg=0,
+                 numFeatureMaps = [96, 128, 128],
+                 imageShape = [EDGE_LENGTH, EDGE_LENGTH],
+                 filterShapes = [(5, 5), (3, 3), (3, 3)],
+                 poolWidths = [3, 1, 3],
+                 n_hiddens=[512, 512],
+                 dropOutRates=[0.5, 0.5],
+                 initialLearningRate=0.1,
+                 L1_reg=0, L2_reg=0.001,
                  )
 
-    numEpochs = 1500
+    numEpochs = 400
     cnnObj.train(saveParameters = (numEpochs > 1), n_epochs=numEpochs, patience=20000)
 
-    cnnObj.predict('/Users/jennyyuejin/K/NDSB/Data/submissions', chunksize=5000)
 
-    # obj = CNN.create_class_obj_from_file(fpath = '/Users/jennyyuejin/K/tryTheano/params_[4, 4, 4, 3, 3, 3, 3]_48_48_4_2_2_2_2_2_2_1_2_1_1_1_1_1_350_0.05_0_0.001.save')
-    # obj.predict('/Users/jennyyuejin/K/NDSB/Data/submissions', chunksize=5000)
+    # ------ predict
+    # cnnObj.predict('/Users/jennyyuejin/K/NDSB/Data/submissions', chunksize=5000)
+
     #
-    # obj.fullyConnectedLayer.output.eval({obj.x: obj.train_set_x.get_value(), obj.y: obj.train_set_y})
+    fpath = '/Users/jennyyuejin/K/tryTheano/params_[4, 3]_[48, 48]_[(4, 4), (2, 2)]_[2, 2]_[512, 200]_[0.5, 0.2]_0.1_0_0.001_simple.save'
+    obj = CNN.create_class_obj_from_file(fpath)
+    res_train = obj.calculate_last_layer_train('/Users/jennyyuejin/K/NDSB/Data/X_train_48_48_simple.csv')
+    res_test = obj.calculate_last_layer_test('/Users/jennyyuejin/K/NDSB/Data/X_test_48_48_simple.csv', 10000)
+
+
+    # params = cPickle.load(file(fpath, 'rb'))
+    # pprint(params)
+    #
+    #
+    # def calculate_last_train_layer():
+    #
+    #     numOutPoints = 200
+    #     fullx = np.array(pandas.read_csv('/Users/jennyyuejin/K/NDSB/Data/X_train_48_48_simple.csv', header=None, dtype=theano.config.floatX))
+    #     numTrain = fullx.shape[0]
+    #     res = np.empty((numTrain, numOutPoints))
+    #
+    #     for i in range(numTrain/BATCH_SIZE + 1):
+    #         print i
+    #         res[i*BATCH_SIZE : (i+1)*BATCH_SIZE, :] = obj.fullyConnectedLayers[-1].output.eval({obj.x: fullx[i*BATCH_SIZE : (i+1)*BATCH_SIZE]})
+    #
+    #     np.save('/Users/jennyyuejin/K/NDSB/Data/lastlayeroutput.save', res)
+    #
+    #
+    #     outputFile = file('/Users/jennyyuejin/K/NDSB/Data/lastlayerout_test.csv', 'a')
+    #     reader = pandas.read_csv(X_TEST_FPATH, chunksize = 1000, header=None)
+    #
+    #     for i, chunk in enumerate(reader):
+    #
+    #         print 'chunk', i
+    #         pred_x, testFnames = read_test_data_in_chunk(chunk)
+    #         vals = obj.fullyConnectedLayers[-1].output.eval({obj.x: pred_x})
+    #         np.savetxt(outputFile, vals)
+    #         outputFile.flush()
+    #
+    #     outputFile.close()
+
+
+    times1 = pandas.read_table('/Users/jennyyuejin/K/NDSB/Data/Performance benchmarks/temp1.txt', header=None, sep=',')
+    times1.columns = ['epoch', 'score']
+    times2 = pandas.read_table('/Users/jennyyuejin/K/NDSB/Data/Performance benchmarks/temp2.txt', header=None, sep=',')
+    times2.columns = ['epoch', 'score']
+    times3 = pandas.read_table('/Users/jennyyuejin/K/NDSB/Data/Performance benchmarks/deep_vals.txt', header=None, sep=',')
+    times3.columns = ['epoch', 'score']
+
+    plt.plot(times3['epoch'], times3['score'])
+    plt.plot(times2['epoch'], times2['score'])
+    plt.plot(times1['epoch'], times1['score'])
+    plt.show()
