@@ -8,9 +8,9 @@ import theano
 import theano.tensor as T
 from theano.tensor.nnet import conv
 from theano.tensor.signal import downsample
-theano.config.openmp = True
-theano.config.optimizer = 'None'
-theano.config.exception_verbosity='high'
+# theano.config.openmp = True
+# theano.config.optimizer = 'None'
+# theano.config.exception_verbosity='high'
 
 sys.path.extend(['/Users/jennyyuejin/K/tryTheano'])
 

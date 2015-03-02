@@ -19,8 +19,9 @@ from sklearn.cross_validation import StratifiedShuffleSplit
 import theano
 import theano.tensor as T
 theano.config.openmp = True
+# theano.config.optimizer = 'fast_run'
 theano.config.optimizer = 'None'
-theano.config.exception_verbosity='high'
+# theano.config.exception_verbosity='high'
 
 sys.path.extend(['/Users/jennyyuejin/K/tryTheano','/Users/jennyyuejin/K'])
 
@@ -249,6 +250,7 @@ class CNN(object):
             mode=theano.compile.MonitorMode(
                 pre_func=inspect_inputs,
                 post_func=inspect_outputs),
+            # mode='FAST_COMPILE',
             allow_input_downcast=True
         )
 
@@ -450,7 +452,7 @@ def train(cnnObj, saveParameters, n_train_batches, n_valid_batches, n_test_batch
     # found
     # improvement_threshold = 0.995  # a relative improvement of this much is
     # considered significant
-    validation_frequency = min(n_train_batches, patience / 2)
+    validation_frequency = n_train_batches/4
     # go through this many
     # minibatche before checking the network
     # on the validation set; in this case we
@@ -463,7 +465,7 @@ def train(cnnObj, saveParameters, n_train_batches, n_valid_batches, n_test_batch
     start_time = time.clock()
 
     epoch = 0
-    rate_dec_multiple = epoch
+    rate_dec_multiple = 1
     done_looping = False
 
     while (epoch < n_epochs) and (not done_looping):
@@ -475,13 +477,13 @@ def train(cnnObj, saveParameters, n_train_batches, n_valid_batches, n_test_batch
             if DEBUG_VERBOSITY > 0:
                 print_stuff(minibatch_index)
 
-            curTrainCost = train_model(minibatch_index, rate_dec_multiple)
+            curTrainCost = train_model(minibatch_index, rate_dec_multiple * epoch)
 
             if minibatch_index in miniBatchPrints:
                 print minibatch_index, 'minibatch_avg_cost =', curTrainCost
 
             # iteration number
-            iter = (epoch - 1) * n_train_batches + minibatch_index
+            iter = epoch * n_train_batches + minibatch_index
 
             if (iter + 1) % validation_frequency == 0:
                 # compute zero-one loss on validation set
@@ -506,26 +508,28 @@ def train(cnnObj, saveParameters, n_train_batches, n_valid_batches, n_test_batch
                     #improve patience if loss improvement is good enough
                     if this_validation_loss < best_validation_loss * improvement_threshold:
                         patience += patience_increase * n_train_batches
-                        cnnObj.saveParams()
+
+                        if saveParameters:
+                            cnnObj.saveParams(suffix=BATCH_SIZE)
 
                     best_validation_loss = this_validation_loss
                     best_iter = iter
 
                     # test it on the test set
-                    test_losses = [test_model(i) for i
-                                   in xrange(n_test_batches)]
-                    test_score = np.mean(test_losses)
-
-                    print(('     epoch %i, minibatch %i/%i, test error of '
-                           'best model %f %%') %
-                          (epoch, minibatch_index + 1, n_train_batches,
-                           test_score * 100.))
+                    # test_losses = [test_model(i) for i
+                    #                in xrange(n_test_batches)]
+                    # test_score = np.mean(test_losses)
+                    #
+                    # print(('     epoch %i, minibatch %i/%i, test error of '
+                    #        'best model %f %%') %
+                    #       (epoch, minibatch_index + 1, n_train_batches,
+                    #        test_score * 100.))
                 # elif this_validation_loss > best_validation_loss*1.05:   # shooting over in the wrong direction
                 #     print 'DECREASING rate-decreasing-multiple from %f to %f.' % (rate_dec_multiple, rate_dec_multiple/1.15)
                 #     rate_dec_multiple /= 1.15
                 else:
-                    print 'Bumping rate-decreasing-multiple from %f to %f.' % (rate_dec_multiple, rate_dec_multiple*1.15)
-                    rate_dec_multiple *= 1.15
+                    print 'Bumping rate-decreasing-multiple from %f to %f.' % (rate_dec_multiple, rate_dec_multiple*1.1)
+                    rate_dec_multiple *= 1.1
 
             if patience <= iter:
                 done_looping = True
@@ -589,7 +593,7 @@ def read_test_data_in_chunk(chunk):
 
 if __name__ == '__main__':
 
-    BATCH_SIZE = 100
+    BATCH_SIZE = 50
     EDGE_LENGTH = 48
 
     X_TRAIN_FPATH = '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i_simple.csv' % (EDGE_LENGTH, EDGE_LENGTH)
