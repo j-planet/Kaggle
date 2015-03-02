@@ -398,6 +398,26 @@ class CNN(object):
 
         return res
 
+    def fill_in_parameters(self, fpath):
+
+        params = cPickle.load(file(fpath, 'rb'))
+
+        assert len(params) == 2 + 2 * len(self.fullyConnectedLayers) + 2 * len(self.convPoolLayers), \
+            '%i vs %i + 2 * %i + 2 * %i' % (len(params), 2, len(self.fullyConnectedLayers), len(self.convPoolLayers))
+
+        self.lastLayer.W.set_value(params[0].get_value())
+        self.lastLayer.b.set_value(params[1].get_value())
+
+        numSkip = 2
+        for i, fcLayer in enumerate(self.fullyConnectedLayers):
+            fcLayer.W.set_value(params[numSkip + 2*i].get_value())
+            fcLayer.b.set_value(params[numSkip + 2*i + 1].get_value())
+        numSkip += 2*len(self.fullyConnectedLayers)
+
+        for i, cpLayer in enumerate(self.convPoolLayers):
+            cpLayer.W.set_value(params[numSkip + 2*i].get_value())
+            cpLayer.b.set_value(params[numSkip + 2*i + 1].get_value())
+
     @classmethod
     def create_class_obj_from_file(cls, fpath):
 
@@ -420,19 +440,7 @@ class CNN(object):
                   initialLearningRate=learningRate, L1_reg=L1, L2_reg=L2)
 
         # fill in parameters
-        params = cPickle.load(file(fpath, 'rb'))
-        obj.lastLayer.W.set_value(params[0].get_value())
-        obj.lastLayer.b.set_value(params[1].get_value())
-
-        numSkip = 2
-        for i, fcLayer in enumerate(obj.fullyConnectedLayers):
-            fcLayer.W.set_value(params[numSkip + 2*i].get_value())
-            fcLayer.b.set_value(params[numSkip + 2*i + 1].get_value())
-        numSkip += 2*len(n_hiddens)
-
-        for i, cpLayer in enumerate(obj.convPoolLayers):
-            cpLayer.W.set_value(params[numSkip + 2*i].get_value())
-            cpLayer.b.set_value(params[numSkip + 2*i + 1].get_value())
+        obj.fill_in_parameters(fpath)
 
         return obj
 
@@ -633,6 +641,7 @@ if __name__ == '__main__':
                  initialLearningRate=0.1,
                  L1_reg=0, L2_reg=0.001,
                  )
+    cnnObj.fill_in_parameters('/Users/jennyyuejin/K/tryTheano/params_[96, 128, 128]_[48, 48]_[(5, 5), (3, 3), (3, 3)]_[3, 1, 3]_[512, 512]_[0.5, 0.5]_0.1_0_0.001_25.save')
 
     numEpochs = 400
     cnnObj.train(saveParameters = (numEpochs > 1), n_epochs=numEpochs, patience=20000)
@@ -642,10 +651,10 @@ if __name__ == '__main__':
     # cnnObj.predict('/Users/jennyyuejin/K/NDSB/Data/submissions', chunksize=5000)
 
     #
-    fpath = '/Users/jennyyuejin/K/tryTheano/params_[4, 3]_[48, 48]_[(4, 4), (2, 2)]_[2, 2]_[512, 200]_[0.5, 0.2]_0.1_0_0.001_simple.save'
-    obj = CNN.create_class_obj_from_file(fpath)
-    res_train = obj.calculate_last_layer_train('/Users/jennyyuejin/K/NDSB/Data/X_train_48_48_simple.csv')
-    res_test = obj.calculate_last_layer_test('/Users/jennyyuejin/K/NDSB/Data/X_test_48_48_simple.csv', 10000)
+    # fpath = '/Users/jennyyuejin/K/tryTheano/params_[96, 128, 128]_[48, 48]_[(5, 5), (3, 3), (3, 3)]_[3, 1, 3]_[512, 512]_[0.5, 0.5]_0.1_0_0.001_25.save'
+    # obj = CNN.create_class_obj_from_file(fpath)
+    # res_train = obj.calculate_last_layer_train('/Users/jennyyuejin/K/NDSB/Data/X_train_48_48_simple.csv')
+    # res_test = obj.calculate_last_layer_test('/Users/jennyyuejin/K/NDSB/Data/X_test_48_48_simple.csv', 10000)
 
 
     # params = cPickle.load(file(fpath, 'rb'))
