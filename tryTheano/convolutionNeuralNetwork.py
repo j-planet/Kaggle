@@ -509,8 +509,8 @@ def train(cnnObj, saveParameters, n_train_batches, n_valid_batches, n_test_batch
                     if this_validation_loss < best_validation_loss * improvement_threshold:
                         patience += patience_increase * n_train_batches
 
-                        if saveParameters:
-                            cnnObj.saveParams(suffix=BATCH_SIZE)
+                    if saveParameters:
+                        cnnObj.saveParams(suffix=BATCH_SIZE)
 
                     best_validation_loss = this_validation_loss
                     best_iter = iter
@@ -593,7 +593,7 @@ def read_test_data_in_chunk(chunk):
 
 if __name__ == '__main__':
 
-    BATCH_SIZE = 50
+    BATCH_SIZE = 25
     EDGE_LENGTH = 48
 
     X_TRAIN_FPATH = '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i_simple.csv' % (EDGE_LENGTH, EDGE_LENGTH)
