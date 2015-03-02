@@ -18,6 +18,8 @@ from sklearn.cross_validation import StratifiedShuffleSplit
 
 import theano
 import theano.tensor as T
+from theano.tensor.shared_randomstreams import RandomStreams
+
 theano.config.openmp = True
 # theano.config.optimizer = 'fast_run'
 theano.config.optimizer = 'None'
@@ -94,6 +96,7 @@ class CNN(object):
 
         self.L1_reg = L1_reg
         self.L2_reg = L2_reg
+        self.initialLearningRate = initialLearningRate
 
         # TODO: make this a function
         self.config = '_'.join([str(numFeatureMaps),
@@ -418,6 +421,19 @@ class CNN(object):
             cpLayer.W.set_value(params[numSkip + 2*i].get_value())
             cpLayer.b.set_value(params[numSkip + 2*i + 1].get_value())
 
+    def shuffle_training_data(self, random_seed=None):
+
+        print 'Shuffling training X and y data...'
+
+        numRows = self.train_set_x.shape[0]
+
+        srng = RandomStreams(seed = random_seed)
+        mask = srng.permutation(n=numRows, size=(1,)).reshape((numRows,))
+
+        self.train_set_x = self.train_set_x[mask]
+        self.train_set_y = self.train_set_y[mask]
+
+
     @classmethod
     def create_class_obj_from_file(cls, fpath):
 
@@ -461,6 +477,7 @@ def train(cnnObj, saveParameters, n_train_batches, n_valid_batches, n_test_batch
     # improvement_threshold = 0.995  # a relative improvement of this much is
     # considered significant
     validation_frequency = n_train_batches/4
+    shuffling_frequency = 2     # shuffle the training data every this many epochs
     # go through this many
     # minibatche before checking the network
     # on the validation set; in this case we
@@ -478,6 +495,9 @@ def train(cnnObj, saveParameters, n_train_batches, n_valid_batches, n_test_batch
 
     while (epoch < n_epochs) and (not done_looping):
         print '----- epoch:', epoch, patience
+
+        if epoch % shuffling_frequency == 0:
+            cnnObj.shuffle_training_data()
 
         print 'minibatch:'
         for minibatch_index in xrange(n_train_batches):
@@ -558,6 +578,7 @@ def train(cnnObj, saveParameters, n_train_batches, n_valid_batches, n_test_batch
         pass
 
 
+
 def read_train_data(xtrainfpath,
                     yfpath = '/Users/jennyyuejin/K/NDSB/Data/y.csv'):
 
@@ -605,8 +626,10 @@ if __name__ == '__main__':
     EDGE_LENGTH = 48
 
     X_TRAIN_FPATH = '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i_simple.csv' % (EDGE_LENGTH, EDGE_LENGTH)
+    # X_TRAIN_FPATH = '/Users/jennyyuejin/K/NDSB/Data/tiny48train.csv'
     X_TEST_FPATH = '/Users/jennyyuejin/K/NDSB/Data/X_test_%i_%i_simple.csv' % (EDGE_LENGTH, EDGE_LENGTH)
     Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/y.csv'
+    # Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/tinyY.csv'
 
     # ------ train
     # cnnObj = CNN(len(CLASS_NAMES),
@@ -641,10 +664,10 @@ if __name__ == '__main__':
                  initialLearningRate=0.1,
                  L1_reg=0, L2_reg=0.001,
                  )
-    cnnObj.fill_in_parameters('/Users/jennyyuejin/K/tryTheano/params_[96, 128, 128]_[48, 48]_[(5, 5), (3, 3), (3, 3)]_[3, 1, 3]_[512, 512]_[0.5, 0.5]_0.1_0_0.001_25.save')
+    cnnObj.fill_in_parameters('/Users/jennyyuejin/K/tryTheano/params_[96, 128, 128]_[48, 48]_[(5, 5), (3, 3), (3, 3)]_[3, 1, 3]_[512, 512]_[0.5, 0.5]_0.1_0_0.001_501.677.save')
 
     numEpochs = 400
-    cnnObj.train(saveParameters = (numEpochs > 1), n_epochs=numEpochs, patience=20000)
+    cnnObj.train(saveParameters = (numEpochs > 10), n_epochs=numEpochs, patience=20000,)
 
 
     # ------ predict
