@@ -622,10 +622,10 @@ if __name__ == '__main__':
     EDGE_LENGTH = 48
 
     # X_TRAIN_FPATH = '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i_simple.csv' % (EDGE_LENGTH, EDGE_LENGTH)
-    X_TRAIN_FPATH = '/Users/jennyyuejin/K/NDSB/Data/tinyX_-1010.csv'
+    X_TRAIN_FPATH = '/Users/jennyyuejin/K/NDSB/Data/tinyX_-120120.csv'
     X_TEST_FPATH = '/Users/jennyyuejin/K/NDSB/Data/X_test_%i_%i_simple.csv' % (EDGE_LENGTH, EDGE_LENGTH)
     # Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/y.csv'
-    Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/tinyY_3.csv'
+    Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/tinyY_-120120.csv'
 
     # ------ train
     # cnnObj = CNN(len(CLASS_NAMES),
@@ -708,14 +708,3 @@ if __name__ == '__main__':
     #     outputFile.close()
 
 
-    times1 = pandas.read_table('/Users/jennyyuejin/K/NDSB/Data/Performance benchmarks/temp1.txt', header=None, sep=',')
-    times1.columns = ['epoch', 'score']
-    times2 = pandas.read_table('/Users/jennyyuejin/K/NDSB/Data/Performance benchmarks/temp2.txt', header=None, sep=',')
-    times2.columns = ['epoch', 'score']
-    times3 = pandas.read_table('/Users/jennyyuejin/K/NDSB/Data/Performance benchmarks/deep_vals.txt', header=None, sep=',')
-    times3.columns = ['epoch', 'score']
-
-    plt.plot(times3['epoch'], times3['score'])
-    plt.plot(times2['epoch'], times2['score'])
-    plt.plot(times1['epoch'], times1['score'])
-    plt.show()

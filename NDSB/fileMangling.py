@@ -347,10 +347,10 @@ if __name__ == '__main__':
 
     write_training_data_table_simple(os.path.join(DATA_DIR, 'trainFnames.txt'),
                                      # os.path.join(DATA_DIR, 'blah'),
-                                     os.path.join(DATA_DIR, 'X_train_%i_%i_90180.csv' % (width, height)),
-                                     width, height, angles=[90, 180],
+                                     os.path.join(DATA_DIR, 'X_train_%i_%i_-120120.csv' % (width, height)),
+                                     width, height, angles=[-120, 120],
                                      # yFpath=os.path.join(DATA_DIR, 'y_3.csv'),
-                                     sampleXFpath=os.path.join(DATA_DIR, 'tinyX_90180.csv'),
-                                     sampleYFpath=os.path.join(DATA_DIR, 'tinyY_90180.csv'),
+                                     sampleXFpath=os.path.join(DATA_DIR, 'tinyX_-120120.csv'),
+                                     sampleYFpath=os.path.join(DATA_DIR, 'tinyY_-120120.csv'),
                                      sampleFrequency=10
     )
