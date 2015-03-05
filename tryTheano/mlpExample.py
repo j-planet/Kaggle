@@ -16,8 +16,8 @@ from dropOut import DropOut
 
 
 class HiddenLayer(object):
-    def __init__(self, rng, input, n_in, n_out, drop_out_rate = None, W=None, b=None,
-                 activation=T.tanh, random_seed = 0):
+    def __init__(self, rng, input, n_in, n_out, random_seed, drop_out_rate,
+                 W = None, b=None, activation=T.tanh):
         """
         Typical hidden layer of a MLP: units are fully-connected and have
         sigmoidal activation function. Weight matrix W is of shape (n_in,n_out)
@@ -91,8 +91,8 @@ class HiddenLayer(object):
             else activation(lin_output)
         )
 
-        # if drop_out_rate is not None:
-        #     self.output = DropOut.dropOut(self.output, self.drop_out_rate, random_seed)
+        if drop_out_rate is not None:
+            self.output = DropOut.dropOut(self.output, self.drop_out_rate, random_seed)
 
         self.output_print = theano.printing.Print('Hidden Layer output', attrs=['__str__', 'shape'])(self.output)
 

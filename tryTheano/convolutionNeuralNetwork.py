@@ -14,7 +14,7 @@ from PIL import Image
 from pprint import pprint
 from math import log10
 
-from sklearn.cross_validation import StratifiedShuffleSplit
+from sklearn.cross_validation import StratifiedShuffleSplit, ShuffleSplit
 
 import theano
 import theano.tensor as T
@@ -73,7 +73,8 @@ class CNN(object):
                  poolWidths,
                  n_hiddens,
                  dropOutRates,
-                 initialLearningRate=0.05, L1_reg=0.00, L2_reg=0.0001,
+                 initialLearningRate=0.05, learningRateDecay = 0.001,
+                 L1_reg=0.00, L2_reg=0.0001,
                  rndState=0):
 
         """
@@ -96,7 +97,8 @@ class CNN(object):
 
         self.L1_reg = L1_reg
         self.L2_reg = L2_reg
-        self.initialLearningRate = initialLearningRate
+        self.learningRate = initialLearningRate
+        self.learningRateDecay = learningRateDecay
 
         # TODO: make this a function
         self.config = '_'.join([str(numFeatureMaps),
@@ -183,6 +185,7 @@ class CNN(object):
             input=fcLayer_input,
             n_in=numFeatureMaps[-1] * prevOutputImageShape[0] * prevOutputImageShape[1],
             n_out=n_hiddens[0],
+            random_seed=None,
             # activation=T.tanh,
             # activation=lambda x: reLU(T.tanh(x)),
             # activation=reLU,
@@ -195,6 +198,7 @@ class CNN(object):
                 input=self.fullyConnectedLayers[i-1].output,
                 n_in=n_hiddens[i-1],
                 n_out=n_hiddens[i],
+                random_seed=None,
                 # activation=lambda x: reLU(T.tanh(x)),
                 # activation=reLU,
                 drop_out_rate=dropOutRates[i]
@@ -215,8 +219,6 @@ class CNN(object):
 
         # training parameters
         index = T.scalar(dtype='int32')  # index to a [mini]batch
-        rate_dec_multiple = T.scalar(dtype=theano.config.floatX)         # index to epoch, used for decreasing the learning rate over time
-        rate_dec_multiple_given = T.scalar(dtype=theano.config.floatX)   # index to epoch, used for decreasing the learning rate over time
 
         # TODO: move this to training time
         (self.train_set_x, self.train_set_y), (self.valid_set_x, self.valid_set_y), (self.test_set_x, self.test_set_y) = read_train_data(X_TRAIN_FPATH, Y_FPATH)
@@ -235,19 +237,18 @@ class CNN(object):
         self.grads = T.grad(self.cost, self.params)
 
         self.updates = [
-            (param_i, (param_i - initialLearningRate / (1 + 0.01 * rate_dec_multiple) * grad_i).astype(theano.config.floatX))
+            (param_i, (param_i - self.learningRate * grad_i).astype(theano.config.floatX))
             for param_i, grad_i in zip(self.params, self.grads)
         ]
 
 
         self.train_model = theano.function(
-            [index, rate_dec_multiple_given],
+            [index],
             self.cost,
             updates=self.updates,
             givens={
                 x: self.train_set_x[index * self.batchSize: (index + 1) * self.batchSize],
-                y: self.train_set_y[index * self.batchSize: (index + 1) * self.batchSize],
-                rate_dec_multiple: rate_dec_multiple_given
+                y: self.train_set_y[index * self.batchSize: (index + 1) * self.batchSize]
             },
             name='train_model',
             mode=theano.compile.MonitorMode(
@@ -489,15 +490,14 @@ def train(cnnObj, saveParameters, n_train_batches, n_valid_batches, n_test_batch
     test_score = 0.
     start_time = time.clock()
 
-    epoch = 0
-    rate_dec_multiple = 1
-    done_looping = False
-
-    while (epoch < n_epochs) and (not done_looping):
+    for epoch in range(n_epochs):
         print '----- epoch:', epoch, patience
 
         if epoch % shuffling_frequency == 0:
             cnnObj.shuffle_training_data()
+
+        cnnObj.learningRate /= 1 + cnnObj.learningRateDecay * cnnObj.learningRate * epoch
+        print 'Updating learning rate to be', cnnObj.learningRate
 
         print 'minibatch:'
         for minibatch_index in xrange(n_train_batches):
@@ -505,7 +505,7 @@ def train(cnnObj, saveParameters, n_train_batches, n_valid_batches, n_test_batch
             if DEBUG_VERBOSITY > 0:
                 print_stuff(minibatch_index)
 
-            curTrainCost = train_model(minibatch_index, rate_dec_multiple * epoch)
+            curTrainCost = train_model(minibatch_index)
 
             if minibatch_index in miniBatchPrints:
                 print minibatch_index, 'minibatch_avg_cost =', curTrainCost
@@ -535,7 +535,7 @@ def train(cnnObj, saveParameters, n_train_batches, n_valid_batches, n_test_batch
 
                     #improve patience if loss improvement is good enough
                     if this_validation_loss < best_validation_loss * improvement_threshold:
-                        patience += patience_increase * n_train_batches
+                        patience += patience_increase
 
                     if saveParameters:
                         cnnObj.saveParams(suffix=BATCH_SIZE)
@@ -556,15 +556,12 @@ def train(cnnObj, saveParameters, n_train_batches, n_valid_batches, n_test_batch
                 #     print 'DECREASING rate-decreasing-multiple from %f to %f.' % (rate_dec_multiple, rate_dec_multiple/1.15)
                 #     rate_dec_multiple /= 1.15
                 else:
-                    print 'Bumping rate-decreasing-multiple from %f to %f.' % (rate_dec_multiple, rate_dec_multiple*1.1)
-                    rate_dec_multiple *= 1.1
+                    cnnObj.learningRateDecay *= 1.1
+                    print 'Bumping learning rate decay to', cnnObj.learningRateDecay
 
-            if patience <= iter:
-                done_looping = True
-                break
-
-        epoch += 1
-        rate_dec_multiple += 1
+        if epoch > patience:
+            'OUT OF PATIENCE. EXITING...'
+            break
 
     end_time = time.clock()
     print(('Optimization complete. Best validation score of %f %% '
@@ -583,23 +580,22 @@ def read_train_data(xtrainfpath,
                     yfpath = '/Users/jennyyuejin/K/NDSB/Data/y.csv'):
 
     # read training data
+    print xtrainfpath
     x_data = np.array(pandas.read_csv(xtrainfpath, header=None), dtype=theano.config.floatX)[:, : (EDGE_LENGTH**2)]
     y_data = np.array(pandas.read_csv(yfpath, header=None), dtype=theano.config.floatX).ravel()
 
     print x_data.dtype
 
-    # numRows = x_data.shape[0]
-    # x_data = x_data[:numRows, :]
-    # y_data = y_data[:numRows]
-
-    temp, testInds = StratifiedShuffleSplit(y_data, n_iter=1, test_size=0.1, random_state=1)._iter_indices().next()
+    # TODO: should ideally should StratifiedShuffleSplit, which doesn't work with tiny data sets when some class has only one data point.
+    temp, testInds = ShuffleSplit(len(y_data), n_iter=1, test_size=0.1, random_state=1)._iter_indices().next()
     testX, testY = x_data[testInds], y_data[testInds]
 
-    trainInds, validInds = StratifiedShuffleSplit(y_data[temp], n_iter=1, test_size=0.1, random_state=1)._iter_indices().next()
+    trainInds, validInds = ShuffleSplit(len(y_data[temp]), n_iter=1, test_size=0.1, random_state=1)._iter_indices().next()
     trainX, trainY = x_data[temp][trainInds], y_data[temp][trainInds]
     validX, validY = x_data[temp][validInds], y_data[temp][validInds]
 
-    print trainX.dtype
+    print trainX.dtype, validX.dtype, testX.dtype, testY.dtype
+    print trainX.shape, validX.shape, testX.shape
 
     return [(make_var(trainX), T.cast(make_var(trainY), 'int32')),
             (make_var(validX), T.cast(make_var(validY), 'int32')),
@@ -622,14 +618,14 @@ def read_test_data_in_chunk(chunk):
 
 if __name__ == '__main__':
 
-    BATCH_SIZE = 25
+    BATCH_SIZE = 30
     EDGE_LENGTH = 48
 
-    X_TRAIN_FPATH = '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i_simple.csv' % (EDGE_LENGTH, EDGE_LENGTH)
-    # X_TRAIN_FPATH = '/Users/jennyyuejin/K/NDSB/Data/tiny48train.csv'
+    # X_TRAIN_FPATH = '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i_simple.csv' % (EDGE_LENGTH, EDGE_LENGTH)
+    X_TRAIN_FPATH = '/Users/jennyyuejin/K/NDSB/Data/tinyX_-1010.csv'
     X_TEST_FPATH = '/Users/jennyyuejin/K/NDSB/Data/X_test_%i_%i_simple.csv' % (EDGE_LENGTH, EDGE_LENGTH)
-    Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/y.csv'
-    # Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/tinyY.csv'
+    # Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/y.csv'
+    Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/tinyY_3.csv'
 
     # ------ train
     # cnnObj = CNN(len(CLASS_NAMES),
@@ -664,10 +660,10 @@ if __name__ == '__main__':
                  initialLearningRate=0.1,
                  L1_reg=0, L2_reg=0.001,
                  )
-    cnnObj.fill_in_parameters('/Users/jennyyuejin/K/tryTheano/params_[96, 128, 128]_[48, 48]_[(5, 5), (3, 3), (3, 3)]_[3, 1, 3]_[512, 512]_[0.5, 0.5]_0.1_0_0.001_501.677.save')
+    # cnnObj.fill_in_parameters('/Users/jennyyuejin/K/tryTheano/params_[96, 128, 128]_[48, 48]_[(5, 5), (3, 3), (3, 3)]_[3, 1, 3]_[512, 512]_[0.5, 0.5]_0.1_0_0.001_40.save')
 
     numEpochs = 400
-    cnnObj.train(saveParameters = (numEpochs > 10), n_epochs=numEpochs, patience=20000,)
+    cnnObj.train(saveParameters = False, n_epochs=numEpochs, patience=20000)
 
 
     # ------ predict

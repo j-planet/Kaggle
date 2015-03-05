@@ -30,12 +30,13 @@ from skimage import measure
 from skimage import morphology
 import numpy as np
 import pandas
+import theano
 import scipy.stats as stats
 import seaborn as sns
 from skimage.feature import peak_local_max
 
 from features import create_features, FEATURE_NAMES, trim_image
-
+from scipy.ndimage import rotate
 
 plt.ioff()
 
@@ -143,7 +144,9 @@ def create_training_data_table(trainFListFpath, width, height):
     return X, y.astype(int)
 
 
-def create_training_data_table_simple(trainFListFpath, width, height):
+def write_training_data_table_simple(trainFListFpath, outputXFpath,
+                                     width, height, angles=[], fmt='%.7e',
+                                     yFpath=None, sampleXFpath=None, sampleYFpath=None, sampleFrequency=None):
 
     """
     :param trainDatadir:
@@ -154,32 +157,76 @@ def create_training_data_table_simple(trainFListFpath, width, height):
     """
 
     numSamples = num_lines_in_file(trainFListFpath)
-    X = np.zeros((numSamples, width * height))
-    y = np.zeros((numSamples, ))
+    imgSize = width * height
+    xFile = file(outputXFpath, 'w')
+    xFile = file(outputXFpath, 'a')
+
+    if yFpath is not None:
+        yFile = file(yFpath, 'w')
+        yFile = file(yFpath, 'a')
+
+    if sampleXFpath is not None:
+        sampleXFile = file(sampleXFpath, 'w')
+        sampleXFile = file(sampleXFpath, 'a')
+
+    if sampleYFpath is not None:
+        sampleYFile = file(sampleYFpath, 'w')
+        sampleYFile = file(sampleYFpath, 'a')
 
     printIs = [int(i/100.*numSamples) for i in np.arange(100)]
-    i = 0
 
-    for fpath in open(trainFListFpath):
+    for i, fpath in enumerate(open(trainFListFpath)):
+
+        # print '-------', i
         try:
             fpath = fpath.strip()
 
             className = fpath.split(os.sep)[-2]
             classLabel = CLASS_MAPPING[className]
 
-            imData = imread(os.path.join(DATA_DIR, fpath))
-            X[i, :] = resize(trim_image(imData), (width, height)).ravel()
-            y[i] = classLabel
+            # ---- write X
+
+            # the original image
+            img = 1 - trim_image(imread(os.path.join(DATA_DIR, fpath)))
+
+            origImg = resize(img, (width, height)).ravel().reshape(1, imgSize).astype(theano.config.floatX)
+            np.savetxt(xFile, origImg, fmt=fmt, delimiter=',')
+
+            if sampleFrequency is not None and i % sampleFrequency==0:
+                np.savetxt(sampleXFile, origImg, fmt=fmt, delimiter=',')
+
+            # roated images
+            for angle in angles:
+                angledImg = resize(rotate(img, angle), (width, height)).ravel().reshape(1, imgSize).astype(theano.config.floatX)
+                np.savetxt(xFile, angledImg, fmt=fmt, delimiter=',')
+
+                if sampleFrequency is not None and i % sampleFrequency==0:
+                    np.savetxt(sampleXFile, angledImg, fmt=fmt, delimiter=',')
+
+            # ---- write Y
+            if yFpath is not None:
+                np.savetxt(yFile, np.ones((1 + len(angles))) * classLabel, fmt=fmt)
+
+            if sampleFrequency is not None and i % sampleFrequency==0:
+                np.savetxt(sampleYFile, origImg, fmt=fmt, delimiter=',')
 
         except Exception as e:
             print 'Skipping image %s due to error %s' % (fpath, e.message)
 
-        i += 1
-
         if i in printIs:
             print '%i%% done...' % (100. * i/numSamples)
 
-    return X, y.astype(int)
+
+    xFile.close()
+
+    if yFile is not None:
+        yFile.close()
+
+    if sampleXFpath is not None:
+        sampleXFile.close()
+
+    if sampleYFpath is not None:
+        sampleYFile.close()
 
 
 def write_train_data_to_files(sizes,
@@ -194,6 +241,7 @@ def write_train_data_to_files(sizes,
     for width, height in sizes:
 
         X_train, y = create_training_data_table(trainFListFpath, width, height)
+
         # train X
         np.savetxt(os.path.join(outputDir, 'X_train_%i_%i.csv' % (width, height)),
                    X_train, delimiter=',')
@@ -282,12 +330,12 @@ if __name__ == '__main__':
     width, height = 48, 48
     # write_train_data_to_files([(25, 25)])
 
-    x_train, _ = create_training_data_table(os.path.join(DATA_DIR, 'trainFnames.txt'), width, height)
-    np.savetxt(os.path.join(DATA_DIR, 'X_train_%i_%i.csv' % (width, height)), x_train, delimiter=',')
-
-    x_test, testFnames = create_test_data_table(os.path.join(DATA_DIR, 'testFnames.txt'), width, height)
-    pandas.DataFrame(x_test, index=testFnames). \
-        to_csv(os.path.join(DATA_DIR, 'X_test_%i_%i.csv' % (width, height)), header=False)
+    # x_train, _ = create_training_data_table(os.path.join(DATA_DIR, 'trainFnames.txt'), width, height)
+    # np.savetxt(os.path.join(DATA_DIR, 'X_train_%i_%i.csv' % (width, height)), x_train, delimiter=',')
+    #
+    # x_test, testFnames = create_test_data_table(os.path.join(DATA_DIR, 'testFnames.txt'), width, height)
+    # pandas.DataFrame(x_test, index=testFnames). \
+    #     to_csv(os.path.join(DATA_DIR, 'X_test_%i_%i.csv' % (width, height)), header=False)
 
     # x_train, _ = create_training_data_table_simple(os.path.join(DATA_DIR, 'trainFnames.txt'), width, height)
     # np.savetxt(os.path.join(DATA_DIR, 'X_train_%i_%i_simple.csv' % (width, height)), x_train, delimiter=',')
@@ -296,3 +344,13 @@ if __name__ == '__main__':
     # pandas.DataFrame(x_test, index=testFnames). \
     #     to_csv(os.path.join(DATA_DIR, 'X_test_%i_%i_simple.csv' % (width, height)), header=False)
     #
+
+    write_training_data_table_simple(os.path.join(DATA_DIR, 'trainFnames.txt'),
+                                     # os.path.join(DATA_DIR, 'blah'),
+                                     os.path.join(DATA_DIR, 'X_train_%i_%i_90180.csv' % (width, height)),
+                                     width, height, angles=[90, 180],
+                                     # yFpath=os.path.join(DATA_DIR, 'y_3.csv'),
+                                     sampleXFpath=os.path.join(DATA_DIR, 'tinyX_90180.csv'),
+                                     sampleYFpath=os.path.join(DATA_DIR, 'tinyY_90180.csv'),
+                                     sampleFrequency=10
+    )

@@ -11,6 +11,7 @@ class DropOut(object):
     @classmethod
     def dropOut(cls, input, dropout_rate, random_seed = 0):
         rng = np.random.RandomState(random_seed)
+        # rng = np.random.RandomState(random_seed)
         srng = T.shared_randomstreams.RandomStreams(rng.randint(999999))
 
         mask = srng.binomial(n = 1, p = 1 - dropout_rate, size = input.shape)

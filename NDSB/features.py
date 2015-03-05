@@ -267,3 +267,21 @@ def append_features(X, imgWidth, imgHeight, featureFuncsNnum):
         featureMat[rowInd, :] = np.array(list(itertools.chain([func(img) for func, _ in featureFuncsNnum])))
 
     return np.concatenate([X, featureMat], axis=1)
+
+import scipy
+
+if __name__ == '__main__':
+    img = 1 - resize(trim_image(imread('/Users/jennyyuejin/K/NDSB/Data/train/chaetognath_sagitta/72705.jpg')), (48, 48))
+
+    degrees = [0, 10, 45, 90, 135, 180, 235, 270, -10]
+    plt.figure()
+
+    for i, degree in enumerate(degrees):
+        print np.ceil(len(degrees)/3.), i+1
+        plt.subplot(3, np.ceil(len(degrees)/3.), i+1, title=str(degree))
+
+
+        plt.imshow(resize(trim_image(ndimage.rotate(img, degree)), img.shape), cmap=cm.gray_r)
+
+
+    plt.show()

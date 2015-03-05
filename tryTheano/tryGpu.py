@@ -42,12 +42,17 @@ if __name__ == '__main__':
 
     rng = numpy.random.RandomState(22)
     x = shared(numpy.asarray(rng.rand(vlen), config.floatX))
-    f = function([], T.exp(x))
+    f = function(
+        [],
+          T.exp(x),
+          mode='FAST_RUN')
     print f.maker.fgraph.toposort()
+
     t0 = time.time()
     for i in xrange(iters):
         r = f()
     t1 = time.time()
+
     print 'Looping %d times took' % iters, t1 - t0, 'seconds'
     print 'Result is', r
     if numpy.any([isinstance(x.op, T.Elemwise) for x in f.maker.fgraph.toposort()]):
