@@ -208,7 +208,7 @@ def write_training_data_table_simple(trainFListFpath, outputXFpath,
                 np.savetxt(yFile, np.ones((1 + len(angles))) * classLabel, fmt=fmt)
 
             if sampleFrequency is not None and i % sampleFrequency==0:
-                np.savetxt(sampleYFile, origImg, fmt=fmt, delimiter=',')
+                np.savetxt(sampleYFile, np.ones((1 + len(angles))) * classLabel, fmt=fmt, delimiter=',')
 
         except Exception as e:
             print 'Skipping image %s due to error %s' % (fpath, e.message)
@@ -219,7 +219,7 @@ def write_training_data_table_simple(trainFListFpath, outputXFpath,
 
     xFile.close()
 
-    if yFile is not None:
+    if yFpath is not None:
         yFile.close()
 
     if sampleXFpath is not None:
