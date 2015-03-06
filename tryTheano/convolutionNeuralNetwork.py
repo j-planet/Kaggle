@@ -53,11 +53,13 @@ def inspect_outputs(i, node, fn):
         print i, node, "output(s) value(s):", [output[0] for output in fn.outputs]
 
 
-def compute_size(originalLen, filterLen, filterStride, poolWidth, poolStride, ignorePoolBorder=False):
+def compute_size(originalLen, filterLen, filterStride, poolWidth, poolStride, filterBorder='valid', ignorePoolBorder=False):
     # assert poolStride == 1, 'Only supports poolStride of 1 for now. %i not accepted.' % poolStride
 
-    print originalLen, filterLen, filterStride
-    x0 = (originalLen + filterLen - 1)/filterStride
+    assert filterBorder in ['full', 'valid']
+
+    # assume filter has full border
+    x0 = (originalLen / filterStride + 1) if filterBorder=='full' else (originalLen - filterLen + 1)/filterStride
 
     # assumes symmetry in shape
     return downsample.DownsampleFactorMax.out_shape((x0, x0), (poolWidth, poolWidth), st=(poolStride, poolStride), ignore_border=ignorePoolBorder)[0]
@@ -162,7 +164,7 @@ class CNN(object):
         self.convPoolLayers[0] = LeNetConvPoolLayer(
             rng,
             input=layer0_input,
-            # image_shape=(BATCH_SIZE, 1, imageShape[0], imageShape[1]),
+            image_shape=(BATCH_SIZE, 1, imageShape[0], imageShape[1]),
             filter_shape=(numFeatureMaps[0], 1, filterWidths[0], filterWidths[0]),
             poolWidth=poolWidths[0],
             poolStride=poolStrides[0],
@@ -325,7 +327,9 @@ class CNN(object):
         self.print_stuff = theano.function(
             [index],
             [
-
+                theano.printing.Print('LeNet output 0', attrs=['shape'])(self.convPoolLayers[0].output),
+                theano.printing.Print('LeNet output 1', attrs=['shape'])(self.convPoolLayers[1].output),
+                theano.printing.Print('LeNet output 2', attrs=['shape'])(self.convPoolLayers[2].output)
             ],
 
             # + theano.printing.Print('x shape', attrs=['shape'])(x)],
@@ -682,7 +686,8 @@ if __name__ == '__main__':
                  numFeatureMaps = [96, 128, 128],
                  imageShape = [EDGE_LENGTH, EDGE_LENGTH],
                  filterWidths= [5, 3, 3],
-                 filterStrides = [4, 1, 1],
+                 filterStrides = [2, 1, 1],
+                 # filterStrides=[1, 1, 1],
                  poolWidths = [3, 1, 3],
                  poolStrides = [2, 1, 2],
                  # poolStrides=[3, 1, 3],
