@@ -39,7 +39,6 @@ if __name__ == '__main__':
     vlen = 10 * 30 * 768  # 10 x #cores x # threads per core
     iters = 1000
 
-
     rng = numpy.random.RandomState(22)
     x = shared(numpy.asarray(rng.rand(vlen), config.floatX))
     f = function(

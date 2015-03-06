@@ -1,3 +1,5 @@
+from theano.tensor.signal import downsample
+
 __author__ = 'JennyYueJin'
 
 
@@ -20,9 +22,9 @@ import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
-theano.config.openmp = True
+# theano.config.openmp = True
 # theano.config.optimizer = 'fast_run'
-theano.config.optimizer = 'None'
+# theano.config.optimizer = 'None'
 # theano.config.exception_verbosity='high'
 
 sys.path.extend(['/Users/jennyyuejin/K/tryTheano','/Users/jennyyuejin/K'])
@@ -51,6 +53,16 @@ def inspect_outputs(i, node, fn):
         print i, node, "output(s) value(s):", [output[0] for output in fn.outputs]
 
 
+def compute_size(originalLen, filterLen, filterStride, poolWidth, poolStride, ignorePoolBorder=False):
+    # assert poolStride == 1, 'Only supports poolStride of 1 for now. %i not accepted.' % poolStride
+
+    print originalLen, filterLen, filterStride
+    x0 = (originalLen + filterLen - 1)/filterStride
+
+    # assumes symmetry in shape
+    return downsample.DownsampleFactorMax.out_shape((x0, x0), (poolWidth, poolWidth), st=(poolStride, poolStride), ignore_border=ignorePoolBorder)[0]
+
+
 def make_var(x):
     return theano.shared(x, borrow=True)
 
@@ -69,8 +81,10 @@ class CNN(object):
     def __init__(self, numYs,
                  numFeatureMaps,
                  imageShape,
-                 filterShapes,
+                 filterWidths,
+                 filterStrides,
                  poolWidths,
+                 poolStrides,
                  n_hiddens,
                  dropOutRates,
                  initialLearningRate=0.05, learningRateDecay = 0.001,
@@ -80,7 +94,7 @@ class CNN(object):
         """
         :param numFeatureMaps:
         :param imageShape: (image width, image height)
-        :param filterShapes: [(filter width, filter height), ...] for the conv-pool layers
+        :param filterWidths: [(filter width, filter height), ...] for the conv-pool layers
         :param poolWidths: (pool block width, pool block height)
         :param initialLearningRate:
         :param L1_reg:
@@ -92,7 +106,7 @@ class CNN(object):
         :param rndState:
         :return:
         """
-        assert len(numFeatureMaps) == len(filterShapes), '%i vs %i' % (len(numFeatureMaps), len(filterShapes))
+        assert len(numFeatureMaps) == len(filterWidths), '%i vs %i' % (len(numFeatureMaps), len(filterWidths))
         assert len(n_hiddens) == len(dropOutRates), '%i vs %i' % (len(n_hiddens), len(dropOutRates))
 
         self.L1_reg = L1_reg
@@ -103,8 +117,10 @@ class CNN(object):
         # TODO: make this a function
         self.config = '_'.join([str(numFeatureMaps),
                                 str(imageShape),
-                                str(filterShapes),
+                                str(filterWidths),
+                                str(filterStrides),
                                 str(poolWidths),
+                                str(poolStrides),
                                 str(n_hiddens),
                                 str(dropOutRates)]
                                + [str(initialLearningRate), str(self.L1_reg), str(self.L2_reg)])
@@ -137,8 +153,7 @@ class CNN(object):
         # (28, 28) is the size of MNIST images.
         newDim1 = x.size/(imageShape[0] * imageShape[1])       # CRAZINESS!!! GPU does NOT work with -1... REDUNKS
         layer0_input = x.reshape((newDim1, 1, imageShape[0], imageShape[1]))
-        prevOutputImageShape = ((imageShape[0] - filterShapes[0][0] + 1)/poolWidths[0],
-                                (imageShape[1] - filterShapes[0][1] + 1)/poolWidths[0])
+
 
         # Construct the first convolutional pooling layer:
         # filtering reduces the image size to (28-5+1 , 28-5+1) = (24, 24)
@@ -147,12 +162,18 @@ class CNN(object):
         self.convPoolLayers[0] = LeNetConvPoolLayer(
             rng,
             input=layer0_input,
-            image_shape=(BATCH_SIZE, 1, imageShape[0], imageShape[1]),
-            filter_shape=(numFeatureMaps[0], 1, filterShapes[0][0], filterShapes[0][1]),
-            poolsize=[poolWidths[0], poolWidths[0]],
+            # image_shape=(BATCH_SIZE, 1, imageShape[0], imageShape[1]),
+            filter_shape=(numFeatureMaps[0], 1, filterWidths[0], filterWidths[0]),
+            poolWidth=poolWidths[0],
+            poolStride=poolStrides[0],
             # activation=reLU
             # activation=lambda _x: reLU(T.tanh(_x))
+            filterStride=filterStrides[0]
         )
+
+        prevOutputImageShape = (compute_size(imageShape[0], filterWidths[0], filterStrides[0], poolWidths[0], poolStrides[0]),
+                                compute_size(imageShape[1], filterWidths[0], filterStrides[0], poolWidths[0], poolStrides[0]))
+        print 'prevOutputImageShape', prevOutputImageShape
 
         for i in range(1, len(self.convPoolLayers)):
 
@@ -160,14 +181,19 @@ class CNN(object):
                 rng,
                 input=self.convPoolLayers[i-1].output,
                 image_shape=(BATCH_SIZE, numFeatureMaps[i-1], prevOutputImageShape[0], prevOutputImageShape[1]),
-                filter_shape=(numFeatureMaps[i], numFeatureMaps[i-1], filterShapes[i][0], filterShapes[i][1]),
-                poolsize=[poolWidths[i], poolWidths[i]],
+                filter_shape=(numFeatureMaps[i], numFeatureMaps[i-1], filterWidths[i], filterWidths[i]),
+                poolWidth=poolWidths[i],
+                poolStride=poolStrides[i],
+                filterStride=filterStrides[i]
                 # activation=lambda x: reLU(T.tanh(x))
                 # activation=reLU
             )
 
-            prevOutputImageShape = ((prevOutputImageShape[0] - filterShapes[i][0] + 1)/poolWidths[i],
-                                    (prevOutputImageShape[1] - filterShapes[i][1] + 1)/poolWidths[i])
+            # prevOutputImageShape = ((prevOutputImageShape[0] - filterShapes[i][0] + 1)/poolWidths[i],
+            #                         (prevOutputImageShape[1] - filterShapes[i][1] + 1)/poolWidths[i])
+            prevOutputImageShape = (compute_size(prevOutputImageShape[0], filterWidths[i], filterStrides[i], poolWidths[i], poolStrides[i]),
+                                    compute_size(prevOutputImageShape[1], filterWidths[i], filterStrides[i], poolWidths[i], poolStrides[i]))
+            print 'prevOutputImageShape', prevOutputImageShape
 
 
         # ------ build hidden layers
@@ -251,9 +277,9 @@ class CNN(object):
                 y: self.train_set_y[index * self.batchSize: (index + 1) * self.batchSize]
             },
             name='train_model',
-            mode=theano.compile.MonitorMode(
-                pre_func=inspect_inputs,
-                post_func=inspect_outputs),
+            # mode=theano.compile.MonitorMode(
+            #     pre_func=inspect_inputs,
+            #     post_func=inspect_outputs),
             # mode='FAST_COMPILE',
             allow_input_downcast=True
         )
@@ -483,7 +509,7 @@ def train(cnnObj, saveParameters, n_train_batches, n_valid_batches, n_test_batch
     # minibatche before checking the network
     # on the validation set; in this case we
     # check every epoch
-    miniBatchPrints = range(n_train_batches)[::5]
+    miniBatchPrints = range(n_train_batches)[::10]
 
     best_validation_loss = np.inf
     best_iter = 0
@@ -622,10 +648,12 @@ if __name__ == '__main__':
     EDGE_LENGTH = 48
 
     # X_TRAIN_FPATH = '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i_simple.csv' % (EDGE_LENGTH, EDGE_LENGTH)
-    X_TRAIN_FPATH = '/Users/jennyyuejin/K/NDSB/Data/tinyX_-120120.csv'
-    X_TEST_FPATH = '/Users/jennyyuejin/K/NDSB/Data/X_test_%i_%i_simple.csv' % (EDGE_LENGTH, EDGE_LENGTH)
+    X_TRAIN_FPATH = '/Users/jennyyuejin/K/NDSB/Data/tinyX.csv'
+    # X_TEST_FPATH = '/Users/jennyyuejin/K/NDSB/Data/X_test_%i_%i_simple.csv' % (EDGE_LENGTH, EDGE_LENGTH)
     # Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/y.csv'
-    Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/tinyY_-120120.csv'
+    Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/tinyY.csv'
+
+
 
     # ------ train
     # cnnObj = CNN(len(CLASS_NAMES),
@@ -653,8 +681,11 @@ if __name__ == '__main__':
     cnnObj = CNN(len(CLASS_NAMES),
                  numFeatureMaps = [96, 128, 128],
                  imageShape = [EDGE_LENGTH, EDGE_LENGTH],
-                 filterShapes = [(5, 5), (3, 3), (3, 3)],
+                 filterWidths= [5, 3, 3],
+                 filterStrides = [4, 1, 1],
                  poolWidths = [3, 1, 3],
+                 poolStrides = [2, 1, 2],
+                 # poolStrides=[3, 1, 3],
                  n_hiddens=[512, 512],
                  dropOutRates=[0.5, 0.5],
                  initialLearningRate=0.1,

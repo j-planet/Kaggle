@@ -144,9 +144,9 @@ def create_training_data_table(trainFListFpath, width, height):
     return X, y.astype(int)
 
 
-def write_training_data_table_simple(trainFListFpath, outputXFpath,
+def write_training_data_table_simple(trainFListFpath,
                                      width, height, angles=[], fmt='%.7e',
-                                     yFpath=None, sampleXFpath=None, sampleYFpath=None, sampleFrequency=None):
+                                     xFpath=None, yFpath=None, sampleXFpath=None, sampleYFpath=None, sampleFrequency=None):
 
     """
     :param trainDatadir:
@@ -158,8 +158,10 @@ def write_training_data_table_simple(trainFListFpath, outputXFpath,
 
     numSamples = num_lines_in_file(trainFListFpath)
     imgSize = width * height
-    xFile = file(outputXFpath, 'w')
-    xFile = file(outputXFpath, 'a')
+
+    if xFpath is not None:
+        xFile = file(xFpath, 'w')
+        xFile = file(xFpath, 'a')
 
     if yFpath is not None:
         yFile = file(yFpath, 'w')
@@ -190,7 +192,9 @@ def write_training_data_table_simple(trainFListFpath, outputXFpath,
             img = 1 - trim_image(imread(os.path.join(DATA_DIR, fpath)))
 
             origImg = resize(img, (width, height)).ravel().reshape(1, imgSize).astype(theano.config.floatX)
-            np.savetxt(xFile, origImg, fmt=fmt, delimiter=',')
+
+            if xFpath is not None:
+                np.savetxt(xFile, origImg, fmt=fmt, delimiter=',')
 
             if sampleFrequency is not None and i % sampleFrequency==0:
                 np.savetxt(sampleXFile, origImg, fmt=fmt, delimiter=',')
@@ -198,7 +202,9 @@ def write_training_data_table_simple(trainFListFpath, outputXFpath,
             # roated images
             for angle in angles:
                 angledImg = resize(rotate(img, angle), (width, height)).ravel().reshape(1, imgSize).astype(theano.config.floatX)
-                np.savetxt(xFile, angledImg, fmt=fmt, delimiter=',')
+
+                if xFpath is not None:
+                    np.savetxt(xFile, angledImg, fmt=fmt, delimiter=',')
 
                 if sampleFrequency is not None and i % sampleFrequency==0:
                     np.savetxt(sampleXFile, angledImg, fmt=fmt, delimiter=',')
@@ -216,8 +222,8 @@ def write_training_data_table_simple(trainFListFpath, outputXFpath,
         if i in printIs:
             print '%i%% done...' % (100. * i/numSamples)
 
-
-    xFile.close()
+    if xFpath is not None:
+        xFile.close()
 
     if yFpath is not None:
         yFile.close()
@@ -346,11 +352,10 @@ if __name__ == '__main__':
     #
 
     write_training_data_table_simple(os.path.join(DATA_DIR, 'trainFnames.txt'),
-                                     # os.path.join(DATA_DIR, 'blah'),
-                                     os.path.join(DATA_DIR, 'X_train_%i_%i_-120120.csv' % (width, height)),
-                                     width, height, angles=[-120, 120],
-                                     # yFpath=os.path.join(DATA_DIR, 'y_3.csv'),
-                                     sampleXFpath=os.path.join(DATA_DIR, 'tinyX_-120120.csv'),
-                                     sampleYFpath=os.path.join(DATA_DIR, 'tinyY_-120120.csv'),
-                                     sampleFrequency=10
+                                     width, height, angles=[-3, 3, -5, 5],
+                                     xFpath=os.path.join(DATA_DIR, 'X_train_48_48_-3355.csv'),
+                                     yFpath=os.path.join(DATA_DIR, 'y_-3355.csv'),
+                                     # sampleXFpath=os.path.join(DATA_DIR, 'tinyX_-3355.csv'),
+                                     # sampleYFpath=os.path.join(DATA_DIR, 'tinyY_-3355.csv'),
+                                     # sampleFrequency=10
     )
