@@ -16,7 +16,7 @@ from dropOut import DropOut
 
 
 class HiddenLayer(object):
-    def __init__(self, rng, input, n_in, n_out, random_seed, drop_out_rate,
+    def __init__(self, rng, input, n_in, n_out, drop_out_rate,
                  W = None, b=None, activation=T.tanh):
         """
         Typical hidden layer of a MLP: units are fully-connected and have
@@ -50,6 +50,7 @@ class HiddenLayer(object):
         self.drop_out_rate = drop_out_rate
         self.n_int = n_in
         self.n_out = n_out
+        self.rng = rng
 
         # `W` is initialized with `W_values` which is uniformely sampled
         # from sqrt(-6./(n_in+n_hidden)) and sqrt(6./(n_in+n_hidden))
@@ -65,7 +66,7 @@ class HiddenLayer(object):
         #        tanh.
         if W is None:
             W_values = numpy.asarray(
-                rng.uniform(
+                self.rng.uniform(
                     low=-numpy.sqrt(6. / (n_in + n_out)),
                     high=numpy.sqrt(6. / (n_in + n_out)),
                     size=(n_in, n_out)
@@ -92,7 +93,7 @@ class HiddenLayer(object):
         )
 
         if drop_out_rate is not None:
-            self.output = DropOut.dropOut(self.output, self.drop_out_rate, random_seed)
+            self.output = DropOut.dropOut(self.output, self.drop_out_rate, self.rng)
 
         self.output_print = theano.printing.Print('Hidden Layer output', attrs=['__str__', 'shape'])(self.output)
 

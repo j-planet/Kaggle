@@ -3,7 +3,7 @@ __author__ = 'jennyyuejin'
 import sys
 sys.path.append('/Users/JennyYueJin/K/NDSB')
 
-from global_vars import DATA_DIR, CLASS_MAPPING, CLASS_NAMES
+from global_vars import DATA_DIR, DATA_DIR_TEST, CLASS_MAPPING, CLASS_NAMES
 # from Utilities.utilities import plot_feature_importances
 
 import subprocess
@@ -62,11 +62,13 @@ def create_test_data_table(testFListFpath, width, height):
         try:
             fpath = fpath.strip()
 
-            imData = imread(os.path.join(DATA_DIR, fpath))
+            imData = imread(os.path.join(DATA_DIR_TEST, fpath))
             X[i, :] = create_features(imData, width, height)
 
             imgNames[i] = fpath.split(os.sep)[-1]
+
         except Exception as e:
+
             print 'Skipping image %s due to error %s' % (fpath, e.message)
 
         i += 1
@@ -76,6 +78,43 @@ def create_test_data_table(testFListFpath, width, height):
 
     return X, imgNames
 
+
+def write_test_data_table_simple(testFListFpath, width, height, xFpath, angles=[], fmt='%.5e'):
+
+    numSamples = num_lines_in_file(testFListFpath)
+    imgSize = width * height
+
+    xFile = file(xFpath, 'w')
+    xFile = file(xFpath, 'a')
+
+    printIs = [int(i/100.*numSamples) for i in np.arange(100)]
+
+
+    for i, fname in enumerate(open(testFListFpath)):
+
+        try:
+            fname = fname.strip()
+            # print imread(os.path.join(DATA_DIR_TEST, fname))
+            img = 1 - trim_image(imread(os.path.join(DATA_DIR_TEST, fname)))
+
+            # write original image
+            origImg = resize(img, (width, height)).ravel().reshape(1, imgSize).astype(theano.config.floatX)
+            np.savetxt(xFile, origImg, fmt=fmt, delimiter=',')
+
+            # write angled images
+            for angle in angles:
+                angledImg = resize(rotate(img, angle), (width, height)).ravel().reshape(1, imgSize).astype(theano.config.floatX)
+                np.savetxt(xFile, angledImg, fmt=fmt, delimiter=',')
+
+        except Exception as e:
+
+            print 'Skipping image %s due to error %s' % (fname, e.message)
+
+        if i in printIs:
+            print '%i%% done...' % (100. * i/numSamples)
+
+
+    xFile.close()
 
 def create_test_data_table_simple(testFListFpath, width, height):
 
@@ -351,11 +390,10 @@ if __name__ == '__main__':
     #     to_csv(os.path.join(DATA_DIR, 'X_test_%i_%i_simple.csv' % (width, height)), header=False)
     #
 
-    write_training_data_table_simple(os.path.join(DATA_DIR, 'trainFnames.txt'),
-                                     width, height, angles=[-3, 3, -5, 5],
-                                     xFpath=os.path.join(DATA_DIR, 'X_train_48_48_-3355.csv'),
-                                     yFpath=os.path.join(DATA_DIR, 'y_-3355.csv'),
-                                     # sampleXFpath=os.path.join(DATA_DIR, 'tinyX_-3355.csv'),
-                                     # sampleYFpath=os.path.join(DATA_DIR, 'tinyY_-3355.csv'),
-                                     # sampleFrequency=10
+    write_test_data_table_simple(os.path.join(DATA_DIR, 'testFnames.txt'),
+                                 width, height,
+                                 xFpath=os.path.join(DATA_DIR, 'X_test_48_48_-112233.csv'),
+                                 angles=[-1, 1, -2, 2, -3, 3],
+                                 fmt='%.4e'
     )
+

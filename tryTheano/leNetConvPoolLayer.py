@@ -58,9 +58,9 @@ class LeNetConvPoolLayer(object):
         if image_shape is not None:
             assert image_shape[1] == filter_shape[1]
         self.input = input
+        self.filterStrideFactor = filterStride
 
         # there are "num input feature maps * filter height * filter width" inputs to each hidden unit
-        print 'filter shape:', filter_shape
         fan_in = np.prod(filter_shape[1:])
 
         # each unit in the lower layer receives a gradient from:
@@ -107,8 +107,7 @@ class LeNetConvPoolLayer(object):
                 filters=self.W,
                 filter_shape=filter_shape,
                 image_shape=image_shape,
-                subsample=(filterStride, filterStride),
-                # border_mode='full'
+                # subsample=self.filterStrideFactor
             )
 
             # downsample each feature map individually, using maxpooling
@@ -116,7 +115,8 @@ class LeNetConvPoolLayer(object):
                 input=conv_out,
                 ds = [poolWidth, poolWidth],
                 st = [poolStride, poolStride],
-                padding=poolPadding
+                padding=poolPadding,
+                ignore_border=True
             )
 
 
@@ -135,18 +135,3 @@ class LeNetConvPoolLayer(object):
         # l1 and l2 errors
         self.L1 = T.cast(abs(self.W).sum(), theano.config.floatX)
         self.L2 = T.cast((self.W**2).sum(), theano.config.floatX)
-
-if __name__ == '__main__':
-
-    filter_shape=(1, 1, 4, 4)
-    w = theano.shared(np.zeros(filter_shape), borrow=True)
-
-    image_shape=(50, 1, 11, 11)
-    input=theano.shared(np.zeros(image_shape), borrow=True)
-
-    subsample = (3, 3)
-
-    for mode in ['full', 'valid']:
-        print mode
-        print conv.conv2d(input=input, filters=w,
-                          filter_shape=filter_shape, image_shape=image_shape, subsample=subsample, border_mode=mode).shape.eval()

@@ -3,6 +3,7 @@ __author__ = 'JennyYueJin'
 import numpy as np
 
 DATA_DIR = '/Users/JennyYueJin/K/NDSB/Data'
+DATA_DIR_TEST = '/Users/JennyYueJin/K/NDSB/Data/test'
 
 CLASS_MAPPING = {'acantharia_protist': 2,
                  'acantharia_protist_big_center': 0,
