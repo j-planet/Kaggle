@@ -19,7 +19,7 @@ from skimage.transform import resize
 from sklearn.ensemble import RandomForestClassifier
 
 from sklearn import cross_validation
-from sklearn.cross_validation import StratifiedKFold as KFold
+from sklearn.cross_validation import StratifiedKFold as KFold, StratifiedShuffleSplit
 from sklearn.metrics import classification_report
 from matplotlib import pyplot as plt
 from matplotlib import colors
@@ -183,9 +183,53 @@ def create_training_data_table(trainFListFpath, width, height):
     return X, y.astype(int)
 
 
-def write_training_data_table_simple(trainFListFpath,
+def make_append_file(fpath):
+    """
+    creates and returns file object in append mode
+    :param fpath:
+    :return:
+    """
+
+    if fpath is None:
+        return None
+
+    file(fpath, 'w')
+    return file(fpath, 'a')
+
+
+def create_images(dataFpath, width, height, angles=[]):
+    """
+    returns the resized image and its rotated versions
+    :param dataFpath:
+    :param width:
+    :param height:
+    :param angles:
+    :return: list of straight img, rotated images
+    """
+
+    imgSize = width * height
+
+
+    def _resize_n_cast(_img):
+        return resize(_img, (width, height)).ravel().reshape(1, imgSize).astype(theano.config.floatX)
+
+
+    origImg = 1 - trim_image(imread(dataFpath, as_grey=True), bgValue=255)
+
+    straightImg = _resize_n_cast(origImg)
+    rotatedImgs = [_resize_n_cast(rotate(origImg, angle)) for angle in angles]
+
+    return [straightImg] + rotatedImgs
+
+
+
+def write_training_data_table_angles(trainFListFpath,
                                      width, height, angles=[], fmt='%.7e',
-                                     xFpath=None, yFpath=None, sampleXFpath=None, sampleYFpath=None, sampleFrequency=None):
+                                     xFpath_train=None, yFpath_train=None,
+                                     xFpath_val=None, yFpath_val=None,
+                                     validation_size = 0.1,
+                                     sampleXFpath_train=None, sampleYFpath_train=None, sampleXFpath_val=None, sampleYFpath_val=None,
+                                     sampleFrequency=None):
 
     """
     :param trainDatadir:
@@ -195,83 +239,77 @@ def write_training_data_table_simple(trainFListFpath,
                 y (numpy array of size (numImgs,))
     """
 
-    numSamples = num_lines_in_file(trainFListFpath)
-    imgSize = width * height
+    def _img_to_file(_imgData, _file):
+        np.savetxt(_file, _imgData, fmt=fmt, delimiter=',')
 
-    if xFpath is not None:
-        xFile = file(xFpath, 'w')
-        xFile = file(xFpath, 'a')
 
-    if yFpath is not None:
-        yFile = file(yFpath, 'w')
-        yFile = file(yFpath, 'a')
+    def _imgs_to_file(imgs, _file):
+        if _file is not None:
+            for curImg in imgs:
+                _img_to_file(curImg, _file)
 
-    if sampleXFpath is not None:
-        sampleXFile = file(sampleXFpath, 'w')
-        sampleXFile = file(sampleXFpath, 'a')
 
-    if sampleYFpath is not None:
-        sampleYFile = file(sampleYFpath, 'w')
-        sampleYFile = file(sampleYFpath, 'a')
+    def _y_to_file(_y, _file):
+        if _file is not None:
+            np.savetxt(_file, np.ones((1 + len(angles))) * _y, fmt=fmt, delimiter=',')
 
+
+    def _close(_file):
+        if _file is not None:
+            _file.close()
+
+    # ---- initialize files ----
+    # files are automatically set to None if paths are not given
+    xFile_train = make_append_file(xFpath_train)
+    yFile_train = make_append_file(yFpath_train)
+
+    xFile_val = make_append_file(xFpath_val)
+    yFile_val = make_append_file(yFpath_val)
+
+    sampleXFile_train = make_append_file(sampleXFpath_train)
+    sampleYFile_train = make_append_file(sampleYFpath_train)
+
+    sampleXFile_val = make_append_file(sampleXFpath_val)
+    sampleYFile_val = make_append_file(sampleYFpath_val)
+
+
+    # ---- read all Ys ----
+    classLabels, fpaths = zip(*[(CLASS_MAPPING[fpath.strip().split(os.sep)[-2]], fpath.strip()) for fpath in open(trainFListFpath)])
+    numSamples = len(classLabels)
+
+    # ---- split into training and validation datasets ----
+    trainInds, valInds = StratifiedShuffleSplit(classLabels, n_iter=1, test_size=validation_size)._iter_indices().next()
+
+
+    # ---- output to files ----
     printIs = [int(i/100.*numSamples) for i in np.arange(100)]
 
-    for i, fpath in enumerate(open(trainFListFpath)):
+    for i, curY in enumerate(classLabels):
 
-        # print '-------', i
+        curDatapath = fpaths[i]
+
+        if i in printIs: print '%i%% done...' % (100. * i/numSamples)
+        assert i in trainInds or i in valInds, '%i not found in either train indices or validation indices.' % i
+
         try:
-            fpath = fpath.strip()
 
-            className = fpath.split(os.sep)[-2]
-            classLabel = CLASS_MAPPING[className]
+            curImgs = create_images(ddf(curDatapath), width, height, angles=angles)
 
-            # ---- write X
+            _imgs_to_file(curImgs, xFile_train if i in trainInds else xFile_val)
+            _y_to_file(curY, yFile_train if i in trainInds else yFile_val)
 
-            # the original image
-            img = 1 - trim_image(imread(os.path.join(DATA_DIR, fpath)))
-
-            origImg = resize(img, (width, height)).ravel().reshape(1, imgSize).astype(theano.config.floatX)
-
-            if xFpath is not None:
-                np.savetxt(xFile, origImg, fmt=fmt, delimiter=',')
-
+            # sample files
             if sampleFrequency is not None and i % sampleFrequency==0:
-                np.savetxt(sampleXFile, origImg, fmt=fmt, delimiter=',')
-
-            # roated images
-            for angle in angles:
-                angledImg = resize(rotate(img, angle), (width, height)).ravel().reshape(1, imgSize).astype(theano.config.floatX)
-
-                if xFpath is not None:
-                    np.savetxt(xFile, angledImg, fmt=fmt, delimiter=',')
-
-                if sampleFrequency is not None and i % sampleFrequency==0:
-                    np.savetxt(sampleXFile, angledImg, fmt=fmt, delimiter=',')
-
-            # ---- write Y
-            if yFpath is not None:
-                np.savetxt(yFile, np.ones((1 + len(angles))) * classLabel, fmt=fmt)
-
-            if sampleFrequency is not None and i % sampleFrequency==0:
-                np.savetxt(sampleYFile, np.ones((1 + len(angles))) * classLabel, fmt=fmt, delimiter=',')
+                _imgs_to_file(curImgs, sampleXFile_train if i in trainInds else sampleXFile_val)
+                _y_to_file(curY, sampleYFile_train if i in trainInds else sampleYFile_val)
 
         except Exception as e:
-            print 'Skipping image %s due to error %s' % (fpath, e.message)
+            print 'Skipping image %s due to error: %s' % (curDatapath, e.message)
 
-        if i in printIs:
-            print '%i%% done...' % (100. * i/numSamples)
 
-    if xFpath is not None:
-        xFile.close()
-
-    if yFpath is not None:
-        yFile.close()
-
-    if sampleXFpath is not None:
-        sampleXFile.close()
-
-    if sampleYFpath is not None:
-        sampleYFile.close()
+    # close files
+    for f in xFile_train, xFile_val, yFile_train, yFile_val, sampleXFile_train, sampleXFile_val, sampleYFile_train, sampleYFile_val:
+        _close(f)
 
 
 def write_train_data_to_files(sizes,
@@ -370,9 +408,26 @@ def make_submission_file(pred, testFnames,
 
     return outputFpath
 
+
+def str_angles(angles):
+    """  doesn't output negative signs
+    :param angles:
+    :return:
+    """
+    return ''.join(str(abs(a)) for a in angles)
+
+def str_shape(width, height):
+    return '%i_%i' % (width, height)
+
+def ddf(*fpaths):
+    return os.path.join(DATA_DIR, *fpaths)
+
+
 if __name__ == '__main__':
 
     width, height = 48, 48
+    angles = [-1, 1, -2, 2]
+
     # write_train_data_to_files([(25, 25)])
 
     # x_train, _ = create_training_data_table(os.path.join(DATA_DIR, 'trainFnames.txt'), width, height)
@@ -390,10 +445,27 @@ if __name__ == '__main__':
     #     to_csv(os.path.join(DATA_DIR, 'X_test_%i_%i_simple.csv' % (width, height)), header=False)
     #
 
-    write_test_data_table_simple(os.path.join(DATA_DIR, 'testFnames.txt'),
-                                 width, height,
-                                 xFpath=os.path.join(DATA_DIR, 'X_test_48_48_-112233.csv'),
-                                 angles=[-1, 1, -2, 2, -3, 3],
-                                 fmt='%.4e'
-    )
+    # write_test_data_table_simple(os.path.join(DATA_DIR, 'testFnames.txt'),
+    #                              width, height,
+    #                              xFpath=os.path.join(DATA_DIR, 'X_test_48_48_-112233.csv'),
+    #                              angles=[-1, 1, -2, 2, -3, 3],
+    #                              fmt='%.4e'
+    # )
+
+    baseDir = lambda *args: os.path.join(ddf(str_shape(width, height), str_angles(angles=angles)), *args)
+
+    write_training_data_table_angles(ddf('trainFnames.txt'),
+                                     width, height, angles=angles, fmt='%.4e', validation_size=0.1,
+
+                                     xFpath_train=baseDir('train', 'fullX.csv'),
+                                     xFpath_val=baseDir('val', 'fullX.csv'),
+                                     yFpath_train=baseDir('train', 'fullY.csv'),
+                                     yFpath_val=baseDir('val', 'fullY.csv'),
+
+                                     sampleFrequency=10,
+                                     sampleXFpath_train=baseDir('train', 'sampleX.csv'),
+                                     sampleXFpath_val=baseDir('val', 'sampleX.csv'),
+                                     sampleYFpath_train=baseDir('train', 'sampleY.csv'),
+                                     sampleYFpath_val=baseDir('val', 'sampleY.csv'),
+                                     )
 

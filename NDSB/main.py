@@ -208,6 +208,8 @@ if __name__ == '__main__':
     # write_test_data_to_files([(15, 15), (30, 30), (40, 40)])
 
 
+
+
     xdata = np.array(pandas.read_csv('/Users/jennyyuejin/K/NDSB/Data/X_train_48_48_simple.csv', header=None))
     ydata = np.array(pandas.read_csv('/Users/jennyyuejin/K/NDSB/Data/y.csv', header=None, dtype=int)).ravel()
 

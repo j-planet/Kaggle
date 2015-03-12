@@ -746,7 +746,7 @@ def read_test_data_in_chunk(chunk):
 
 if __name__ == '__main__':
 
-    BATCH_SIZE = 30
+    BATCH_SIZE = 500
     EDGE_LENGTH = 48
 
     # X_TRAIN_FPATH = '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i_simple.csv' % (EDGE_LENGTH, EDGE_LENGTH)
@@ -798,12 +798,12 @@ if __name__ == '__main__':
 
 
     numEpochs = 100
-    cnnObj.train(saveParameters = True, n_epochs=numEpochs, patience=20000)
+    # cnnObj.train(saveParameters = True, n_epochs=numEpochs, patience=20000)
 
 
     # ------ predict
-    # cnnObj.fill_in_parameters('/Users/jennyyuejin/K/tryTheano/'
-    #                           'params_[96, 128, 128]_[48, 48]_[(5, 5), (3, 3), (3, 3)]_[1, 1, 1]_[3, 1, 3]_[3, 1, 3]_[512, 512]_[0.5, 0.5]_0.05_0_2e-05_30-3355.save')
+    cnnObj.fill_in_parameters('/Users/jennyyuejin/K/tryTheano/'
+                              'params_[96, 128, 128]_[48, 48]_[(5, 5), (3, 3), (3, 3)]_[1, 1, 1]_[3, 1, 3]_[3, 1, 3]_[512, 512]_[0.5, 0.5]_0.05_0_2e-05_30-3355.save')
     # cnnObj.predict('/Users/jennyyuejin/K/NDSB/Data/submissions',
     #                '/Users/jennyyuejin/K/NDSB/Data/X_test_%i_%i_-3355.csv' % (EDGE_LENGTH, EDGE_LENGTH),
     #                '/Users/jennyyuejin/K/NDSB/Data/testFnames.txt',
