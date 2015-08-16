@@ -223,7 +223,8 @@ def create_images(dataFpath, width, height, angles=[]):
 
 
 
-def write_training_data_table_angles(trainFListFpath,
+def write_training_data_table_angles(rnd_seed,
+                                     trainFListFpath,
                                      width, height, angles=[], fmt='%.7e',
                                      xFpath_train=None, yFpath_train=None,
                                      xFpath_val=None, yFpath_val=None,
@@ -239,14 +240,10 @@ def write_training_data_table_angles(trainFListFpath,
                 y (numpy array of size (numImgs,))
     """
 
-    def _img_to_file(_imgData, _file):
-        np.savetxt(_file, _imgData, fmt=fmt, delimiter=',')
-
-
     def _imgs_to_file(imgs, _file):
         if _file is not None:
             for curImg in imgs:
-                _img_to_file(curImg, _file)
+                np.savetxt(_file, curImg, fmt=fmt, delimiter=',')
 
 
     def _y_to_file(_y, _file):
@@ -274,11 +271,12 @@ def write_training_data_table_angles(trainFListFpath,
 
 
     # ---- read all Ys ----
-    classLabels, fpaths = zip(*[(CLASS_MAPPING[fpath.strip().split(os.sep)[-2]], fpath.strip()) for fpath in open(trainFListFpath)])
+    temp = [(CLASS_MAPPING[fpath.strip().split(os.sep)[-2]], fpath.strip()) for fpath in open(trainFListFpath)]
+    classLabels, fpaths = zip(*temp)
     numSamples = len(classLabels)
 
     # ---- split into training and validation datasets ----
-    trainInds, valInds = StratifiedShuffleSplit(classLabels, n_iter=1, test_size=validation_size)._iter_indices().next()
+    trainInds, valInds = StratifiedShuffleSplit(classLabels, n_iter=1, test_size=validation_size, random_state=rnd_seed)._iter_indices().next()
 
 
     # ---- output to files ----
@@ -414,7 +412,11 @@ def str_angles(angles):
     :param angles:
     :return:
     """
-    return ''.join(str(abs(a)) for a in angles)
+
+    if len(angles)==0:
+        return 'noAngles'
+    else:
+        return ''.join(str(abs(a)) for a in angles)
 
 def str_shape(width, height):
     return '%i_%i' % (width, height)
@@ -426,7 +428,6 @@ def ddf(*fpaths):
 if __name__ == '__main__':
 
     width, height = 48, 48
-    angles = [-1, 1, -2, 2]
 
     # write_train_data_to_files([(25, 25)])
 
@@ -452,9 +453,15 @@ if __name__ == '__main__':
     #                              fmt='%.4e'
     # )
 
+    # for angles in [[-1, 1, 2, 2], [-1, 1, -2, 2, -3, 3], []]:
+    angles = [-3, 3]
+
+    print angles
+
     baseDir = lambda *args: os.path.join(ddf(str_shape(width, height), str_angles(angles=angles)), *args)
 
-    write_training_data_table_angles(ddf('trainFnames.txt'),
+    write_training_data_table_angles(99,
+                                     ddf('trainFnames.txt'),
                                      width, height, angles=angles, fmt='%.4e', validation_size=0.1,
 
                                      xFpath_train=baseDir('train', 'fullX.csv'),
@@ -466,6 +473,6 @@ if __name__ == '__main__':
                                      sampleXFpath_train=baseDir('train', 'sampleX.csv'),
                                      sampleXFpath_val=baseDir('val', 'sampleX.csv'),
                                      sampleYFpath_train=baseDir('train', 'sampleY.csv'),
-                                     sampleYFpath_val=baseDir('val', 'sampleY.csv'),
-                                     )
+                                     sampleYFpath_val=baseDir('val', 'sampleY.csv')
+    )
 

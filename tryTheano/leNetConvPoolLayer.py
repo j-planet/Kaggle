@@ -8,6 +8,7 @@ import theano
 import theano.tensor as T
 from theano.tensor.nnet import conv
 from theano.tensor.signal import downsample
+from theano.tensor.signal.downsample import DownsampleFactorMax
 from theano.sandbox.cuda.basic_ops import gpu_contiguous
 from pylearn2.sandbox.cuda_convnet.filter_acts import FilterActs
 from pylearn2.sandbox.cuda_convnet.pool import MaxPool
@@ -26,7 +27,7 @@ class LeNetConvPoolLayer(object):
     def __init__(self, rng, input, filter_shape,
                  poolWidth, poolStride,
                  filterStride,
-                 poolPadding = (0, 0),
+                 poolPadding = 0,
                  image_shape = None,
                  activation = T.tanh):
         """
@@ -85,7 +86,6 @@ class LeNetConvPoolLayer(object):
         self.b = theano.shared(value=b_values, borrow=True)
 
 
-
         if useNew:  # doesn't work yet
 
             input_shuffled = input.dimshuffle(1, 2, 3, 0) # bc01 to c01b
@@ -110,14 +110,21 @@ class LeNetConvPoolLayer(object):
                 # subsample=self.filterStrideFactor
             )
 
+
             # downsample each feature map individually, using maxpooling
-            pooled_out = downsample.max_pool_2d(
-                input=conv_out,
-                ds = [poolWidth, poolWidth],
-                st = [poolStride, poolStride],
-                padding=poolPadding,
-                ignore_border=True
-            )
+            poolOp = DownsampleFactorMax(ds = [poolWidth, poolWidth],
+                                st = [poolStride, poolStride],
+                                padding=(poolPadding, poolPadding),
+                                ignore_border=True)
+            pooled_out = poolOp(conv_out)
+
+            # pooled_out = downsample.max_pool_2d(
+            #     input=conv_out,
+            #     ds = [poolWidth, poolWidth],
+            #     st = [poolStride, poolStride],
+            #     padding=(poolPadding, poolPadding),
+            #     ignore_border=True
+            # )
 
 
         # add the bias term. Since the bias is a vector (1D array), we first
@@ -127,7 +134,6 @@ class LeNetConvPoolLayer(object):
         self.lin_output = pooled_out + self.b.dimshuffle('x', 0, 'x', 'x')
 
         self.output = self.lin_output if activation is None else activation(self.lin_output)
-        self.output_print = theano.printing.Print('LeNet output', attrs=['__str__', 'shape'])(self.output)
 
         # store parameters of this layer
         self.params = [self.W, self.b]

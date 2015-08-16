@@ -30,7 +30,7 @@ sys.path.extend(['/Users/jennyyuejin/K/tryTheano','/Users/jennyyuejin/K'])
 from logisticRegressionExample import LogisticRegression, load_data
 from mlpExample import HiddenLayer
 
-from NDSB.fileMangling import make_submission_file
+from NDSB.fileMangling import ddf, str_shape
 from NDSB.global_vars import CLASS_NAMES
 from leNetConvPoolLayer import LeNetConvPoolLayer
 
@@ -39,7 +39,7 @@ plt.ioff()
 DEBUG_VERBOSITY = 0
 print theano.config.device
 
-global BATCH_SIZE, EDGE_LENGTH, X_TRAIN_FPATH, Y_FPATH
+global BATCH_SIZE, EDGE_LENGTH, BASE_DATA_DIR, USE_FULL
 
 
 def inspect_inputs(i, node, fn):
@@ -78,6 +78,7 @@ class CNN(object):
                  filterStrides,
                  poolWidths,
                  poolStrides,
+                 poolPaddings,
                  n_hiddens,
                  dropOutRates,
                  strideFactor = (1, 1),
@@ -156,6 +157,7 @@ class CNN(object):
             filter_shape=(numFeatureMaps[0], 1, filterShapes[0][0], filterShapes[0][1]),
             poolWidth=poolWidths[0],
             poolStride=poolStrides[0],
+            poolPadding=poolPaddings[0],
             # activation=reLU
             # activation=lambda _x: reLU(T.tanh(_x))
             filterStride=filterStrides[0]
@@ -170,6 +172,7 @@ class CNN(object):
                 filter_shape=(numFeatureMaps[i], numFeatureMaps[i-1], filterShapes[i][0], filterShapes[i][1]),
                 poolWidth=poolWidths[i],
                 poolStride=poolStrides[i],
+                poolPadding=poolPaddings[i],
                 filterStride=filterStrides[i]
                 # activation=lambda x: reLU(T.tanh(x))
                 # activation=reLU
@@ -231,7 +234,7 @@ class CNN(object):
         else:
             (self.train_set_x, self.train_set_y), \
             (self.valid_set_x, self.valid_set_y) \
-                = read_train_data(X_TRAIN_FPATH, validationSize=0.1, testSize=None, yfpath=Y_FPATH)
+                = read_train_data()
 
         # training parameters
         index = T.scalar(dtype='int32')  # index to a [mini]batch
@@ -294,9 +297,6 @@ class CNN(object):
                 y: self.valid_set_y[index * BATCH_SIZE: (index + 1) * BATCH_SIZE]
             },
             name='validation_model',
-            # mode=theano.compile.MonitorMode(
-            #     pre_func=inspect_inputs,
-            #     post_func=inspect_outputs),
             allow_input_downcast=True
         )
 
@@ -304,16 +304,13 @@ class CNN(object):
             [x],
             self.lastLayer.p_y_given_x,
             name='predict_model',
-            # mode=theano.compile.MonitorMode(
-            #     pre_func=inspect_inputs,
-            #     post_func=inspect_outputs)
             allow_input_downcast=True
         )
 
         self.print_stuff = theano.function(
             [index],
             [
-
+                theano.printing.Print('layer0 input', attrs=['shape'])(self.convPoolLayers[0].input)
             ],
 
             # + theano.printing.Print('x shape', attrs=['shape'])(x)],
@@ -455,13 +452,13 @@ class CNN(object):
             cpLayer.W.set_value(params[numSkip + 2*i].get_value())
             cpLayer.b.set_value(params[numSkip + 2*i + 1].get_value())
 
-    def shuffle_training_data(self, random_seed=None):
+    def shuffle_training_data(self):
 
         print 'Shuffling training X and y data...'
 
         numRows = self.train_set_x.shape[0]
 
-        srng = RandomStreams(seed = random_seed)
+        srng = RandomStreams(seed = None)
         mask = srng.permutation(n=numRows, size=(1,)).reshape((numRows,))
 
         self.train_set_x = self.train_set_x[mask]
@@ -524,7 +521,6 @@ class CNN(object):
         return numFeatureMaps, imageShape, filterShapes, poolWidths, n_hiddens, dropOutRates, learningRate, L1, L2
 
 
-
 def train(cnnObj, saveParameters, n_train_batches, n_valid_batches,
           train_model, validate_model, print_stuff,
           n_epochs, patience = 2000, patience_increase = 2, improvement_threshold = 0.999):
@@ -534,19 +530,9 @@ def train(cnnObj, saveParameters, n_train_batches, n_valid_batches,
     ###############
     print '... training'
 
-    # early-stopping parameters
-    # patience = 10000  # look as this many examples regardless
-    # patience_increase = 2  # wait this much longer when a new best is
-    # found
-    # improvement_threshold = 0.995  # a relative improvement of this much is
-    # considered significant
     validation_frequency = max(n_train_batches/10, 100)
-    shuffling_frequency = 2     # shuffle the training data every this many epochs
-    # go through this many
-    # minibatche before checking the network
-    # on the validation set; in this case we
-    # check every epoch
-    miniBatchPrints = range(n_train_batches)[::25]
+    shuffling_frequency = 1     # shuffle the training data every this many epochs
+    miniBatchPrints = range(n_train_batches)[::10]
 
     best_validation_loss = np.inf
     best_iter = 0
@@ -559,8 +545,7 @@ def train(cnnObj, saveParameters, n_train_batches, n_valid_batches,
         if epoch % shuffling_frequency == 0:
             cnnObj.shuffle_training_data()
 
-
-
+        totalTrainCost, trainCount = 0, 0
         print 'minibatch:'
         for minibatch_index in xrange(n_train_batches):
 
@@ -568,6 +553,7 @@ def train(cnnObj, saveParameters, n_train_batches, n_valid_batches,
                 print_stuff(minibatch_index)
 
             curTrainCost = train_model(minibatch_index)
+            totalTrainCost, trainCount = totalTrainCost + curTrainCost, trainCount + 1
 
             if minibatch_index in miniBatchPrints:
                 print minibatch_index, 'minibatch_avg_cost =', curTrainCost
@@ -576,26 +562,27 @@ def train(cnnObj, saveParameters, n_train_batches, n_valid_batches,
             iter = epoch * n_train_batches + minibatch_index
 
             if iter % validation_frequency == 0:
-
                 cnnObj.learningRate /= 1 + cnnObj.learningRateDecay * cnnObj.learningRate * (epoch + 1)
-                print 'Updating learning rate to be', cnnObj.learningRate
+                print 'Update learning rate to be', cnnObj.learningRate
 
                 # compute zero-one loss on validation set
-                validation_losses = [validate_model(i) for i
-                                     in xrange(n_valid_batches)]
+                validation_losses = [validate_model(i) for i in xrange(n_valid_batches)]
                 # print 'validation losses:', validation_losses
                 this_validation_loss = np.mean(validation_losses)
 
                 print(
-                    'epoch %i, minibatch %i/%i, val error %f (vs best val error of %f)' %
+                    'epoch %i, minibatch %i/%i, avg train error %.3f, average val error %.3f (vs best val error of %.3f)' %
                     (
                         epoch,
                         minibatch_index + 1,
                         n_train_batches,
+                        totalTrainCost / trainCount,
                         this_validation_loss,
                         best_validation_loss
                     )
                 )
+
+                totalTrainCost, trainCount = 0, 0
 
                 # if we got the best validation score until now
                 if this_validation_loss < best_validation_loss:
@@ -610,18 +597,6 @@ def train(cnnObj, saveParameters, n_train_batches, n_valid_batches,
                     best_validation_loss = this_validation_loss
                     best_iter = iter
 
-                    # test it on the test set
-                    # test_losses = [test_model(i) for i
-                    #                in xrange(n_test_batches)]
-                    # test_score = np.mean(test_losses)
-                    #
-                    # print(('     epoch %i, minibatch %i/%i, test error of '
-                    #        'best model %f %%') %
-                    #       (epoch, minibatch_index + 1, n_train_batches,
-                    #        test_score * 100.))
-                # elif this_validation_loss > best_validation_loss*1.05:   # shooting over in the wrong direction
-                #     print 'DECREASING rate-decreasing-multiple from %f to %f.' % (rate_dec_multiple, rate_dec_multiple/1.15)
-                #     rate_dec_multiple /= 1.15
                 else:
                     cnnObj.learningRateDecay *= 1.1
                     print 'Bumping learning rate decay to', cnnObj.learningRateDecay
@@ -642,54 +617,25 @@ def train(cnnObj, saveParameters, n_train_batches, n_valid_batches,
         pass
 
 
-def read_train_data(xtrainfpath,
-                    validationSize = 0.1,
-                    testSize = None,
-                    yfpath = '/Users/jennyyuejin/K/NDSB/Data/y.csv'):
+def read_train_data():
 
-    # read training data
-    print xtrainfpath
-    x_data = np.array(pandas.read_csv(xtrainfpath, header=None), dtype=theano.config.floatX)[:, : (EDGE_LENGTH**2)]
-    y_data = np.array(pandas.read_csv(yfpath, header=None), dtype=theano.config.floatX).ravel()
+    def _read_n_cast(*pathArgs):
+        return np.array(pandas.read_csv(BASE_DATA_DIR(*pathArgs), header=None), dtype=theano.config.floatX)
 
-    print x_data.dtype
+    fullOrSample = 'full' if USE_FULL else 'sample'
 
-    def _inner(splitFunc):
-        if testSize is not None:
-            temp, testInds = splitFunc(y_data, testSize)._iter_indices().next()
-            testX, testY = x_data[testInds], y_data[testInds]
+    trainX = _read_n_cast('train', fullOrSample + 'X.csv')
+    trainY = _read_n_cast('train', fullOrSample + 'Y.csv').ravel()
 
-            trainInds, validInds = splitFunc(y_data[temp], validationSize)._iter_indices().next()
-            trainX, trainY = x_data[temp][trainInds], y_data[temp][trainInds]
-            validX, validY = x_data[temp][validInds], y_data[temp][validInds]
+    valX = _read_n_cast('val', fullOrSample + 'X.csv')
+    valY = _read_n_cast('val', fullOrSample + 'Y.csv').ravel()
 
-            print trainX.dtype, validX.dtype
-            print trainX.shape, validX.shape
+    print trainX.dtype, trainX.shape, valX.shape
+    print trainY.dtype, trainY.shape, valY.shape
 
-            return [(make_var(trainX), T.cast(make_var(trainY), 'int32')),
-                    (make_var(validX), T.cast(make_var(validY), 'int32')),
-                    (make_var(testX), T.cast(make_var(testY), 'int32'))]
-        else:
-            trainInds, validInds = splitFunc(y_data, validationSize)._iter_indices().next()
+    return [(make_var(trainX), T.cast(make_var(trainY), 'int32')),
+            (make_var(valX), T.cast(make_var(valY), 'int32'))]
 
-            trainX, trainY = x_data[trainInds], y_data[trainInds]
-            validX, validY = x_data[validInds], y_data[validInds]
-
-            print trainX.dtype, validX.dtype
-            print trainX.shape, validX.shape
-
-            return [(make_var(trainX), T.cast(make_var(trainY), 'int32')),
-                    (make_var(validX), T.cast(make_var(validY), 'int32'))
-            ]
-
-    try:
-        ssf = lambda _y, _testSize: StratifiedShuffleSplit(_y, n_iter=1, test_size=_testSize, random_state=1)
-        return _inner(ssf)
-
-    except Exception as e:
-        print 'FAILED to use StratifiedShuffleSplit, switching to ShuffleSplit instead.', e.message
-        sf = lambda _y, _testSize: ShuffleSplit(len(_y), n_iter=1, test_size=_testSize, random_state=1)
-        return _inner(sf)
 
 
 def sanity_check():
@@ -746,16 +692,11 @@ def read_test_data_in_chunk(chunk):
 
 if __name__ == '__main__':
 
-    BATCH_SIZE = 500
+    BATCH_SIZE = 50
     EDGE_LENGTH = 48
 
-    # X_TRAIN_FPATH = '/Users/jennyyuejin/K/NDSB/Data/X_train_%i_%i_simple.csv' % (EDGE_LENGTH, EDGE_LENGTH)
-    # X_TRAIN_FPATH = '/Users/jennyyuejin/K/NDSB/Data/tinyX_-113355.csv'
-    X_TRAIN_FPATH = '/Users/jennyyuejin/K/NDSB/Data/X_train_48_48_-113355.csv'
-    # Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/y.csv'
-    # Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/tinyY_-113355.csv'
-    Y_FPATH = '/Users/jennyyuejin/K/NDSB/Data/y_-113355.csv'
-
+    BASE_DATA_DIR = lambda *args: os.path.join(ddf(str_shape(EDGE_LENGTH, EDGE_LENGTH), 'noAngles'), *args)
+    USE_FULL = False
 
     # ------ train
     # cnnObj = CNN(len(CLASS_NAMES),
@@ -786,24 +727,26 @@ if __name__ == '__main__':
                  filterShapes = [(5, 5), (3, 3), (3, 3)],
                  filterStrides = [1, 1, 1],
                  poolWidths = [3, 1, 3],
-                 poolStrides = [3, 1, 3],
-                 # poolStrides=[3, 1, 3],
+                 # poolStrides = [2, 1, 2],
+                 poolStrides=[3, 1, 3],
+                 poolPaddings=[2, 0, 2],
+                 # poolPaddings=[0, 0, 0],
                  n_hiddens=[512, 512],
                  dropOutRates=[0.5, 0.5],
                  # initialLearningRate=0.005,
-                 initialLearningRate=0.05,
-                 L1_reg=0, L2_reg=0.00003,
-                 rndState=0
+                 initialLearningRate=0.1,
+                 L1_reg=0, L2_reg=0.001,
+                 rndState=None
     )
 
 
-    numEpochs = 100
-    # cnnObj.train(saveParameters = True, n_epochs=numEpochs, patience=20000)
+    numEpochs = 200
+    cnnObj.train(saveParameters = False, n_epochs=numEpochs, patience=20000)
 
 
     # ------ predict
-    cnnObj.fill_in_parameters('/Users/jennyyuejin/K/tryTheano/'
-                              'params_[96, 128, 128]_[48, 48]_[(5, 5), (3, 3), (3, 3)]_[1, 1, 1]_[3, 1, 3]_[3, 1, 3]_[512, 512]_[0.5, 0.5]_0.05_0_2e-05_30-3355.save')
+    # cnnObj.fill_in_parameters('/Users/jennyyuejin/K/tryTheano/'
+    #                           'params_[96, 128, 128]_[48, 48]_[(5, 5), (3, 3), (3, 3)]_[1, 1, 1]_[3, 1, 3]_[3, 1, 3]_[512, 512]_[0.5, 0.5]_0.05_0_2e-05_30-3355.save')
     # cnnObj.predict('/Users/jennyyuejin/K/NDSB/Data/submissions',
     #                '/Users/jennyyuejin/K/NDSB/Data/X_test_%i_%i_-3355.csv' % (EDGE_LENGTH, EDGE_LENGTH),
     #                '/Users/jennyyuejin/K/NDSB/Data/testFnames.txt',
