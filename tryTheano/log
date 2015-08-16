@@ -1,0 +1,5 @@
+Using gpu device 0: GeForce GT 750M
+/Library/Python/2.7/site-packages/theano/tensor/subtensor.py:110: FutureWarning: comparison to `None` will result in an elementwise object comparison in the future.
+  start in [None, 0] or
+/Library/Python/2.7/site-packages/theano/tensor/subtensor.py:114: FutureWarning: comparison to `None` will result in an elementwise object comparison in the future.
+  stop in [None, length, maxsize] or
